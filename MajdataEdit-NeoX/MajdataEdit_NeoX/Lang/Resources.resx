@@ -1,0 +1,494 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- 
+		Microsoft ResX Schema
+
+		Version 1.3
+
+		The primary goals of this format is to allow a simple XML format 
+		that is mostly human readable. The generation and parsing of the 
+		various data types are done through the TypeConverter classes 
+		associated with the data types.
+
+		Example:
+
+		... ado.net/XML headers & schema ...
+		<resheader name="resmimetype">text/microsoft-resx</resheader>
+		<resheader name="version">1.3</resheader>
+		<resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+		<resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+		<data name="Name1">this is my long string</data>
+		<data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+		<data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+			[base64 mime encoded serialized .NET Framework object]
+		</data>
+		<data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+			[base64 mime encoded string representing a byte array form of the .NET Framework object]
+		</data>
+
+		There are any number of "resheader" rows that contain simple 
+		name/value pairs.
+
+		Each data row contains a name, and value. The row also contains a 
+		type or mimetype. Type corresponds to a .NET class that support 
+		text/value conversion through the TypeConverter architecture. 
+		Classes that don't support this are serialized and stored with the 
+		mimetype set.
+
+		The mimetype is used for serialized objects, and tells the 
+		ResXResourceReader how to depersist the object. This is currently not 
+		extensible. For a given mimetype the value must be set accordingly:
+
+		Note - application/x-microsoft.net.object.binary.base64 is the format 
+		that the ResXResourceWriter will generate, however the reader can 
+		read any of the formats listed below.
+
+		mimetype: application/x-microsoft.net.object.binary.base64
+		value   : The object must be serialized with 
+			: System.Serialization.Formatters.Binary.BinaryFormatter
+			: and then encoded with base64 encoding.
+
+		mimetype: application/x-microsoft.net.object.soap.base64
+		value   : The object must be serialized with 
+			: System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+			: and then encoded with base64 encoding.
+
+		mimetype: application/x-microsoft.net.object.bytearray.base64
+		value   : The object must be serialized into a byte array 
+			: using a System.ComponentModel.TypeConverter
+			: and then encoded with base64 encoding.
+	-->
+
+	<xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+		<xsd:element name="root" msdata:IsDataSet="true">
+			<xsd:complexType>
+				<xsd:choice maxOccurs="unbounded">
+					<xsd:element name="data">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+								<xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+							<xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+							<xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="resheader">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" />
+						</xsd:complexType>
+					</xsd:element>
+				</xsd:choice>
+			</xsd:complexType>
+		</xsd:element>
+	</xsd:schema>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>1.3</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.3500.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.3500.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="Cat_EditSetting" xml:space="preserve">
+    <value>Edit Setting</value>
+  </data>
+	<data name="Cat_ViewSetting" xml:space="preserve">
+    <value>View Setting</value>
+  </data>
+	<data name="Cat_VolumeSetting" xml:space="preserve">
+    <value>Volume Setting</value>
+  </data>
+	<data name="Gui_Difficulty" xml:space="preserve">
+    <value>Difficulty</value>
+  </data>
+	<data name="Gui_File" xml:space="preserve">
+    <value>File</value>
+  </data>
+	<data name="Gui_New" xml:space="preserve">
+    <value>New</value>
+  </data>
+	<data name="Set_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+	<data name="Gui_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+	<data name="Gui_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+	<data name="Gui_ExportVideo" xml:space="preserve">
+    <value>Export Video From Here</value>
+  </data>
+	<data name="Gui_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+	<data name="Gui_MirrorHorizontally" xml:space="preserve">
+    <value>Mirror Horizontally</value>
+  </data>
+	<data name="Gui_MirrorVertically" xml:space="preserve">
+    <value>Mirror Vertically</value>
+  </data>
+	<data name="Gui_Mirror180" xml:space="preserve">
+    <value>Center Symmetric Mirror</value>
+  </data>
+	<data name="Gui_Rotate45" xml:space="preserve">
+    <value>Rotate 45° CW</value>
+  </data>
+	<data name="Gui_RotateNeg45" xml:space="preserve">
+    <value>Rotate 45° CCW</value>
+  </data>
+	<data name="Gui_Subdivide1p5x" xml:space="preserve">
+    <value>Subdivide 1.5 Times</value>
+  </data>
+	<data name="Gui_Subdivide2x" xml:space="preserve">
+    <value>Subdivide 2 Times</value>
+  </data>
+	<data name="Gui_ChartInfo" xml:space="preserve">
+    <value>Chart Info</value>
+  </data>
+	<data name="Gui_FindAndReplace" xml:space="preserve">
+    <value>Find and Replace</value>
+  </data>
+	<data name="Gui_Setting" xml:space="preserve">
+    <value>Setting</value>
+  </data>
+	<data name="Gui_Tools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+	<data name="Gui_BpmTap" xml:space="preserve">
+    <value>BPM Tap</value>
+  </data>
+	<data name="Gui_CompressBgVideo" xml:space="preserve">
+    <value>Compress bg.mp4</value>
+  </data>
+	<data name="Gui_About" xml:space="preserve">
+    <value>About</value>
+  </data>
+	<data name="Gui_Level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+	<data name="Gui_Designer" xml:space="preserve">
+    <value>Des</value>
+  </data>
+	<data name="Gui_Offset" xml:space="preserve">
+    <value>Offset</value>
+  </data>
+	<data name="Gui_Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+	<data name="Gui_FollowCursor" xml:space="preserve">
+    <value>Follow Cursor</value>
+  </data>
+	<data name="Gui_Record" xml:space="preserve">
+    <value>Record</value>
+  </data>
+	<data name="Gui_Connected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+	<data name="Gui_SelectBgImage" xml:space="preserve">
+    <value>Select Background Image</value>
+  </data>
+	<data name="Gui_SelectBgVideo" xml:space="preserve">
+    <value>Select Background Video</value>
+  </data>
+	<data name="Gui_Title" xml:space="preserve">
+    <value>&amp;title</value>
+  </data>
+	<data name="Gui_Artist" xml:space="preserve">
+    <value>&amp;artist</value>
+  </data>
+	<data name="Gui_FinalDesigner" xml:space="preserve">
+    <value>&amp;des</value>
+  </data>
+	<data name="Gui_Commands" xml:space="preserve">
+    <value>Other Commands</value>
+  </data>
+	<data name="Gui_Tap" xml:space="preserve">
+    <value>Tap</value>
+  </data>
+	<data name="Gui_Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+	<data name="Win_ChartInfo" xml:space="preserve">
+    <value>Chart Info</value>
+  </data>
+	<data name="Win_BpmTap" xml:space="preserve">
+    <value>BPM Tap</value>
+  </data>
+	<data name="Win_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+	<data name="Set_FontSize" xml:space="preserve">
+    <value>Font Size</value>
+  </data>
+	<data name="Set_AutoCheckUpdatesOnStartup" xml:space="preserve">
+    <value>Auto Check Updates On Startup</value>
+  </data>
+	<data name="Set_TapSpeed" xml:space="preserve">
+    <value>Tap Speed</value>
+  </data>
+	<data name="Set_TouchSpeed" xml:space="preserve">
+    <value>Touch Speed</value>
+  </data>
+	<data name="Set_SmoothSlideAnime" xml:space="preserve">
+    <value>Smooth Slide Animation</value>
+  </data>
+	<data name="Set_BackgroundDim" xml:space="preserve">
+    <value>Background Dim</value>
+  </data>
+	<data name="Set_ComboStatusType" xml:space="preserve">
+    <value>Combo Status Type</value>
+  </data>
+	<data name="Set_JudgeDisplayMode" xml:space="preserve">
+    <value>Judge Display Mode</value>
+  </data>
+	<data name="Set_AutoMode" xml:space="preserve">
+    <value>Auto Mode</value>
+  </data>
+	<data name="Set_OutputFps" xml:space="preserve">
+    <value>Output FPS</value>
+  </data>
+	<data name="Set_ResizeBg" xml:space="preserve">
+    <value>FullScreen BG</value>
+  </data>
+	<data name="Set_GlobalAudioOffset" xml:space="preserve">
+    <value>Global Audio Offset</value>
+  </data>
+	<data name="Set_LegacySlideLayer" xml:space="preserve">
+    <value>Legacy Slide Layer</value>
+  </data>
+	<data name="Set_Answer" xml:space="preserve">
+    <value>Answer</value>
+  </data>
+	<data name="Set_Break" xml:space="preserve">
+    <value>Break</value>
+  </data>
+	<data name="Set_Slide" xml:space="preserve">
+    <value>Slide</value>
+  </data>
+	<data name="Set_Tap" xml:space="preserve">
+    <value>Tap</value>
+  </data>
+	<data name="Set_Touch" xml:space="preserve">
+    <value>Touch</value>
+  </data>
+	<data name="Set_Track" xml:space="preserve">
+    <value>Track</value>
+  </data>
+	<data name="Status_Idle" xml:space="preserve">
+    <value>Idle</value>
+  </data>
+	<data name="Status_Loaded" xml:space="preserve">
+    <value>Loaded</value>
+  </data>
+	<data name="Status_Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+	<data name="Status_Playing" xml:space="preserve">
+    <value>Playing</value>
+  </data>
+	<data name="Status_Paused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+	<data name="Status_Busy" xml:space="preserve">
+    <value>Busy</value>
+  </data>
+	<data name="Status_Disconnected" xml:space="preserve">
+    <value>Disconnected</value>
+  </data>
+	<data name="Status_Compressing" xml:space="preserve">
+    <value>Compressing video... (Press Esc to cancel)</value>
+  </data>
+	<data name="Status_CompressComplete" xml:space="preserve">
+    <value>Video compression complete</value>
+  </data>
+	<data name="Status_CompressFailed" xml:space="preserve">
+    <value>Video compression failed</value>
+  </data>
+	<data name="Status_NoBgVideo" xml:space="preserve">
+    <value>No bg.mp4/pv.mp4 found</value>
+  </data>
+	<data name="Status_NoFfmpeg" xml:space="preserve">
+    <value>ffmpeg.exe not found, check if view is in the folder</value>
+  </data>
+	<data name="Gui_CheckUpdate" xml:space="preserve">
+    <value>Check Update</value>
+  </data>
+	<data name="Msg_CheckUpdateRequestFail" xml:space="preserve">
+    <value>Failed to fetch data, please check your internet connection.</value>
+  </data>
+	<data name="Msg_CheckUpdateParseFail" xml:space="preserve">
+    <value>Failed to parse data, maybe you have checked update too many times</value>
+  </data>
+	<data name="Msg_NewVersionDetected" xml:space="preserve">
+    <value>New Version detected: {0}
+(Current Version: {1})
+
+Do you want to download the latest update of Majdata?</value>
+  </data>
+	<data name="Msg_DisablingAutoCheckUpdate" xml:space="preserve">
+    <value>You can disable AutoCheckUpdate in "Setting-&gt;Editor Setting"</value>
+  </data>
+	<data name="Msg_NoNewVersion" xml:space="preserve">
+    <value>You are already at the latest version</value>
+  </data>
+	<data name="Set_UIType" xml:space="preserve">
+    <value>UI Type</value>
+  </data>
+	<data name="Gui_MediaQuickProcess" xml:space="preserve">
+    <value>Media Quick Process</value>
+  </data>
+	<data name="Gui_MediaQuickProcessDesc" xml:space="preserve">
+    <value>Adjust audio/video timing based on BPM and offset</value>
+  </data>
+	<data name="Gui_BeatsCount" xml:space="preserve">
+    <value>Beats</value>
+  </data>
+	<data name="Gui_FreezeFrame" xml:space="preserve">
+    <value>Freeze First Frame</value>
+  </data>
+	<data name="Gui_Confirm" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+	<data name="Gui_Warning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+	<data name="Gui_Success" xml:space="preserve">
+    <value>Success</value>
+  </data>
+	<data name="Msg_MaidataAlreadyExist" xml:space="preserve">
+    <value>Maidata Already Exist</value>
+  </data>
+	<data name="Msg_ChartNotSaved" xml:space="preserve">
+    <value>Chart not yet saved. Save it now?</value>
+  </data>
+	<data name="Msg_NoBpmInChart" xml:space="preserve">
+    <value>Please enter '(BPM){1},' in the chart first!</value>
+  </data>
+	<data name="Msg_InvalidBeatsCount" xml:space="preserve">
+    <value>Invalid Beats Count!</value>
+  </data>
+	<data name="Msg_MediaProcessComplete" xml:space="preserve">
+    <value>Media processing complete</value>
+  </data>
+	<data name="Msg_MediaProcessFailed" xml:space="preserve">
+    <value>Adjust failed: {0}</value>
+  </data>
+	<data name="Msg_ExtractAudioFailed" xml:space="preserve">
+    <value>Extract failed: {0}</value>
+  </data>
+	<data name="Status_Processing" xml:space="preserve">
+    <value>Processing media...</value>
+  </data>
+	<data name="Status_ExtractingAudio" xml:space="preserve">
+    <value>Extracting audio... (Press Esc to cancel)</value>
+  </data>
+	<data name="Gui_NewChartFromVideo" xml:space="preserve">
+    <value>New Chart From Video</value>
+  </data>
+	<data name="Msg_BgTooLarge" xml:space="preserve">
+    <value>bg.mp4 is too large, Compress?</value>
+  </data>
+	<data name="Set_WaveAnimated" xml:space="preserve">
+    <value>Wave Animate</value>
+  </data>
+	<data name="Set_ButtonFirst" xml:space="preserve">
+    <value>DJAuto Button First</value>
+  </data>
+	<data name="Set_BackgroundImagePath" xml:space="preserve">
+    <value>Editor Background Image</value>
+  </data>
+	<data name="Gui_PlaybackSpeed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+	<data name="Set_ShowHand" xml:space="preserve">
+    <value>Show Autoplay's Hand</value>
+  </data>
+	<data name="Set_WordWrap" xml:space="preserve">
+    <value>Word Wrap</value>
+  </data>
+	<data name="Gui_Info" xml:space="preserve">
+    <value>Info</value>
+  </data>
+	<data name="Msg_AskCloseView" xml:space="preserve">
+    <value>Close View?</value>
+  </data>
+	<data name="Set_MineAutoSlide" xml:space="preserve">
+    <value>Mine Slide Autoplay</value>
+  </data>
+	<data name="Set_BackgroundOutsideDim" xml:space="preserve">
+    <value>Outside Background Dim</value>
+  </data>
+	<data name="Win_Recover" xml:space="preserve">
+    <value>Autosave Recover</value>
+  </data>
+	<data name="Gui_Recover" xml:space="preserve">
+    <value>Recover</value>
+  </data>
+	<data name="Msg_RecoverFailed" xml:space="preserve">
+    <value>Failed to recover the autosave file.</value>
+  </data>
+	<data name="Msg_NoAutoSaveFound" xml:space="preserve">
+    <value>No autosave files are available.</value>
+  </data>
+	<data name="Gui_AutoSaves" xml:space="preserve">
+    <value>Autosaves</value>
+  </data>
+	<data name="Gui_Global" xml:space="preserve">
+    <value>Global</value>
+  </data>
+	<data name="Gui_Local" xml:space="preserve">
+    <value>Local</value>
+  </data>
+	<data name="Set_ExportQuality" xml:space="preserve">
+    <value>Export Quality</value>
+  </data>
+	<data name="Gui_ShortcutOverview" xml:space="preserve">
+    <value>Keyboard Shortcuts</value>
+  </data>
+	<data name="Win_Shortcuts" xml:space="preserve">
+    <value>Keyboard Shortcuts</value>
+  </data>
+	<data name="Gui_Function" xml:space="preserve">
+    <value>Function</value>
+  </data>
+	<data name="Gui_ShortcutKey" xml:space="preserve">
+    <value>Shortcut</value>
+  </data>
+	<data name="Shortcut_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+	<data name="Shortcut_Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+	<data name="Shortcut_PlayStop" xml:space="preserve">
+    <value>Play / Stop</value>
+  </data>
+	<data name="Shortcut_PlayPause" xml:space="preserve">
+    <value>Play / Pause</value>
+  </data>
+	<data name="Shortcut_PlayIncludeOp" xml:space="preserve">
+    <value>Start Recording Mode</value>
+  </data>
+	<data name="Shortcut_IncreasePlaybackSpeed" xml:space="preserve">
+    <value>Increase Playback Speed</value>
+  </data>
+	<data name="Shortcut_DecreasePlaybackSpeed" xml:space="preserve">
+    <value>Decrease Playback Speed</value>
+  </data>
+	<data name="Shortcut_FindAndReplace" xml:space="preserve">
+    <value>Find &amp; Replace</value>
+  </data>
+	<data name="Set_AutoFocusView" xml:space="preserve">
+    <value>Auto Focus View On Play</value>
+  </data>
+</root>

@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="MajdataEdit-NeoX/MajdataEdit_NeoX.Android/MajdataEdit_NeoX.Android.csproj" />
+  <Project Path="MajdataEdit-NeoX/MajdataEdit_NeoX.Browser/MajdataEdit_NeoX.Browser.csproj" />
+  <Project Path="MajdataEdit-NeoX/MajdataEdit_NeoX.Desktop/MajdataEdit_NeoX.Desktop.csproj" />
+  <Project Path="MajdataEdit-NeoX/MajdataEdit_NeoX.iOS/MajdataEdit_NeoX.iOS.csproj" />
+  <Project Path="MajdataEdit-NeoX/MajdataEdit_NeoX/MajdataEdit_NeoX.csproj" />
+</Solution>

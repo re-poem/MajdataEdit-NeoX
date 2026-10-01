@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:MajdataEdit_NeoX"
+             xmlns:lang="using:MajdataEdit_NeoX.Lang"
+             mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="370"
+             x:Class="MajdataEdit_NeoX.Views.InspectorView"
+             x:Name="Root">
+
+    <Grid ColumnDefinitions="2.2*,3*"
+          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+
+        <Label Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2"
+               Height="90" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0 30 0 0"
+               Content="{Binding #Root.DisplayTime}" />
+        <Label Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
+               Height="30" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0 0 0 0"
+               Content="{Binding #Root.DisplayLineComboText}" />
+
+        <ComboBox Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Margin="5 0 5 3"
+                  VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding #Root.SelectedDifficulty}">
+            <ComboBoxItem Content="EASY" />
+            <ComboBoxItem Content="BASIC" />
+            <ComboBoxItem Content="ADVANCED" />
+            <ComboBoxItem Content="EXPERT" />
+            <ComboBoxItem Content="MASTER" />
+            <ComboBoxItem Content="Re:MASTER" />
+            <ComboBoxItem Content="ORIGINAL" />
+        </ComboBox>
+
+        <Label VerticalAlignment="Center" HorizontalAlignment="Center"
+               Grid.Column="0" Grid.Row="3" Margin="5 0 5 3" Padding="0 0 0 0"
+               Content="{x:Static lang:Resources.Gui_Level}"/>
+        <TextBox Grid.Column="1" Grid.Row="3" Margin="5 0 5 3"
+                 Text="{Binding #Root.Level}"/>
+
+        <Label VerticalAlignment="Center" HorizontalAlignment="Center"
+               Grid.Column="0" Grid.Row="4" Margin="5 0 5 3" Padding="0 0 0 0"
+               Content="{x:Static lang:Resources.Gui_Designer}"/>
+        <TextBox Grid.Column="1" Grid.Row="4" Margin="5 0 5 3"
+                 Text="{Binding #Root.Designer}"/>
+
+        <Label VerticalAlignment="Center" HorizontalAlignment="Center"
+               Grid.Column="0" Grid.Row="5" Margin="5 0 5 3" Padding="0 0 0 0"
+               Content="{x:Static lang:Resources.Gui_Offset}"/>
+        <NumericUpDown Grid.Column="1" Grid.Row="5" Margin="5 0 5 3"
+                       Value="{Binding #Root.Offset}" ShowButtonSpinner="False"/>
+
+        <Label VerticalAlignment="Center" HorizontalAlignment="Center"
+               Grid.Column="0" Grid.Row="6" Margin="5 0 5 3" Padding="0 0 0 0"
+               Content="{x:Static lang:Resources.Gui_PlaybackSpeed}"/>
+        <NumericUpDown Grid.Column="1" Grid.Row="6" Margin="5 0 5 3"
+                       Value="{Binding #Root.PlaybackSpeed}"
+                       Minimum="0.1" Increment="0.1"
+                       FormatString="0.##"
+                       ShowButtonSpinner="False"/>
+
+
+        <StackPanel Grid.Column="0" Grid.Row="7"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+            <CheckBox IsChecked="{Binding #Root.IsFollowCursor}" IsEnabled="False" Margin="20 4 0 0" HorizontalAlignment="Center"/>
+            <Label Content="{x:Static lang:Resources.Gui_FollowCursor}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Grid.Row="7"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+            <CheckBox IsChecked="{Binding #Root.IsConnected}" IsEnabled="False" Margin="20 4 0 0" HorizontalAlignment="Center"/>
+            <Label Content="{x:Static lang:Resources.Gui_Connected}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center" />
+        </StackPanel>
+
+    </Grid>
+
+</UserControl>
