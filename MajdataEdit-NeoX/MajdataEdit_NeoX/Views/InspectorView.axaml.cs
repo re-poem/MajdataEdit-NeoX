@@ -2,23 +2,24 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Markup.Xaml;
+using CommunityToolkit.Mvvm.ComponentModel;
+using MajdataEdit_NeoX.Models.Fumen;
 using PropertyGenerator.Avalonia;
 
 namespace MajdataEdit_NeoX.Views;
 
 public partial class InspectorView : UserControl
 {
-
     // ====== 显示态（one-way）======
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial string DisplayTime { get; set; } = "0:00";
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial string DisplayLineComboText { get; set; } = "L 1  Cb 0";
+    public partial int DisplayCombo { get; set; } = 1;
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial bool IsConnected { get; set; }
+    public partial bool IsConnected { get; set; } = true;
 
 
 

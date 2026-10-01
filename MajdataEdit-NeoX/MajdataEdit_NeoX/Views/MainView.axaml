@@ -1,29 +1,84 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
-             xmlns:v="using:MajdataEdit_NeoX.Views"
-             xmlns:c="using:MajdataEdit_NeoX.Controls"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="MajdataEdit_NeoX.Views.MainView"
-             x:DataType="vm:MainViewModel">
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-        to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainViewModel />
-    </Design.DataContext>
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
+			 xmlns:local="using:MajdataEdit_NeoX"
+			 xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
+			 xmlns:v="using:MajdataEdit_NeoX.Views"
+			 xmlns:c="using:MajdataEdit_NeoX.Controls"
+			 xmlns:AvaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+			 xmlns:WsType="clr-namespace:MajWebSocket.Types;assembly=MajWebSocket"
+			 xmlns:lang="using:MajdataEdit_NeoX.Lang"
 
+			 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 x:Class="MajdataEdit_NeoX.Views.MainView"
+			 x:DataType="vm:MainViewModel">
+	<Design.DataContext>
+		<!-- This only sets the DataContext for the previewer in an IDE,
+		to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+		<vm:MainViewModel />
+	</Design.DataContext>
 
-    <Grid ColumnDefinitions="Auto,Auto"
-          RowDefinitions="Auto,Auto"
-          Margin="10 10 10 0">
-        <v:InspectorView
-            Grid.Column="0" Grid.Row="0"/>
+	<Grid ColumnDefinitions="120,*"
+		  RowDefinitions="15,4*,1*"
+		  Margin="10 10 10 0">
+		<Menu Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="999">
+			<MenuItem Header="{x:Static lang:Resources.Gui_File}">
+				<MenuItem Header="{x:Static lang:Resources.Gui_New}" Command="{Binding NewFile}"/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_Open}" Command="{Binding OpenFile}"/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_Save}" Command="{Binding SaveFile}"/>
+				<Separator/>
+				<MenuItem Header="{x:Static lang:Resources.Win_Recover}" Command="{Binding OpenRecover}"/>
+				<Separator/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_ExportVideo}" Command="{Binding Play}" CommandParameter="WsType:PlaybackMode.Record"/>
+			</MenuItem>
+			<MenuItem x:Name="EditMenu" Header="{x:Static lang:Resources.Gui_Edit}">
+				<MenuItem Header="{x:Static lang:Resources.Gui_ChartInfo}" Command="{Binding OpenChartInfo}"/>
+				<Separator/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_FindAndReplace}" Command="{Binding ShowFindReplace}"/>
+				<Separator/>
+			</MenuItem>
+			<MenuItem Header="{x:Static lang:Resources.Gui_Setting}">
+				<MenuItem Header="{x:Static lang:Resources.Gui_Setting}" Command="{Binding OpenSettings}"/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_CheckUpdate}" Command="{Binding CheckUpdateAsync}" CommandParameter="false"/>
+			</MenuItem>
+			<MenuItem Header="{x:Static lang:Resources.Gui_Tools}">
+				<MenuItem Header="{x:Static lang:Resources.Gui_BpmTap}" Command="{Binding OpenBpmTap}"/>
+				<Separator/>
+				<!--<MenuItem Name="NewChartFromVideoMenuItem" Header="{x:Static lang:Resources.Gui_NewChartFromVideo}" Command="{Binding NewChartFromVideoCommand}"/>-->
+			</MenuItem>
+			<MenuItem Header="{x:Static lang:Resources.Gui_About}">
+				<MenuItem Header="{x:Static lang:Resources.Gui_ShortcutOverview}" Command="{Binding OpenShortcut}"/>
+				<Separator/>
+				<MenuItem Header="Discord" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.Discord}"/>
+				<MenuItem Header="QQ" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.QQ}"/>
+				<Separator/>
+				<MenuItem Header="Github" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub}"/>
+				<MenuItem Header="Github (ViewX)" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub_ViewX}"/>
+				<MenuItem Header="Majnet" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.MajNet}"/>
+			</MenuItem>
+		</Menu>
 
-        <c:SimaiVisualizerControl
-            Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"/>
-    </Grid>
+		<v:InspectorView
+			Grid.Column="0" Grid.Row="1"
+			DisplayTime="{Binding CaretTime}"
+			DisplayCombo="{Binding CaretCombo}"
+			IsConnected="{Binding IsConnected}"
+			SelectedDifficulty="{Binding SelectedDifficulty}"
+			Level="{Binding Level}"
+			Designer="{Binding Designer}"
+			Offset="{Binding Offset}"
+			PlaybackSpeed="{Binding PlaybackSpeed}"
+			IsFollowCursor="{Binding IsFollowCursor}"
+			/>
+		<v:FumenEditorView
+			Grid.Column="1" Grid.Row="1"
+			Fumen="{Binding Fumen}"
+			/>
+		<c:SimaiVisualizerControl
+			Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2"
+			/>
+	</Grid>
 
 </UserControl>

@@ -1,22 +1,31 @@
 ﻿<Project>
-    <!-- https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management -->
-    <PropertyGroup>
-        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    </PropertyGroup>
-    <ItemGroup>
-        <!-- Avalonia packages -->
-        <!-- Important: keep version in sync! -->
-        <PackageVersion Include="Avalonia" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Desktop" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.iOS" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Browser" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Android" Version="12.1.2" />
-        <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
-
-        <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-
-        <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
-    </ItemGroup>
+  <!-- https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Avalonia packages -->
+    <!-- Important: keep version in sync! -->
+    <PackageVersion Include="Avalonia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.iOS" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Browser" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Android" Version="12.1.2" />
+    <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
+    <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+    <PackageVersion Include="Cimai" Version="0.1.6" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="FFmpeg.AutoGen" Version="9.0.1.1" />
+    <PackageVersion Include="FluentAvaloniaUI" Version="3.1.0" />
+    <PackageVersion Include="MajWebSocket" Version="0.0.1" />
+    <PackageVersion Include="ManagedBass" Version="4.0.2" />
+    <PackageVersion Include="NuGet.Versioning" Version="7.9.0" />
+    <PackageVersion Include="PropertyGenerator.Avalonia" Version="1.3.1" />
+    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
+  </ItemGroup>
 </Project>

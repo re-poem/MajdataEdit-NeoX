@@ -1,0 +1,160 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "simai",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#end-mark" },
+    { "include": "#hs-modifier" },
+    { "include": "#bpm" },
+    { "include": "#measure" },
+    { "include": "#slide-code-star" },
+    { "include": "#slide-code-break" },
+    { "include": "#slide-code" },
+    { "include": "#slide-with-star" },
+    { "include": "#slide-complex" },
+    { "include": "#duration" },
+    { "include": "#touch-hold" },
+    { "include": "#touch" },
+    { "include": "#hold" },
+    { "include": "#tap-double" },
+    { "include": "#tap-single" },
+    { "include": "#each-separator" },
+    { "include": "#pseudo-each" }
+  ],
+  "repository": {
+    "comment": {
+      "comment": "Line comments starting with ||",
+      "name": "comment.line.double-pipe.simai",
+      "match": "\\|\\|.*$"
+    },
+    "end-mark": {
+      "comment": "End of chart marker E (standalone)",
+      "name": "keyword.control.end.simai",
+      "match": "^E$"
+    },
+    "hs-modifier": {
+      "comment": "Speed modifier like <HS*2>, <SV*1.4>, <HS*-1>",
+      "name": "entity.name.tag.hs.simai",
+      "match": "<(?:HS|SV)\\*-?[0-9]+\\.?[0-9]*>"
+    },
+    "bpm": {
+      "comment": "BPM change like (120), (253.25)",
+      "name": "meta.bpm.simai",
+      "begin": "\\(",
+      "end": "\\)",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.bpm.begin.simai" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.bpm.end.simai" }
+      },
+      "patterns": [
+        {
+          "name": "constant.numeric.bpm-value.simai",
+          "match": "-?[0-9]+\\.?[0-9]*"
+        }
+      ]
+    },
+    "measure": {
+      "comment": "Measure division like {4}, {8}, {-1}, {#0.035}",
+      "name": "meta.measure.simai",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.measure.begin.simai" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.measure.end.simai" }
+      },
+      "patterns": [
+        {
+          "name": "support.function.measure-value.simai",
+          "match": "#?-?[0-9]+\\.?[0-9]*"
+        }
+      ]
+    },
+    "duration": {
+      "comment": "Duration like [4:1], [0##0.01], [32:1], [1.2##0.7]",
+      "name": "meta.duration.simai",
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.duration.begin.simai" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.duration.end.simai" }
+      },
+      "patterns": [
+        {
+          "name": "constant.numeric.duration-value.simai",
+          "match": "[0-9]+\\.?[0-9]*"
+        },
+        {
+          "name": "keyword.operator.duration-separator.simai",
+          "match": ":|##"
+        }
+      ]
+    },
+    "slide-code": {
+      "comment": "SlideCode pattern like 5Q9A1P98CQ49K5, 1K2, 7K4 - command letters A/B/C/P/Q with digits 0-9, ending with K+digit",
+      "name": "entity.name.function.slidecode.simai",
+      "match": "[1-8]([ABCPQ][0-9]*)*K[1-8](\\[[^\\]]*\\])?[bxmc]*[!?@]?[bxmc]*"
+    },
+    "slide-code-star": {
+      "comment": "SlideCode with star connector like *P7K6, *Q1K6, *P77CQ3K2",
+      "name": "entity.name.function.slidecode-star.simai",
+      "match": "\\*(?:[ABCPQ][0-9]*)*K[1-8](\\[[^\\]]*\\])?[bxmc]*[!?@]?[bxmc]*"
+    },
+    "slide-code-break": {
+      "comment": "SlideCode with break flag like bP46824K3, bQ1K6",
+      "name": "entity.name.function.slidecode-break.simai",
+      "match": "b(?:[ABCPQ][0-9]*)*K[1-8](\\[[^\\]]*\\])?[bxmc]*[!?@]?[bxmc]*"
+    },
+    "slide-with-star": {
+      "comment": "Star slide connector like *>6p1, *V53, *<2p5, *-3[0##0.01]",
+      "name": "entity.name.function.slide-star.simai",
+      "match": "\\*([<>^\\-qpwszvV][qp]?[1-8*]+)+(\\[[^\\]]*\\])?[bxmc]*[!?@]?[bxmc]*"
+    },
+    "slide-complex": {
+      "comment": "Complex slide patterns: 2?>4q2>4q2, 1-4[4:1], 1qq7[0##0.02]b, 7<5[0##0.01]b, 5@-6[1:1] (flags b/x/m combinable, at most one of !/?/@)",
+      "name": "entity.name.function.slide.simai",
+      "match": "[1-8*][bxmc]*[!?@]?[bxmc]*([<>^\\-qpwszvV][qp]?[1-8*]+)+(\\[[^\\]]*\\])?[bxmc]*[!?@]?[bxmc]*"
+    },
+    "touch-hold": {
+      "comment": "Touch hold notes like B2bh[4:2], Cbh[4:2], E4bh, A5bh[1:3]",
+      "name": "entity.name.type.touch-hold.simai",
+      "match": "[ABCDE][1-8]?[bfxmc]*h(\\[[^\\]]*\\])?[bfxmc]*"
+    },
+    "touch": {
+      "comment": "Touch notes like A1, B2, Cf, E4f, E6f, B7f",
+      "name": "entity.name.type.touch.simai",
+      "match": "[ABCDE][1-8]?[bfxhmc]*(\\[[^\\]]*\\])?(?=[,/`\\s<]|$)"
+    },
+    "hold": {
+      "comment": "Hold notes like 1h[4:4], 5bh[4:2], 4bh[4:1], 6h[8:2]",
+      "name": "entity.name.class.hold.simai",
+      "match": "[1-8][1-8]?[bx!mc]*h(\\[[^\\]]*\\])?[bx!mc]*"
+    },
+    "tap-double": {
+      "comment": "Double tap (each shorthand) like 73, 36, 12, 17b, 2$/6$",
+      "name": "entity.name.variable.tap-double.simai",
+      "match": "[1-8][1-8]([bx!mc](?![ABCPQ]))*(?:\\$\\$?)?([bx!mc](?![ABCPQ]))*(?=[,/`\\s\\[\\{\\(<h\\-\\>\\<\\^qpwszvV]|$)"
+    },
+    "tap-single": {
+      "comment": "Single tap like 1, 2b, 3x, 4!, 5bx, 2$, 3$$",
+      "name": "entity.name.variable.tap.simai",
+      "match": "[1-8]([bx!mc](?![ABCPQ]))*(?:\\$\\$?)?([bx!mc](?![ABCPQ]))*(?=[,/`\\s\\[\\{\\(<h\\-\\>\\<\\^qpwszvV]|$)"
+    },
+    "each-separator": {
+      "comment": "Each note separator /",
+      "name": "keyword.operator.each.simai",
+      "match": "/"
+    },
+    "pseudo-each": {
+      "comment": "Pseudo-each connector ` for connecting notes without triggering each",
+      "name": "keyword.operator.pseudo-each.simai",
+      "match": "`"
+    }
+  },
+  "scopeName": "maidata.simai"
+}

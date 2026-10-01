@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:AvaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="370"
+             x:Class="MajdataEdit_NeoX.Views.FumenEditorView"
+             x:Name="Root">
+
+    <AvaloniaEdit:TextEditor x:Name="Editor"
+                             ShowLineNumbers="True"
+                             BorderBrush="#50FFFFFF"
+                             BorderThickness="0.5"
+                             Margin="5"
+                             Padding="5"
+                             FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+                             />
+
+</UserControl>

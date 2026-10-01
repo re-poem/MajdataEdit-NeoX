@@ -2,8 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="using:MajdataEdit_NeoX"
+
              xmlns:lang="using:MajdataEdit_NeoX.Lang"
+
              mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="370"
              x:Class="MajdataEdit_NeoX.Views.InspectorView"
              x:Name="Root">
@@ -14,12 +15,20 @@
         <Label Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2"
                Height="90" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0 30 0 0"
                Content="{Binding #Root.DisplayTime}" />
-        <Label Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
-               Height="30" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0 0 0 0"
-               Content="{Binding #Root.DisplayLineComboText}" />
+        <DockPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="0 -6 0 3">
+            <Label Height="30" FontSize="10" DockPanel.Dock="Left"
+                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5 0 0 0"
+                   Content="combo" Opacity="0.5" />
+            <Label Height="30" FontSize="15" DockPanel.Dock="Right"
+                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                   HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0 0 0 0"
+                   Content="{Binding #Root.DisplayCombo}" />
+        </DockPanel>
 
-        <ComboBox Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Margin="5 0 5 3"
-                  VerticalAlignment="Center" HorizontalAlignment="Stretch"
+        <ComboBox Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Margin="2 0 2 3"
+                  VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   SelectedIndex="{Binding #Root.SelectedDifficulty}">
             <ComboBoxItem Content="EASY" />
             <ComboBoxItem Content="BASIC" />
@@ -31,26 +40,26 @@
         </ComboBox>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
-               Grid.Column="0" Grid.Row="3" Margin="5 0 5 3" Padding="0 0 0 0"
-               Content="{x:Static lang:Resources.Gui_Level}"/>
+               Grid.Column="0" Grid.Row="3" Margin="5 0 5 3"
+               FontSize="12" Content="{x:Static lang:Resources.Gui_Level}"/>
         <TextBox Grid.Column="1" Grid.Row="3" Margin="5 0 5 3"
                  Text="{Binding #Root.Level}"/>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
-               Grid.Column="0" Grid.Row="4" Margin="5 0 5 3" Padding="0 0 0 0"
-               Content="{x:Static lang:Resources.Gui_Designer}"/>
+               Grid.Column="0" Grid.Row="4" Margin="5 0 5 3"
+               FontSize="12" Content="{x:Static lang:Resources.Gui_Designer}"/>
         <TextBox Grid.Column="1" Grid.Row="4" Margin="5 0 5 3"
                  Text="{Binding #Root.Designer}"/>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
-               Grid.Column="0" Grid.Row="5" Margin="5 0 5 3" Padding="0 0 0 0"
-               Content="{x:Static lang:Resources.Gui_Offset}"/>
+               Grid.Column="0" Grid.Row="5" Margin="5 0 5 3"
+               FontSize="12" Content="{x:Static lang:Resources.Gui_Offset}"/>
         <NumericUpDown Grid.Column="1" Grid.Row="5" Margin="5 0 5 3"
                        Value="{Binding #Root.Offset}" ShowButtonSpinner="False"/>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
-               Grid.Column="0" Grid.Row="6" Margin="5 0 5 3" Padding="0 0 0 0"
-               Content="{x:Static lang:Resources.Gui_PlaybackSpeed}"/>
+               Grid.Column="0" Grid.Row="6" Margin="4 0 5 3"
+               FontSize="12" Content="{x:Static lang:Resources.Gui_PlaybackSpeed}"/>
         <NumericUpDown Grid.Column="1" Grid.Row="6" Margin="5 0 5 3"
                        Value="{Binding #Root.PlaybackSpeed}"
                        Minimum="0.1" Increment="0.1"

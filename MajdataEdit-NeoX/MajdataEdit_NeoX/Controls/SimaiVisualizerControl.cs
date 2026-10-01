@@ -37,20 +37,20 @@ internal partial class SimaiVisualizerControl : Control
     private static readonly SKPath CursorPath = CreateCursorPath();
     private static SKPath CreateCursorPath()
     {
-        var p = new SKPath();
+        var p = new SKPathBuilder();
 
         p.MoveTo(-5, 0);
         p.LineTo(5, 0);
         p.LineTo(0, 8f);
         p.Close();
 
-        return p;
+        return p.Detach();
     }
 
     private static readonly SKPath StarPath = CreateStarPath();
     private static SKPath CreateStarPath()
     {
-        var p = new SKPath();
+        using var p = new SKPathBuilder();
 
         const float r = 4;
         const float r2 = r * 0.8660254f;
@@ -65,7 +65,7 @@ internal partial class SimaiVisualizerControl : Control
         p.MoveTo(-r2, r3);
         p.LineTo(r2, -r3);
 
-        return p;
+        return p.Detach();
     }
 
 
@@ -167,7 +167,10 @@ internal partial class SimaiVisualizerControl : Control
         private static readonly SKColor TouchHoldLayer4 = new(0xF7, 0x46, 0x01);
         private static readonly SKColor[] TouchHoldMineColors = [MineBreakColor, MineColor, MineBreakColor, MineColor];
         private static readonly SKColor[] TouchHoldNormalColors = [TouchHoldLayer1, TouchHoldLayer2, TouchHoldLayer3, TouchHoldLayer4];
-        private ReadOnlySpan<SimaiTiming> _timings => chart.IsDisposed ? default : chart.Timings;
+
+
+        private ReadOnlySpan<SimaiTiming> Timings => chart.IsDisposed ? default : chart.Timings;
+
 
         public Rect Bounds { get; } = bounds;
 
@@ -175,7 +178,7 @@ internal partial class SimaiVisualizerControl : Control
         public bool HitTest(Point p) => true;
         public bool Equals(ICustomDrawOperation? other) => false;
 
-        private static int LowerBound(IReadOnlyList<double> values, double target)
+        private static int LowerBound(List<double> values, double target)
         {
             var low = 0;
             var high = values.Count;
@@ -273,13 +276,13 @@ internal partial class SimaiVisualizerControl : Control
 
             Paint.IsAntialias = true;
 
-            if (_timings.IsEmpty) return;
+            if (Timings.IsEmpty) return;
 
             // Recompute BPM changes and beats from scratch each frame.
             var bpmChangeTimes = new List<double>(32);
             var bpmChangeValues = new List<float>(32);
             var lastBpm = -1f;
-            foreach (var timing in _timings)
+            foreach (var timing in Timings)
             {
                 if (timing.Bpm != lastBpm)
                 {
@@ -336,7 +339,7 @@ internal partial class SimaiVisualizerControl : Control
                 var t = bpmChangeTimes[i];
                 if (t > visibleEndTime) break;
                 var x = (float)((t / step - virtualStartIndex) * linewidth);
-                canvas.DrawText(bpmChangeValues[i].ToString(), x + 3f, 10, TextFont, Paint);
+                canvas.DrawText(bpmChangeValues[i].ToString(), x + 3f, 10, SKTextAlign.Left, TextFont, Paint);
             }
 
             foreach (var beatTime in strongBeats)
@@ -363,10 +366,10 @@ internal partial class SimaiVisualizerControl : Control
             Paint.Style = SKPaintStyle.Stroke;
 
             // Draw timing white lines + notes.
-            var firstNoteIndex = LowerBound(_timings, visibleStartTime - offset - 10.0);
-            for (var noteIndex = firstNoteIndex; noteIndex < _timings.Length; noteIndex++)
+            var firstNoteIndex = LowerBound(Timings, visibleStartTime - offset - 10.0);
+            for (var noteIndex = firstNoteIndex; noteIndex < Timings.Length; noteIndex++)
             {
-                var timing = _timings[noteIndex];
+                var timing = Timings[noteIndex];
                 var t = timing.Time + offset;
                 if (t > visibleEndTime) break;
                 var notes = timing.Notes;
