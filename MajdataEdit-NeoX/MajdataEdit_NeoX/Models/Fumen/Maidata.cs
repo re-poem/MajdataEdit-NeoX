@@ -23,12 +23,32 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
 
     private MaidataFile()
     {
+        Charts = new(7, _ => OnPropertyChanged(nameof(Charts)));
         Levels = new(7, _ => { OnPropertyChanged(nameof(Levels)); MarkDirty(); });
         Designers = new(7, _ => { OnPropertyChanged(nameof(Designers)); MarkDirty(); });
-        Fumens = new(7, _ => { OnPropertyChanged(nameof(Fumens)); MarkDirty(); });
+        Fumens = new(7, OnFumenChanged);
 
         Commands.CollectionChanged += OnCommandsChanged;
     }
+    void OnFumenChanged(int i)
+    {
+        OnPropertyChanged(nameof(Fumens));
+        MarkDirty();
+        try
+        {
+            // 运行时编辑 fumen → 自动重建对应难度的 chart。
+            // 维持不变量：_charts[i] 永远是 Fumens[i] 的最新 parse 结果。
+            // 解析失败时保留旧 chart（silent），不让脏数据毁掉一个仍能用的 chart。
+            // _charts 写入触发 onChanged → OnPropertyChanged(nameof(Charts))，无需手动 fire。
+            var old = Charts[i];
+            Charts[i] = SimaiChart.Parse(Fumens[i] ?? string.Empty);
+            old?.Dispose();
+        }
+        catch
+        {
+        }
+    }
+
     private void OnCommandsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.OldItems != null)
@@ -48,9 +68,6 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
         if (!IsDirty) return;
         IsDirty = false;
     }
-
-    /// <summary>新建谱面等"还没存过盘"的场景用：显式翻成脏。</summary>
-    public void MarkAsDirty() => MarkDirty();
 
     private void MarkDirty()
     {
@@ -81,12 +98,13 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
     }
 
 
-    // 持有timings数据
-    private SimaiChart?[] _charts = new SimaiChart?[7];
+
 
     public ObservableArray<string?> Levels { get; }
     public ObservableArray<string?> Designers { get; }
     public ObservableArray<string?> Fumens { get; }
+    /// <summary>仅供 timings 数据访问</summary>
+    public ObservableArray<SimaiChart?> Charts = null!;
 
 
     public ObservableCollection<MutSimaiCommand> Commands { get; } = new();
@@ -96,28 +114,14 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
 
 
 
-    /// <summary>只用来保持引用传递的 timings 数据访问</summary>
-    public SimaiChart GetChart(int difficulty)
-        => _charts[difficulty] is { IsDisposed: false } c ? c : SimaiChart.Empty;
-
-
-
-    /// <summary>Fumen 改动后调用：替换指定难度的 Chart 并释放旧实例。</summary>
-    internal void ReplaceChart(int difficulty, SimaiChart chart)
-    {
-        var old = _charts[difficulty];
-        _charts[difficulty] = chart;
-        old?.Dispose();
-    }
-
 
 
     public void Dispose()
     {
-        if (_charts is null) return;
-        foreach (var chart in _charts)
-            chart?.Dispose();
-        _charts = null!;
+        if (Charts is null) return;
+        for (var i = 0; i < Charts.Length; i++)
+            Charts[i]?.Dispose();
+        Charts = null!;
         IsDirty = false;
     }
 
@@ -125,6 +129,19 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
 
 
     //=========== 解析 / 序列化 ===========
+
+    public static MaidataFile New()
+    {
+        var file = new MaidataFile
+        {
+            _title = string.Empty,
+            _artist = string.Empty,
+            _designer = string.Empty,
+            _offset = 0
+        };
+        file.MarkDirty();
+        return file;
+    }
 
     public static MaidataFile Parse(string text)
     {
@@ -146,10 +163,8 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
             if (chart == null) continue;
             file.Levels[i] = Encoding.UTF8.GetString(chart.Level);
             file.Designers[i] = Encoding.UTF8.GetString(chart.Des);
+            // File Parse包含timings数据，但是为了代码统一，这里通过OnFumenChanged来写入chart数据
             file.Fumens[i] = Encoding.UTF8.GetString(chart.Fumen);
-            // Parse包含timings数据，但File free时会清理掉它们，要给它们独立一下
-            simai.DetachChart((SimaiDifficulty)i);
-            file.ReplaceChart(i, chart);
         }
 
         file.MarkAsSaved();

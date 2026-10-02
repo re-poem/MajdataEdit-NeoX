@@ -1,74 +1,95 @@
-﻿using Avalonia.Controls;
-using MajdataEdit_NeoX.Base;
-using ManagedBass;
+﻿using ManagedBass;
 using System;
 using System.IO;
 
 namespace MajdataEdit_NeoX.Models.Track;
 
-
 internal static class TrackReader
 {
-    private static int _bgmStream = 0;
-
-    public static TrackInfo ReadTrack(string dirpath)
+    public static TrackInfo ReadTrackFromDir(string dirPath)
     {
-        var useOgg = File.Exists(dirpath + "/track.ogg");
-        var filePath = dirpath + "/track" + (useOgg ? ".ogg" : ".mp3");
-        if (_bgmStream is not 0)
-            Bass.StreamFree(_bgmStream);
-        var bgmDecode = Bass.CreateStream(filePath, 0L, 0L, BassFlags.Decode);
-        _bgmStream = Bass.CreateStream(filePath, 0, 0, BassFlags.Prescan);
-        var bgmSample = Bass.SampleLoad(filePath, 0, 0, 1, BassFlags.Default);
+        if (File.Exists(dirPath))
+            return ReadTrack(dirPath);
+        else if (Directory.Exists(dirPath))
+        {
+            string[] files;
+            files = Directory.GetFiles(dirPath, "*.mp3");
+            if (files.Length > 0)
+                return ReadTrack(files[0]);
+            files = Directory.GetFiles(dirPath, "*.ogg");
+            if (files.Length > 0)
+                return ReadTrack(files[0]);
+
+            throw new FileNotFoundException("No .mp3 or .ogg files found in the directory.");
+        }
+        else
+        {
+            throw new DirectoryNotFoundException($"The specified path '{dirPath}' does not exist.");
+        }
+    }
+    public static TrackInfo ReadTrack(string path) => new(path);
+}
+
+public sealed class TrackInfo
+{
+    public double Length { get; }
+    public short[] RawWave { get; }
+
+    private readonly short[][] _waveThumbnails = new short[3][];
+
+    public TrackInfo(string path)
+    {
+        var stream = Bass.CreateStream(path, 0, 0, BassFlags.Decode);
+        if (stream == 0)
+            throw new Exception($"Audio decode failed: {Bass.LastError}");
+
         try
         {
-            var songLength = Bass.ChannelBytes2Seconds(bgmDecode, Bass.ChannelGetLength(bgmDecode));
-            var bgmInfo = Bass.SampleGetInfo(bgmSample);
-            var freq = bgmInfo.Frequency;
-            var sampleCount = (long)(songLength * freq * 2);
-            var bgmRAW = new short[sampleCount];
-            Bass.SampleGetData(bgmSample, bgmRAW);
-            return new TrackInfo(songLength, bgmRAW);
+            var bytes = Bass.ChannelGetLength(stream);
+            Length = Bass.ChannelBytes2Seconds(stream, bytes);
 
-        }
-        catch (Exception e)
-        {
-            throw new Exception(
-                "mp3/ogg解码失败。\nMP3/OGG Decode fail.\n" + e.Message + Bass.LastError,
-                e);
+            RawWave = new short[bytes / sizeof(short)];
+            var read = Bass.ChannelGetData(stream, RawWave, (int)bytes);
+
+            if (read < 0)
+                throw new Exception($"Audio decode failed: {Bass.LastError}");
+
+            GenerateThumbnail(20, 0);
+            GenerateThumbnail(50, 1);
+            GenerateThumbnail(100, 2);
         }
         finally
         {
-            Bass.StreamFree(bgmDecode);
-            Bass.SampleFree(bgmSample);
+            Bass.StreamFree(stream);
         }
     }
-}
 
-public class TrackInfo
-{
-    public double Length { get; }
-    public short[] RawWave { get; } = [];
-    private readonly short[][] _waveThumbnails = new short[3][];
-    public short[] GetWaveThumbnails(int thumbLevel = 0)
+    private void GenerateThumbnail(int blockSize, int level)
     {
-        if (thumbLevel < 0) return _waveThumbnails[0];
-        if (thumbLevel > 2) return _waveThumbnails[2];
-        return _waveThumbnails[thumbLevel];
+        var count = (RawWave.Length + blockSize - 1) / blockSize;
+        var thumbnail = new short[count];
+
+        for (var i = 0; i < count; i++)
+        {
+            var max = short.MinValue;
+            var start = i * blockSize;
+            var end = Math.Min(start + blockSize, RawWave.Length);
+
+            for (var j = start; j < end; j++)
+            {
+                if (RawWave[j] > max)
+                    max = RawWave[j];
+            }
+
+            thumbnail[i] = max;
+        }
+
+        _waveThumbnails[level] = thumbnail;
     }
-    public TrackInfo(double length, short[] rawWave)
+
+    public ReadOnlySpan<short> GetWaveThumbnail(int level = 0)
     {
-        if (length == 0 || rawWave.Length == 0) throw new Exception("Music Wave Load Error");
-        Length = length;
-        RawWave = rawWave;
-
-        var sampleCount = rawWave.Length;
-
-        _waveThumbnails[0] = new short[sampleCount / 20 + 1];
-        for (var i = 0; i < sampleCount; i += 20) _waveThumbnails[0][i / 20] = RawWave[i];
-        _waveThumbnails[1] = new short[sampleCount / 50 + 1];
-        for (var i = 0; i < sampleCount; i += 50) _waveThumbnails[1][i / 50] = RawWave[i];
-        _waveThumbnails[2] = new short[sampleCount / 100 + 1];
-        for (var i = 0; i < sampleCount; i += 100) _waveThumbnails[2][i / 100] = RawWave[i];
+        level = Math.Clamp(level, 0, _waveThumbnails.Length - 1);
+        return _waveThumbnails[level];
     }
 }

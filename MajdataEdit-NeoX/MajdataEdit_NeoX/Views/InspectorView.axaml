@@ -69,7 +69,7 @@
 
         <StackPanel Grid.Column="0" Grid.Row="7"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
-            <CheckBox IsChecked="{Binding #Root.IsFollowCursor}" IsEnabled="False" Margin="20 4 0 0" HorizontalAlignment="Center"/>
+            <CheckBox IsChecked="{Binding #Root.IsFollowCursor}" Margin="20 4 0 0" HorizontalAlignment="Center"/>
             <Label Content="{x:Static lang:Resources.Gui_FollowCursor}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center"/>
         </StackPanel>
         <StackPanel Grid.Column="1" Grid.Row="7"

@@ -26,9 +26,11 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
-		<PackageReference Include="MajWebSocket" />
-		<PackageReference Include="ManagedBass" />
-		<PackageReference Include="NuGet.Versioning" />
+<PackageReference Include="MajWebSocket" />
+        <PackageReference Include="ManagedBass" />
+        <PackageReference Include="Microsoft.Data.Sqlite" />
+        <PackageReference Include="NuGet.Versioning" />
+        <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
 		<PackageReference Include="PropertyGenerator.Avalonia" />
 		<PackageReference Include="SkiaSharp" />
 	</ItemGroup>

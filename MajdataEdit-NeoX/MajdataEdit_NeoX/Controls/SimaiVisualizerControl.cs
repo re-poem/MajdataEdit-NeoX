@@ -80,13 +80,13 @@ internal partial class SimaiVisualizerControl : Control
     public partial double Time { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial TrackInfo? TrackIf { get; set; }
+    public partial TrackInfo? TrackInfo { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial float ZoomLevel { get; set; }
+    public partial float ZoomLevel { get; set; } = 1f;
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial SimaiChart Chart { get; set; } = SimaiChart.Empty;
+    public partial SimaiChart? Chart { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial List<(double, int, int)>? Signatures { get; set; }
@@ -104,8 +104,8 @@ internal partial class SimaiVisualizerControl : Control
     {
         ClipToBounds = true;
 
-        AffectsRender<SimaiVisualizerControl>(TimeProperty, TrackIfProperty, ZoomLevelProperty,
-            ChartProperty, OffsetProperty, CaretTimeProperty, IsAnimatedProperty);
+        AffectsRender<SimaiVisualizerControl>(TimeProperty, TrackInfoProperty, ZoomLevelProperty,
+            ChartProperty, SignaturesProperty, OffsetProperty, CaretTimeProperty, IsAnimatedProperty);
     }
 
     private sealed class AnimationState
@@ -128,16 +128,16 @@ internal partial class SimaiVisualizerControl : Control
 
     public override void Render(DrawingContext context)
     {
-        if (TrackIf is null) return;
+        if (TrackInfo is null) return;
 
         context.Custom(new CustomDrawOp(new Rect(0, 0, Bounds.Width, Bounds.Height),
-            TrackIf, Time, ZoomLevel, Chart, Signatures ?? [], Offset, CaretTime,
+            TrackInfo, Time, ZoomLevel, Chart, Signatures ?? [], Offset, CaretTime,
             IsAnimated, _animationState, RequestNextAnimationFrame));
     }
 
     private sealed class CustomDrawOp(Rect bounds,
         TrackInfo trackInfo, double time, float zoomLevel,
-        SimaiChart chart, List<(double, int, int)> signatures,
+        SimaiChart? chart, List<(double, int, int)> signatures,
         float offset, double caretTime, bool isAnimated,
         AnimationState animationState, Action requestNextFrame) : ICustomDrawOperation
     {
@@ -169,7 +169,8 @@ internal partial class SimaiVisualizerControl : Control
         private static readonly SKColor[] TouchHoldNormalColors = [TouchHoldLayer1, TouchHoldLayer2, TouchHoldLayer3, TouchHoldLayer4];
 
 
-        private ReadOnlySpan<SimaiTiming> Timings => chart.IsDisposed ? default : chart.Timings;
+        private ReadOnlySpan<SimaiTiming> Timings =>
+            chart is null || chart.IsDisposed ? default : chart.Timings;
 
 
         public Rect Bounds { get; } = bounds;
@@ -248,10 +249,10 @@ internal partial class SimaiVisualizerControl : Control
                 requestNextFrame();
 
             // Pick zoom-level wave thumbnail.
-            var waveLevels = trackInfo.RawWave;
-            if (animationState.Zoom > 3) waveLevels = trackInfo.GetWaveThumbnails(2);
-            else if (animationState.Zoom > 2) waveLevels = trackInfo.GetWaveThumbnails(1);
-            else if (animationState.Zoom > 1) waveLevels = trackInfo.GetWaveThumbnails(0);
+            ReadOnlySpan<short> waveLevels = trackInfo.RawWave;
+            if (animationState.Zoom > 3) waveLevels = trackInfo.GetWaveThumbnail(2);
+            else if (animationState.Zoom > 2) waveLevels = trackInfo.GetWaveThumbnail(1);
+            else if (animationState.Zoom > 1) waveLevels = trackInfo.GetWaveThumbnail(0);
 
             var songLength = trackInfo.Length;
             var currentTime = animationState.Time;

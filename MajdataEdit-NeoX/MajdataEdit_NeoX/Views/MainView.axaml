@@ -11,7 +11,8 @@
 			 xmlns:WsType="clr-namespace:MajWebSocket.Types;assembly=MajWebSocket"
 			 xmlns:lang="using:MajdataEdit_NeoX.Lang"
 
-			 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 mc:Ignorable="d"
+			 d:DesignWidth="630" d:DesignHeight="440"
 			 x:Class="MajdataEdit_NeoX.Views.MainView"
 			 x:DataType="vm:MainViewModel">
 	<Design.DataContext>
@@ -25,8 +26,8 @@
 		  Margin="10 10 10 0">
 		<Menu Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="999">
 			<MenuItem Header="{x:Static lang:Resources.Gui_File}">
-				<MenuItem Header="{x:Static lang:Resources.Gui_New}" Command="{Binding NewFile}"/>
-				<MenuItem Header="{x:Static lang:Resources.Gui_Open}" Command="{Binding OpenFile}"/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_New}" Command="{Binding NewFileAsync}"/>
+				<MenuItem Header="{x:Static lang:Resources.Gui_Open}" Command="{Binding OpenFileAsync}"/>
 				<MenuItem Header="{x:Static lang:Resources.Gui_Save}" Command="{Binding SaveFile}"/>
 				<Separator/>
 				<MenuItem Header="{x:Static lang:Resources.Win_Recover}" Command="{Binding OpenRecover}"/>
@@ -78,6 +79,10 @@
 			/>
 		<c:SimaiVisualizerControl
 			Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2"
+			TrackInfo="{Binding TrackInfo}"
+			Chart="{Binding Chart}"
+			Time="{Binding PlayheadTime}"
+
 			/>
 	</Grid>
 
