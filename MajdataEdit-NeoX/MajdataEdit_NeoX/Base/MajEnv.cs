@@ -1,4 +1,3 @@
-using ManagedBass;
 using NuGet.Versioning;
 using System;
 using System.Diagnostics;
@@ -11,55 +10,28 @@ namespace MajdataEdit_NeoX.Base;
 
 public static partial class MajEnv
 {
-    public static string MajBase => AppDomain.CurrentDomain.BaseDirectory;
+    public static string MajBase
+    {
+        get
+        {
+            if (OperatingSystem.IsAndroid())
+            {
+                return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            }
+            if (OperatingSystem.IsIOS())
+            {
+                return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            }
+
+            return AppDomain.CurrentDomain.BaseDirectory;
+        }
+    }
     public static string GetPath(string relativePath) => Path.Combine(MajBase, relativePath);
 
     public static string MmfAudioTimePath =>
         GetPath("majdata_time.dat");
     public static string LuaPluginsPath =>
         GetPath("Plugins");
-
-    public static string MajdataViewBassDllFile
-    {
-        get
-        {
-#if DEBUG
-            if (OperatingSystem.IsWindows())
-            {
-                return GetPath("..\\..\\..\\runtimes\\win-x64\\native\\bass.dll");
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                return GetPath("..\\..\\..\\runtimes\\osx\\native\\libbass.dylib");
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                return GetPath("..\\..\\..\\runtimes\\linux-x64\\native\\libbass.so");
-            }
-            else
-            {
-                throw new PlatformNotSupportedException("Unsupported platform for MajdataViewBassDllFile.");
-            }
-#else
-            if (OperatingSystem.IsWindows())
-            {
-                return GetPath("MajdataViewX_Data\\Plugins\\x86_64\\bass.dll");
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                return GetPath("MajdataViewX_Data/Plugins/x86_64/libbass.dylib");
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                return GetPath("MajdataViewX_Data/Plugins/x86_64/libbass.so");
-            }
-            else
-            {
-                throw new PlatformNotSupportedException("Unsupported platform for MajdataViewBassDllFile.");
-            }
-#endif
-        }
-    }
 
     public static string SettingsFile => GetPath("Settings.json");
     public static string CrashFile => GetPath("crash.log");
@@ -101,14 +73,4 @@ public static partial class MajEnv
 
     public static readonly string MAJDATA_VERSION_STRING = $"v{Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}";
     public static readonly SemanticVersion MAJDATA_VERSION = SemanticVersion.Parse(MAJDATA_VERSION_STRING);
-
-
-
-    internal static void InitEnv()
-    {
-        if (File.Exists(MajdataViewBassDllFile))
-            NativeLibrary.Load(MajdataViewBassDllFile);
-        if (!Bass.Init(Bass.NoSoundDevice))
-            throw new InvalidOperationException($"BASS init failed: {Bass.LastError}");
-    }
 }

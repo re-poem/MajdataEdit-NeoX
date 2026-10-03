@@ -19,4 +19,33 @@
   <ItemGroup>
     <ProjectReference Include="..\MajdataEdit_NeoX\MajdataEdit_NeoX.csproj" />
   </ItemGroup>
+
+  <!--
+    Stage the miniaudio native build outputs into the main project's
+    runtimes/<rid>/native folder. The Desktop csproj can build for win-x64
+    (cl.exe), osx (clang) or linux-x64 (clang); the targets file picks the
+    right compiler based on the host OS.
+
+    After Build, the runtimes/ tree under MajdataEdit_NeoX contains
+    miniaudio.dll / libminiaudio.dylib / libminiaudio.so, which the main
+    csproj packs into the publish output via runtimes/<rid>/native/.
+  -->
+  <PropertyGroup>
+    <MiniaOutputTarget>desktop</MiniaOutputTarget>
+  </PropertyGroup>
+
+  <!--
+    Stage the miniaudio native build output to the matching RID subfolder.
+    The Desktop csproj can be built on any host (Windows / macOS / Linux)
+    and the targets file picks the right compiler for that host; the
+    output RID is therefore derived from $([MSBuild]::IsOSPlatform(...))
+    rather than hardcoded.
+  -->
+  <PropertyGroup>
+    <MiniaOutputDir Condition="$([MSBuild]::IsOSPlatform('windows')) and '$(MiniaOutputDir)' == ''">$(MSBuildThisFileDirectory)..\MajdataEdit_NeoX\runtimes\win-x64\native</MiniaOutputDir>
+    <MiniaOutputDir Condition="$([MSBuild]::IsOSPlatform('osx')) and '$(MiniaOutputDir)' == ''">$(MSBuildThisFileDirectory)..\MajdataEdit_NeoX\runtimes\osx\native</MiniaOutputDir>
+    <MiniaOutputDir Condition="$([MSBuild]::IsOSPlatform('linux')) and '$(MiniaOutputDir)' == ''">$(MSBuildThisFileDirectory)..\MajdataEdit_NeoX\runtimes\linux-x64\native</MiniaOutputDir>
+  </PropertyGroup>
+
+  <Import Project="..\MajdataEdit_NeoX\Native\miniaudio.targets" />
 </Project>

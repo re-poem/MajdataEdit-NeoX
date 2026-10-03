@@ -165,8 +165,6 @@ public partial class MainViewModel
 
         Maidata = MaidataFile.Parse(File.ReadAllText(file));
         TrackInfo = TrackReader.ReadTrackFromDir(dir);
-
-        Debug.WriteLine("111");
     }
     [RelayCommand]
     public void SaveFile()

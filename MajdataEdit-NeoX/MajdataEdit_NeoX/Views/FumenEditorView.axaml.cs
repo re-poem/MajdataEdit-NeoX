@@ -4,6 +4,7 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using AvaloniaEdit;
+using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.TextMate;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,7 +12,6 @@ using MajdataEdit_NeoX.Models.Fumen;
 using PropertyGenerator.Avalonia;
 using System;
 using System.IO;
-using System.Reflection.Metadata;
 using TextMateSharp.Grammars;
 
 namespace MajdataEdit_NeoX.Views;
@@ -28,6 +28,8 @@ public partial class FumenEditorView : UserControl
 
         var install = TextMate.InstallTextMate(Editor, new RegistryOptions(ThemeName.DarkPlus));
         install.SetGrammarFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "simai.tmLanguage.json"));
+
+        Editor.TextArea.TextEntered += OnTextEntered;
     }
 
 
@@ -60,5 +62,18 @@ public partial class FumenEditorView : UserControl
         {
             _pushing = false;
         }
+    }
+
+    // 触发字符（[ 或 {）进了 TextArea → 直接拿 Completions 给的 FumenCompletionItem[]，弹 CompletionWindow。
+    void OnTextEntered(object? sender, TextInputEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.Text)) return;
+        var items = Completions.Get(e.Text);
+        if (items.Length == 0) return;
+
+        var window = new CompletionWindow(Editor.TextArea);
+        foreach (var item in items) 
+            window.CompletionList.CompletionData.Add(item);
+        window.Show();
     }
 }

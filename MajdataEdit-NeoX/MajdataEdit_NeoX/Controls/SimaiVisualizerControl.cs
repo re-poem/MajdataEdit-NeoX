@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
@@ -72,7 +73,8 @@ internal partial class SimaiVisualizerControl : Control
 
     private readonly AnimationState _animationState = new();
     private int _animationFramePending;
-
+    private double _dragStartX;
+    private double _dragStartTime;
 
 
 
@@ -134,7 +136,6 @@ internal partial class SimaiVisualizerControl : Control
             TrackInfo, Time, ZoomLevel, Chart, Signatures ?? [], Offset, CaretTime,
             IsAnimated, _animationState, RequestNextAnimationFrame));
     }
-
     private sealed class CustomDrawOp(Rect bounds,
         TrackInfo trackInfo, double time, float zoomLevel,
         SimaiChart? chart, List<(double, int, int)> signatures,
@@ -248,11 +249,10 @@ internal partial class SimaiVisualizerControl : Control
                  Math.Abs(zoomLevel - animationState.Zoom) > 0.005))
                 requestNextFrame();
 
-            // Pick zoom-level wave thumbnail.
-            ReadOnlySpan<short> waveLevels = trackInfo.RawWave;
+            ReadOnlySpan<short> waveLevels;
             if (animationState.Zoom > 3) waveLevels = trackInfo.GetWaveThumbnail(2);
             else if (animationState.Zoom > 2) waveLevels = trackInfo.GetWaveThumbnail(1);
-            else if (animationState.Zoom > 1) waveLevels = trackInfo.GetWaveThumbnail(0);
+            else waveLevels = trackInfo.GetWaveThumbnail(0);
 
             var songLength = trackInfo.Length;
             var currentTime = animationState.Time;
@@ -265,15 +265,20 @@ internal partial class SimaiVisualizerControl : Control
             var linewidth = (float)(width / (stopIndex - startIndex));
             var virtualStartIndex = (double)startIndex;
 
-            var wavePoints = new List<SKPoint>();
-            for (var i = startIndex; i < stopIndex && i < waveLevels.Length - 1; i++)
+            for (var i = startIndex; i < stopIndex && i < waveLevels.Length; i++)
             {
                 if (i < 0) continue;
+
                 var x = (i - startIndex) * linewidth;
-                var y = waveLevels[i] / 65535f * height + height / 2;
-                wavePoints.Add(new SKPoint((float)x, (float)y));
+                var amplitude = waveLevels[i] / 32768f * height / 2f;
+
+                canvas.DrawLine(
+                    (float)x,
+                    (float)(height / 2f - amplitude),
+                    (float)x,
+                    (float)(height / 2f + amplitude),
+                    Paint);
             }
-            canvas.DrawPoints(SKPointMode.Polygon, wavePoints.ToArray(), Paint);
 
             Paint.IsAntialias = true;
 
@@ -487,6 +492,43 @@ internal partial class SimaiVisualizerControl : Control
             }
 
             canvas.Restore();
+        }
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+
+        _dragStartX = e.GetPosition(this).X;
+        _dragStartTime = Time;
+    }
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+
+        if (e.Properties.IsLeftButtonPressed && TrackInfo is not null)
+        {
+            var deltaX = e.GetPosition(this).X - _dragStartX;
+            var visibleTimeRange = ZoomLevel * 2.0;
+            var dragScale = visibleTimeRange / Bounds.Width;
+            var time = _dragStartTime - deltaX * dragScale;
+            Time = Math.Clamp(time, 0, TrackInfo.Length);
+        }
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            var zoom = ZoomLevel + -0.3f * (float)e.Delta.Y * ZoomLevel;
+            ZoomLevel = Math.Clamp(zoom, 0.45f, (float)(TrackInfo?.Length ?? 300.0));
+        }
+        else
+        {
+            var time = Time - e.Delta.Y;
+            Time = Math.Clamp(time, 0, TrackInfo?.Length ?? 0);
         }
     }
 }

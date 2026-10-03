@@ -14,4 +14,33 @@
   <ItemGroup>
     <ProjectReference Include="..\MajdataEdit_NeoX\MajdataEdit_NeoX.csproj" />
   </ItemGroup>
+
+  <!--
+    miniaudio native build for iOS: the targets file compiles miniaudio.c
+    (per iOS SDK arch) and lipo-combines the .o files into a single
+    libminiaudio.a under runtimes/ios/native/. The .a is then statically
+    linked into the final IPA via <NativeReference Kind="Static"
+    ForceLoad="true"/> (force-load ensures miniaudio's symbols are
+    retained even if the linker considers them unreferenced).
+
+    The wrapper uses LibraryImport("__Internal") on iOS to bind the
+    symbols from the main executable (where the .a was statically
+    linked into).
+
+    Only runs on macOS hosts (uses xcrun + Xcode toolchain).
+  -->
+  <PropertyGroup>
+    <MiniaOutputTarget>ios</MiniaOutputTarget>
+    <MiniaOutputDir>$(MSBuildThisFileDirectory)..\MajdataEdit_NeoX\runtimes\ios</MiniaOutputDir>
+  </PropertyGroup>
+
+  <Import Project="..\MajdataEdit_NeoX\Native\miniaudio.targets" />
+
+  <ItemGroup Condition="Exists('..\MajdataEdit_NeoX\runtimes\ios\$(RuntimeIdentifier)\libminiaudio.a')">
+    <NativeReference Include="..\MajdataEdit_NeoX\runtimes\ios\$(RuntimeIdentifier)\libminiaudio.a">
+      <Kind>Static</Kind>
+      <ForceLoad>true</ForceLoad>
+      <Link>libminiaudio.a</Link>
+    </NativeReference>
+  </ItemGroup>
 </Project>

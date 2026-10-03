@@ -26,4 +26,55 @@
   <ItemGroup>
     <ProjectReference Include="..\MajdataEdit_NeoX\MajdataEdit_NeoX.csproj" />
   </ItemGroup>
+
+  <!--
+    miniaudio native build for Android: per-ABI shared libraries under
+    runtimes/android/<abi>/native/libminiaudio.so. The targets file drives
+    the NDK clang; if $(ANDROID_NDK_HOME) is not set (no NDK installed) the
+    build silently skips the native compilation, and any prebuilt
+    libminiaudio.so files still get packaged.
+  -->
+  <PropertyGroup>
+    <MiniaOutputTarget>android</MiniaOutputTarget>
+    <MiniaOutputDir>$(MSBuildThisFileDirectory)..\MajdataEdit_NeoX\runtimes\android</MiniaOutputDir>
+
+    <!--
+      Only set MiniaAndroidClang when ANDROID_NDK_HOME is in the environment.
+      Without it the per-ABI Exec tasks short-circuit and the build only
+      packages any prebuilt libminiaudio.so files placed in runtimes/.
+    -->
+    <MiniaAndroidClang Condition="'$(ANDROID_NDK_HOME)' != '' and '$(MiniaAndroidClang)' == ''">$([System.IO.Path]::Combine('$(ANDROID_NDK_HOME)', 'toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe'))</MiniaAndroidClang>
+    <MiniaAndroidArm64Triple Condition="'$(MiniaAndroidClang)' != ''">aarch64-linux-android21</MiniaAndroidArm64Triple>
+    <MiniaAndroidArmTriple  Condition="'$(MiniaAndroidClang)' != ''">armv7a-linux-androideabi21</MiniaAndroidArmTriple>
+    <MiniaAndroidX64Triple  Condition="'$(MiniaAndroidClang)' != ''">x86_64-linux-android21</MiniaAndroidX64Triple>
+    <MiniaAndroidX86Triple  Condition="'$(MiniaAndroidClang)' != ''">i686-linux-android21</MiniaAndroidX86Triple>
+  </PropertyGroup>
+
+  <Import Project="..\MajdataEdit_NeoX\Native\miniaudio.targets" />
+
+  <!--
+    Package libminiaudio.so into the APK under lib/<abi>/. Same per-ABI
+    gating pattern as the original bass .so layout: any ABI without a
+    built .so is omitted from the package.
+  -->
+  <ItemGroup Condition="Exists('..\MajdataEdit_NeoX\runtimes\android\arm64-v8a\native\libminiaudio.so')">
+    <AndroidNativeLibrary Include="..\MajdataEdit_NeoX\runtimes\android\arm64-v8a\native\libminiaudio.so">
+      <Link>lib\arm64-v8a\libminiaudio.so</Link>
+    </AndroidNativeLibrary>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('..\MajdataEdit_NeoX\runtimes\android\armeabi-v7a\native\libminiaudio.so')">
+    <AndroidNativeLibrary Include="..\MajdataEdit_NeoX\runtimes\android\armeabi-v7a\native\libminiaudio.so">
+      <Link>lib\armeabi-v7a\libminiaudio.so</Link>
+    </AndroidNativeLibrary>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('..\MajdataEdit_NeoX\runtimes\android\x86_64\native\libminiaudio.so')">
+    <AndroidNativeLibrary Include="..\MajdataEdit_NeoX\runtimes\android\x86_64\native\libminiaudio.so">
+      <Link>lib\x86_64\libminiaudio.so</Link>
+    </AndroidNativeLibrary>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('..\MajdataEdit_NeoX\runtimes\android\x86\native\libminiaudio.so')">
+    <AndroidNativeLibrary Include="..\MajdataEdit_NeoX\runtimes\android\x86\native\libminiaudio.so">
+      <Link>lib\x86\libminiaudio.so</Link>
+    </AndroidNativeLibrary>
+  </ItemGroup>
 </Project>

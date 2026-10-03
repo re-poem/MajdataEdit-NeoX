@@ -26,11 +26,10 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
-<PackageReference Include="MajWebSocket" />
-        <PackageReference Include="ManagedBass" />
-        <PackageReference Include="Microsoft.Data.Sqlite" />
-        <PackageReference Include="NuGet.Versioning" />
-        <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+		<PackageReference Include="MajWebSocket" />
+		<PackageReference Include="Microsoft.Data.Sqlite" />
+		<PackageReference Include="NuGet.Versioning" />
+		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
 		<PackageReference Include="PropertyGenerator.Avalonia" />
 		<PackageReference Include="SkiaSharp" />
 	</ItemGroup>
@@ -52,6 +51,34 @@
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="Plugins\*.lua">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+	<!--
+		miniaudio native library: built per-host by the Desktop csproj into
+		runtimes/<rid>/native/ (see Native/miniaudio.targets). The wrapper
+		in Models/Track/MiniAudio.cs loads it via DllImport("miniaudio").
+
+		RID conventions follow .NET:
+		  win-x64   -> miniaudio.dll
+		  osx       -> libminiaudio.dylib
+		  linux-x64 -> libminiaudio.so
+	-->
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<None Include="runtimes\win-x64\native\miniaudio.dll" Condition="Exists('runtimes\win-x64\native\miniaudio.dll')">
+			<Pack>true</Pack>
+			<PackagePath>runtimes\win-x64\native</PackagePath>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="runtimes\osx\native\libminiaudio.dylib" Condition="Exists('runtimes\osx\native\libminiaudio.dylib')">
+			<Pack>true</Pack>
+			<PackagePath>runtimes\osx\native</PackagePath>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="runtimes\linux-x64\native\libminiaudio.so" Condition="Exists('runtimes\linux-x64\native\libminiaudio.so')">
+			<Pack>true</Pack>
+			<PackagePath>runtimes\linux-x64\native</PackagePath>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
