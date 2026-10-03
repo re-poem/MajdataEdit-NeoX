@@ -271,6 +271,7 @@ internal partial class SimaiVisualizerControl : Control
 
                 var x = (i - startIndex) * linewidth;
                 var amplitude = waveLevels[i] / 32768f * height / 2f;
+                if (amplitude < 0.1f) amplitude = 0.1f; // Avoid disappearing lines.
 
                 canvas.DrawLine(
                     (float)x,

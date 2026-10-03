@@ -6,16 +6,16 @@ using System;
 
 namespace MajdataEdit_NeoX.Types;
 
-public sealed class FumenCompletionItem((string text, object? content, object? description) data) : ICompletionData
+public sealed class FumenCompletionItem(string text, object? content = null, object? description = null) : ICompletionData
 {
     public IImage? Image => null;
-    public string Text => data.text;
-    public object Content => data.content ?? data.text;
-    public object? Description => data.description;
+    public string Text => text;
+    public object Content => content ?? text;
+    public object? Description => description;
     public double Priority => 0;
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
-        textArea.Document.Replace(completionSegment, data.text);
+        textArea.Document.Replace(completionSegment, text);
     }
 }

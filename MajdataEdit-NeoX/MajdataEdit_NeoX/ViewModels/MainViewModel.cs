@@ -221,7 +221,7 @@ public partial class MainViewModel
 
 
     [RelayCommand]
-    public void ShowFindReplace(AboutPages page)
+    public void ShowFindReplace()
     {
 
     }
