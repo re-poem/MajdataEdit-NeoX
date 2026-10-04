@@ -19,12 +19,14 @@ public class MainDockFactory : Factory
 
     public override IRootDock CreateLayout()
     {
-        var inspector = new Tool
+        // 全部面板统一为 Document:tab 常驻且可拖拽停靠;组合键遮罩作为
+        // "按住面板任意位置拖动"的补充方式(CanDrag 保持 true 供两者共用)
+        var inspector = new Document
         {
             Id = "Inspector",
             Title = "Inspector",
             CanClose = false,
-            CanDrag = false
+            CanDrag = true
         };
 
         var editor = new Document
@@ -32,25 +34,24 @@ public class MainDockFactory : Factory
             Id = "Editor",
             Title = "Editor",
             CanClose = false,
-            CanDrag = false
+            CanDrag = true
         };
 
-        var visualizer = new Tool
+        var visualizer = new Document
         {
             Id = "Visualizer",
             Title = "Visualizer",
             CanClose = false,
-            CanDrag = false
+            CanDrag = true
         };
 
-        var leftDock = new ToolDock
+        var leftDock = new DocumentDock
         {
             Id = "LeftDock",
             Proportion = 0.19,
-            Alignment = Alignment.Left,
             VisibleDockables = CreateList<IDockable>(inspector),
             ActiveDockable = inspector,
-            CanDrag = false
+            CanCreateDocument = false
         };
 
         var documentDock = new DocumentDock
@@ -58,18 +59,16 @@ public class MainDockFactory : Factory
             Id = "DocumentDock",
             VisibleDockables = CreateList<IDockable>(editor),
             ActiveDockable = editor,
-            CanCreateDocument = false,
-            CanDrag = false
+            CanCreateDocument = false
         };
 
-        var bottomDock = new ToolDock
+        var bottomDock = new DocumentDock
         {
             Id = "BottomDock",
             Proportion = 0.2,
-            Alignment = Alignment.Bottom,
             VisibleDockables = CreateList<IDockable>(visualizer),
             ActiveDockable = visualizer,
-            CanDrag = false
+            CanCreateDocument = false
         };
 
         var mainLayout = new ProportionalDock
@@ -111,12 +110,13 @@ public class MainDockFactory : Factory
             ["ChartInfo"] = () => _context
         };
 
-        // 浮动窗口宿主:没有 locator 时拖出的面板会进入无宿主的浮动布局,直接"消失"
+        // 浮动窗口宿主:没有 locator 时拖出的面板会进入无宿主的浮动布局,直接"消失"。
+        // ShowActivated=false 避免浮动窗口抢焦点(否则主窗口 Deactivated 会打断组合键拖拽)。
         HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>
         {
-            [nameof(IDockWindow)] = () => new HostWindow()
+            [nameof(IDockWindow)] = () => new HostWindow { ShowActivated = false }
         };
-        DefaultHostWindowLocator = () => new HostWindow();
+        DefaultHostWindowLocator = () => new HostWindow { ShowActivated = false };
 
         base.InitLayout(layout);
     }

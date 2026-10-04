@@ -389,7 +389,7 @@ public partial class MainViewModel : ViewModelBase
             Id = "ChartInfo",
             Title = "Chart Info",
             CanClose = true,
-            CanDrag = false
+            CanDrag = true
         };
 
         Factory.AddDockable(documentDock, chartInfo);
@@ -415,7 +415,7 @@ public partial class MainViewModel : ViewModelBase
             Id = "Settings",
             Title = "Settings",
             CanClose = true,
-            CanDrag = false
+            CanDrag = true
         };
 
         Factory.AddDockable(documentDock, settings);
