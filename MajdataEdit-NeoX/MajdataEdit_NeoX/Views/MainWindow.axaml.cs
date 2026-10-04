@@ -27,9 +27,15 @@ public partial class MainWindow : Window
 
     private bool IsCtrlShiftAltPressed => IsControl() && IsShift() && IsAlt();
 
+    private static bool IsModifier(Key key) =>
+        key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt;
+
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
-        _pressedKeys.Add(e.Key);
+        if (IsModifier(e.Key))
+        {
+            _pressedKeys.Add(e.Key);
+        }
 
         if (IsCtrlShiftAltPressed && DataContext is MainViewModel vm)
         {

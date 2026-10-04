@@ -97,7 +97,7 @@ public partial class MainViewModel
     private bool _isDockDragEnabled;
 
     private readonly Dictionary<IDockable, bool> _originalCanDragStates = new();
-    private NotifyCollectionChangedEventHandler? _dockCollectionChangedHandler;
+    private readonly List<INotifyCollectionChanged> _subscribedCollections = new();
 
     public void EnableDockDragMode()
     {
@@ -107,22 +107,8 @@ public partial class MainViewModel
         {
             _originalCanDragStates.Clear();
             IsDockDragEnabled = true;
+            SubscribeCollectionChanges(Layout.VisibleDockables);
             EnableDragForDockables(Layout.VisibleDockables);
-
-            if (Layout is IRootDock rootDock && rootDock.VisibleDockables is INotifyCollectionChanged collection)
-            {
-                _dockCollectionChangedHandler = (_, e) =>
-                {
-                    if (!IsDockDragEnabled || e.NewItems == null) return;
-
-                    foreach (var item in e.NewItems)
-                    {
-                        if (item is IDockable dockable)
-                            EnableDragForDockables(new[] { dockable });
-                    }
-                };
-                collection.CollectionChanged += _dockCollectionChangedHandler;
-            }
         }
         catch
         {
@@ -139,13 +125,15 @@ public partial class MainViewModel
 
     public void DisableDockDragMode()
     {
-        if (!IsDockDragEnabled && _originalCanDragStates.Count == 0 && _dockCollectionChangedHandler == null) return;
+        if (!IsDockDragEnabled && _originalCanDragStates.Count == 0 && _subscribedCollections.Count == 0) return;
 
         try
         {
-            if (Layout is IRootDock rootDock && rootDock.VisibleDockables is INotifyCollectionChanged collection && _dockCollectionChangedHandler != null)
-                collection.CollectionChanged -= _dockCollectionChangedHandler;
-            _dockCollectionChangedHandler = null;
+            foreach (var collection in _subscribedCollections)
+            {
+                collection.CollectionChanged -= OnDockablesCollectionChanged;
+            }
+            _subscribedCollections.Clear();
 
             foreach (var kvp in _originalCanDragStates)
             {
@@ -156,6 +144,37 @@ public partial class MainViewModel
         {
             _originalCanDragStates.Clear();
             IsDockDragEnabled = false;
+        }
+    }
+
+    private void SubscribeCollectionChanges(IList<IDockable>? dockables)
+    {
+        if (dockables == null) return;
+
+        foreach (var dockable in dockables)
+        {
+            if (dockable is not IDock dock) continue;
+
+            if (dock.VisibleDockables is INotifyCollectionChanged collection && !_subscribedCollections.Contains(collection))
+            {
+                collection.CollectionChanged += OnDockablesCollectionChanged;
+                _subscribedCollections.Add(collection);
+            }
+            SubscribeCollectionChanges(dock.VisibleDockables);
+        }
+    }
+
+    private void OnDockablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!IsDockDragEnabled || e.NewItems == null) return;
+
+        foreach (var item in e.NewItems)
+        {
+            if (item is IDockable dockable)
+            {
+                SubscribeCollectionChanges(new[] { dockable });
+                EnableDragForDockables(new[] { dockable });
+            }
         }
     }
 
@@ -361,7 +380,8 @@ public partial class MainViewModel
         {
             Id = "ChartInfo",
             Title = "Chart Info",
-            CanClose = true
+            CanClose = true,
+            CanDrag = false
         };
 
         Factory.AddDockable(documentDock, chartInfo);
@@ -386,7 +406,8 @@ public partial class MainViewModel
         {
             Id = "Settings",
             Title = "Settings",
-            CanClose = true
+            CanClose = true,
+            CanDrag = false
         };
 
         Factory.AddDockable(documentDock, settings);
