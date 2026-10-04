@@ -130,7 +130,10 @@ public class MainDockFactory : Factory
         var host = new HostWindow
         {
             ShowActivated = false,
-            WindowDecorations = WindowDecorations.BorderOnly
+            WindowDecorations = WindowDecorations.BorderOnly,
+            // chrome 占满窗口:tab 条贴顶,配合 DocumentTabStrip.EnableWindowDrag
+            // 实现拖 tab 条移动窗口位置
+            DocumentChromeControlsWholeWindow = true
         };
         host.Resources["DockDocumentControlTabStripVisible"] = true;
         return host;
@@ -141,24 +144,33 @@ public class MainDockFactory : Factory
     /// 目标 dock 属于主布局且已有可见面板(不含正被移动的面板自身)时拒绝本次停靠。
     /// 浮动窗口的 dock 显示 tab,不受此限制。
     /// </summary>
-    private bool WouldStackInMainLayout(IDock targetDock, IDockable? incoming)
+    private bool IsInMainLayout(IDock targetDock)
     {
         for (IDockable? node = targetDock; node is not null; node = node.Owner)
         {
             if (ReferenceEquals(node, _context.Layout))
             {
-                var visible = targetDock.VisibleDockables;
-                if (visible is null) return false;
-                var others = 0;
-                foreach (var d in visible)
-                {
-                    if (!ReferenceEquals(d, incoming)) others++;
-                }
-                return others > 0;
+                return true;
             }
         }
 
         return false;
+    }
+
+    private bool WouldStackInMainLayout(IDock targetDock, IDockable? incoming)
+    {
+        if (!IsInMainLayout(targetDock)) return false;
+
+        var visible = targetDock.VisibleDockables;
+        if (visible is null) return false;
+
+        var others = 0;
+        foreach (var d in visible)
+        {
+            if (!ReferenceEquals(d, incoming)) others++;
+        }
+
+        return others > 0;
     }
 
     public override void AddDockable(IDock dock, IDockable dockable)
@@ -183,6 +195,20 @@ public class MainDockFactory : Factory
     {
         if (WouldStackInMainLayout(dock, sourceDockable)) return;
         base.MoveDockable(dock, sourceDockable, targetDockable);
+    }
+
+    /// <summary>
+    /// 主布局的 dock 即使清空也不折叠:空 dock 仍是拖放目标,
+    /// 面板全部浮出后才能把浮动窗口的 tab 拖回主窗口重新停靠。
+    /// </summary>
+    public override void RemoveDockable(IDockable dockable, bool collapse)
+    {
+        if (collapse && dockable.Owner is IDock ownerDock && IsInMainLayout(ownerDock))
+        {
+            collapse = false;
+        }
+
+        base.RemoveDockable(dockable, collapse);
     }
 
     /// <summary>

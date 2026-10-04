@@ -65,23 +65,6 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// 重建默认布局:关闭全部浮动窗口,替换主布局。
-    /// 所有面板都浮出后主窗口没有可放置目标,此命令是唯一的恢复途径。
-    /// </summary>
-    [RelayCommand]
-    private void ResetLayout()
-    {
-        foreach (var host in Factory.HostWindows.ToArray())
-        {
-            Factory.CloseWindow(host.Window);
-        }
-
-        var layout = Factory.CreateLayout();
-        Factory.InitLayout(layout);
-        Layout = layout;
-    }
-
     public SettingsService Settings { get; } = new();
 
     private void OnSettingsChanged(object? sender, EventArgs e)
@@ -443,7 +426,6 @@ public partial class MainViewModel : ViewModelBase
             mainFactory.FloatDetached(documentDock, document);
         }
     }
-
     private IDockable? FindDocumentAnywhere(string id)
     {
         var inMain = Factory.FindDockable(Layout, d => d.Id == id);
@@ -515,60 +497,5 @@ public partial class MainViewModel : ViewModelBase
     public void CheckUpdateAsync()
     {
 
-    }
-
-
-    private IDockable? FindDockableById(string id)
-    {
-        if (Layout?.VisibleDockables == null) return null;
-
-        foreach (var dockable in Layout.VisibleDockables.OfType<IDock>())
-        {
-            var result = FindInDock(dockable, id);
-            if (result != null) return result;
-        }
-        return null;
-    }
-
-    private IDockable? FindInDock(IDock dock, string id)
-    {
-        if (dock.VisibleDockables == null) return null;
-
-        foreach (var dockable in dock.VisibleDockables)
-        {
-            if (dockable.Id == id) return dockable;
-            if (dockable is IDock childDock)
-            {
-                var result = FindInDock(childDock, id);
-                if (result != null) return result;
-            }
-        }
-        return null;
-    }
-
-    private IDock? FindDockById(string id)
-    {
-        if (Layout?.VisibleDockables == null) return null;
-
-        foreach (var dockable in Layout.VisibleDockables.OfType<IDock>())
-        {
-            if (dockable.Id == id) return dockable;
-            var result = FindDockInDock(dockable, id);
-            if (result != null) return result;
-        }
-        return null;
-    }
-
-    private IDock? FindDockInDock(IDock dock, string id)
-    {
-        if (dock.VisibleDockables == null) return null;
-
-        foreach (var dockable in dock.VisibleDockables.OfType<IDock>())
-        {
-            if (dockable.Id == id) return dockable;
-            var result = FindDockInDock(dockable, id);
-            if (result != null) return result;
-        }
-        return null;
     }
 }

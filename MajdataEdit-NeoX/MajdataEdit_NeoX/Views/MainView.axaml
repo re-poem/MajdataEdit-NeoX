@@ -25,9 +25,6 @@
 				<MenuItem Header="{ll:Localize Win_Recover}" Command="{Binding OpenRecover}"/>
 				<Separator/>
 				<MenuItem Header="{ll:Localize Gui_ExportVideo}" Command="{Binding Play}" CommandParameter="WsType:PlaybackMode.Record"/>
-				<Separator/>
-				<!-- 本地化键待接入:Gui_ResetLayout -->
-					<MenuItem Header="重置布局" Command="{Binding ResetLayoutCommand}"/>
 			</MenuItem>
 			<MenuItem x:Name="EditMenu" Header="{ll:Localize Gui_Edit}">
 				<MenuItem Header="{ll:Localize Gui_ChartInfo}" Command="{Binding OpenChartInfo}"/>

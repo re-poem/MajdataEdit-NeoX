@@ -63,5 +63,9 @@
         <FluentTheme />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="avares://Dock.Avalonia.Themes.Fluent/DockFluentTheme.axaml" />
+        <!-- 浮动窗口(BorderOnly 无标题栏)拖 tab 条空白处移动窗口位置 -->
+        <Style Selector="HostWindow DocumentTabStrip">
+            <Setter Property="EnableWindowDrag" Value="True" />
+        </Style>
     </Application.Styles>
 </Application>
