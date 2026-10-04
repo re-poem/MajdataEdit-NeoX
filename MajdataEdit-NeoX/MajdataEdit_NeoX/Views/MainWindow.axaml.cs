@@ -14,8 +14,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
-        AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
         Deactivated += (s, e) => ResetPressedKeys();
     }
 
