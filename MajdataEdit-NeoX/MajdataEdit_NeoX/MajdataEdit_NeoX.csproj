@@ -22,8 +22,12 @@
 			<IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
 			<PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
 		</PackageReference>
+		<PackageReference Include="bodong.Avalonia.PropertyGrid" />
 		<PackageReference Include="Cimai" />
 		<PackageReference Include="CommunityToolkit.Mvvm" />
+		<PackageReference Include="Dock.Avalonia.Themes.Fluent" />
+		<PackageReference Include="Dock.Model" />
+		<PackageReference Include="Dock.Model.Mvvm" />
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
 		<PackageReference Include="MajWebSocket" />
@@ -81,6 +85,9 @@
 			<PackagePath>runtimes\linux-x64\native</PackagePath>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Assets\Localizations\" />
 	</ItemGroup>
 
 </Project>

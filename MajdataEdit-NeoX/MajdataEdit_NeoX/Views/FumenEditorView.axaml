@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
              xmlns:AvaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
 
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="370"
              x:Class="MajdataEdit_NeoX.Views.FumenEditorView"

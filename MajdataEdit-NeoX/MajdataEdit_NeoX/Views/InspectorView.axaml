@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
-             xmlns:lang="using:MajdataEdit_NeoX.Lang"
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
 
              mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="370"
              x:Class="MajdataEdit_NeoX.Views.InspectorView"
@@ -41,25 +41,25 @@
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
                Grid.Column="0" Grid.Row="3" Margin="5 0 5 3"
-               FontSize="12" Content="{x:Static lang:Resources.Gui_Level}"/>
+               FontSize="12" Content="{ll:Localize Gui_Level}"/>
         <TextBox Grid.Column="1" Grid.Row="3" Margin="5 0 5 3"
                  Text="{Binding #Root.Level}"/>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
                Grid.Column="0" Grid.Row="4" Margin="5 0 5 3"
-               FontSize="12" Content="{x:Static lang:Resources.Gui_Designer}"/>
+               FontSize="12" Content="{ll:Localize Gui_Designer}"/>
         <TextBox Grid.Column="1" Grid.Row="4" Margin="5 0 5 3"
                  Text="{Binding #Root.Designer}"/>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
                Grid.Column="0" Grid.Row="5" Margin="5 0 5 3"
-               FontSize="12" Content="{x:Static lang:Resources.Gui_Offset}"/>
+               FontSize="12" Content="{ll:Localize Gui_Offset}"/>
         <NumericUpDown Grid.Column="1" Grid.Row="5" Margin="5 0 5 3"
                        Value="{Binding #Root.Offset}" ShowButtonSpinner="False"/>
 
         <Label VerticalAlignment="Center" HorizontalAlignment="Center"
                Grid.Column="0" Grid.Row="6" Margin="4 0 5 3"
-               FontSize="12" Content="{x:Static lang:Resources.Gui_PlaybackSpeed}"/>
+               FontSize="12" Content="{ll:Localize Gui_PlaybackSpeed}"/>
         <NumericUpDown Grid.Column="1" Grid.Row="6" Margin="5 0 5 3"
                        Value="{Binding #Root.PlaybackSpeed}"
                        Minimum="0.1" Increment="0.1"
@@ -70,12 +70,12 @@
         <StackPanel Grid.Column="0" Grid.Row="7"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
             <CheckBox IsChecked="{Binding #Root.IsFollowCursor}" Margin="20 4 0 0" HorizontalAlignment="Center"/>
-            <Label Content="{x:Static lang:Resources.Gui_FollowCursor}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center"/>
+            <Label Content="{ll:Localize Gui_FollowCursor}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center"/>
         </StackPanel>
         <StackPanel Grid.Column="1" Grid.Row="7"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
             <CheckBox IsChecked="{Binding #Root.IsConnected}" IsEnabled="False" Margin="20 4 0 0" HorizontalAlignment="Center"/>
-            <Label Content="{x:Static lang:Resources.Gui_Connected}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center" />
+            <Label Content="{ll:Localize Gui_Connected}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center" />
         </StackPanel>
 
     </Grid>

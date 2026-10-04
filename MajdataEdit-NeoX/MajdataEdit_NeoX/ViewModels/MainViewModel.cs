@@ -1,13 +1,21 @@
 ﻿using Cimai;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Dock.Model.Controls;
+using Dock.Model.Core;
+using Dock.Model.Mvvm;
+using Dock.Model.Mvvm.Controls;
 using MajdataEdit_NeoX.Models.Fumen;
+using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
+using MajdataEdit_NeoX.Types;
+using MajdataEdit_NeoX.Views;
 using MajWebSocket.Types;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace MajdataEdit_NeoX.ViewModels;
@@ -16,10 +24,77 @@ public enum AboutPages { Discord, QQ, GitHub, GitHub_ViewX, MajNet }
 public partial class MainViewModel
     (IFileDialogService fileDialog) : ViewModelBase
 {
-    public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
+    public MainViewModel() : this(new AvaloniaFileDialogService(() => null))
+    {
+        Settings.SettingsChanged += OnSettingsChanged;
+
+        Factory = new MainDockFactory(this);
+        Layout = Factory.CreateLayout();
+        Factory.InitLayout(Layout);
+    }
+
+    public IFactory Factory { get; }
+    public IRootDock Layout { get; }
+
+    public SettingsService Settings { get; } = new();
+
+    private void OnSettingsChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(Language));
+        OnPropertyChanged(nameof(FontSize));
+        OnPropertyChanged(nameof(AutoCheckUpdatesOnStartup));
+        OnPropertyChanged(nameof(WaveAnimated));
+        OnPropertyChanged(nameof(WordWrap));
+        OnPropertyChanged(nameof(BackgroundImagePath));
+        OnPropertyChanged(nameof(AutoFocusView));
+    }
+
+    public string Language
+    {
+        get => Settings.Current.EditSetting.Language;
+        set => Settings.Set(s => s.EditSetting.Language = value);
+    }
+
+    public float FontSize
+    {
+        get => Settings.Current.EditSetting.FontSize;
+        set => Settings.Set(s => s.EditSetting.FontSize = value);
+    }
+
+    public bool AutoCheckUpdatesOnStartup
+    {
+        get => Settings.Current.EditSetting.AutoCheckUpdatesOnStartup;
+        set => Settings.Set(s => s.EditSetting.AutoCheckUpdatesOnStartup = value);
+    }
+
+    public bool WaveAnimated
+    {
+        get => Settings.Current.EditSetting.WaveAnimated;
+        set => Settings.Set(s => s.EditSetting.WaveAnimated = value);
+    }
+
+    public bool WordWrap
+    {
+        get => Settings.Current.EditSetting.WordWrap;
+        set => Settings.Set(s => s.EditSetting.WordWrap = value);
+    }
+
+    public string BackgroundImagePath
+    {
+        get => Settings.Current.EditSetting.BackgroundImagePath;
+        set => Settings.Set(s => s.EditSetting.BackgroundImagePath = value);
+    }
+
+    public bool AutoFocusView
+    {
+        get => Settings.Current.EditSetting.AutoFocusView;
+        set => Settings.Set(s => s.EditSetting.AutoFocusView = value);
+    }
 
 
     // ========文件========
+    private string? _maidataDir { get; set; }
+
     [ObservableProperty]
     // 文件变化刷新
     [NotifyPropertyChangedFor(nameof(Title))]
@@ -151,7 +226,10 @@ public partial class MainViewModel
     {
         var file = await fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Audio Files", ["track.mp3", "track.ogg"])]);
         if (file == null) return;
+        var dir = Path.GetDirectoryName(file);
+        if (dir == null) return;
 
+        _maidataDir = dir;
         Maidata = MaidataFile.New();
         TrackInfo = TrackReader.ReadTrack(file);
     }
@@ -163,6 +241,7 @@ public partial class MainViewModel
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
 
+        _maidataDir = dir;
         Maidata = MaidataFile.Parse(File.ReadAllText(file));
         TrackInfo = TrackReader.ReadTrackFromDir(dir);
     }
@@ -184,12 +263,51 @@ public partial class MainViewModel
     [RelayCommand]
     public void OpenChartInfo()
     {
+        var documentDock = Layout.Navigate("DocumentDock") as DocumentDock;
+        if (documentDock == null) return;
 
+        var existing = documentDock.VisibleDockables?.FirstOrDefault(d => d.Id == "ChartInfo");
+        if (existing != null)
+        {
+            Factory.CloseDockable(existing);
+            return;
+        }
+
+        var chartInfo = new Document
+        {
+            Id = "ChartInfo",
+            Title = "Chart Info",
+            CanClose = true
+        };
+
+        Factory.AddDockable(documentDock, chartInfo);
+        Factory.SetActiveDockable(chartInfo);
+        Factory.SetFocusedDockable(documentDock, chartInfo);
     }
+
     [RelayCommand]
     public void OpenSettings()
     {
+        var documentDock = Layout.Navigate("DocumentDock") as DocumentDock;
+        if (documentDock == null) return;
 
+        var existing = documentDock.VisibleDockables?.FirstOrDefault(d => d.Id == "Settings");
+        if (existing != null)
+        {
+            Factory.CloseDockable(existing);
+            return;
+        }
+
+        var settings = new Document
+        {
+            Id = "Settings",
+            Title = "Settings",
+            CanClose = true
+        };
+
+        Factory.AddDockable(documentDock, settings);
+        Factory.SetActiveDockable(settings);
+        Factory.SetFocusedDockable(documentDock, settings);
     }
     [RelayCommand]
     public void OpenShortcut()
@@ -247,5 +365,60 @@ public partial class MainViewModel
     public void CheckUpdateAsync()
     {
 
+    }
+
+
+    private IDockable? FindDockableById(string id)
+    {
+        if (Layout?.VisibleDockables == null) return null;
+
+        foreach (var dockable in Layout.VisibleDockables.OfType<IDock>())
+        {
+            var result = FindInDock(dockable, id);
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    private IDockable? FindInDock(IDock dock, string id)
+    {
+        if (dock.VisibleDockables == null) return null;
+
+        foreach (var dockable in dock.VisibleDockables)
+        {
+            if (dockable.Id == id) return dockable;
+            if (dockable is IDock childDock)
+            {
+                var result = FindInDock(childDock, id);
+                if (result != null) return result;
+            }
+        }
+        return null;
+    }
+
+    private IDock? FindDockById(string id)
+    {
+        if (Layout?.VisibleDockables == null) return null;
+
+        foreach (var dockable in Layout.VisibleDockables.OfType<IDock>())
+        {
+            if (dockable.Id == id) return dockable;
+            var result = FindDockInDock(dockable, id);
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    private IDock? FindDockInDock(IDock dock, string id)
+    {
+        if (dock.VisibleDockables == null) return null;
+
+        foreach (var dockable in dock.VisibleDockables.OfType<IDock>())
+        {
+            if (dockable.Id == id) return dockable;
+            var result = FindDockInDock(dockable, id);
+            if (result != null) return result;
+        }
+        return null;
     }
 }
