@@ -1,7 +1,9 @@
 ﻿<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:MajdataEdit_NeoX"
+             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
              x:Class="MajdataEdit_NeoX.App"
+             x:CompileBindings="False"
              RequestedThemeVariant="Default">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
@@ -9,13 +11,103 @@
         <local:ViewLocator />
     </Application.DataTemplates>
 
+    <!--
+        无 tab 外壳的面板模板:内容全出血直接渲染。
+        拖拽模式下(DockDragModeState.IsActive)显示白色半透明遮罩,
+        遮罩标记 DockProperties.IsDragArea 使按住面板任意位置即可拖动,
+        同时遮罩挡住内容控件,避免与编辑器等控件的指针交互冲突。
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ControlTheme x:Key="{x:Type ToolControl}" TargetType="ToolControl">
+                <Setter Property="(DockProperties.IsDragEnabled)" Value="{Binding CanDrag}" />
+                <Setter Property="(DockProperties.IsDropEnabled)" Value="{Binding CanDrop}" />
+                <Setter Property="(DockProperties.DockGroup)" Value="{Binding DockGroup}" />
+                <Setter Property="MinWidth" Value="{Binding MinWidth}" />
+                <Setter Property="MaxWidth" Value="{Binding MaxWidth}" />
+                <Setter Property="MinHeight" Value="{Binding MinHeight}" />
+                <Setter Property="MaxHeight" Value="{Binding MaxHeight}" />
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <Panel DockProperties.IsDropArea="True"
+                               DockProperties.IsDockTarget="True">
+                            <Border ZIndex="-1"
+                                    Background="{DynamicResource DockSurfacePanelBrush}"
+                                    BorderBrush="{DynamicResource DockBorderSubtleBrush}"
+                                    BorderThickness="1 0 1 0">
+                                <DockableControl DataContext="{Binding ActiveDockable}"
+                                                 TrackingMode="Visible">
+                                    <DeferredContentControl Content="{Binding}"
+                                                            HorizontalAlignment="Stretch"
+                                                            VerticalAlignment="Stretch" />
+                                </DockableControl>
+                            </Border>
+                            <Border x:Name="PART_DragMask"
+                                    DataContext="{Binding ActiveDockable}"
+                                    Background="#4DFFFFFF"
+                                    IsVisible="{Binding IsActive, Source={x:Static vm:DockDragModeState.Instance}}"
+                                    DockProperties.IsDragArea="True"
+                                    DockProperties.IsDragEnabled="{Binding IsActive, Source={x:Static vm:DockDragModeState.Instance}}" />
+                        </Panel>
+                    </ControlTemplate>
+                </Setter>
+            </ControlTheme>
+
+            <!-- 工具面板 chrome(标题栏/图钉/菜单)整体去除,只保留内容;
+                 浮动窗口由 HostWindow 自身的窗口装饰提供标题栏 -->
+            <ControlTheme x:Key="{x:Type ToolChromeControl}" TargetType="ToolChromeControl">
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <DeferredContentPresenter Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Background="{TemplateBinding Background}"
+                                                  Padding="{TemplateBinding Padding}" />
+                    </ControlTemplate>
+                </Setter>
+            </ControlTheme>
+
+            <ControlTheme x:Key="{x:Type DocumentControl}" TargetType="DocumentControl">
+                <Setter Property="(DockProperties.IsDragEnabled)" Value="{Binding CanDrag}" />
+                <Setter Property="(DockProperties.IsDropEnabled)" Value="{Binding CanDrop}" />
+                <Setter Property="(DockProperties.DockGroup)" Value="{Binding DockGroup}" />
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <Panel DockProperties.IsDropArea="True"
+                               DockProperties.IsDockTarget="True"
+                               Background="Transparent"
+                               ZIndex="1">
+                            <Border>
+                                <Grid>
+                                    <DockableControl DataContext="{Binding ActiveDockable}"
+                                                     TrackingMode="Visible"
+                                                     IsVisible="{Binding $parent[DocumentControl].HasVisibleDockables}">
+                                        <DeferredContentControl Content="{Binding}"
+                                                                HorizontalAlignment="Stretch"
+                                                                VerticalAlignment="Stretch" />
+                                    </DockableControl>
+                                    <ContentControl Content="{Binding EmptyContent}"
+                                                    ContentTemplate="{Binding $parent[DocumentControl].EmptyContentTemplate}"
+                                                    HorizontalContentAlignment="Center"
+                                                    VerticalContentAlignment="Center"
+                                                    IsVisible="{Binding !$parent[DocumentControl].HasVisibleDockables}" />
+                                </Grid>
+                            </Border>
+                            <Border x:Name="PART_DragMask"
+                                    DataContext="{Binding ActiveDockable}"
+                                    Background="#4DFFFFFF"
+                                    IsVisible="{Binding IsActive, Source={x:Static vm:DockDragModeState.Instance}}"
+                                    DockProperties.IsDragArea="True"
+                                    DockProperties.IsDragEnabled="{Binding IsActive, Source={x:Static vm:DockDragModeState.Instance}}" />
+                        </Panel>
+                    </ControlTemplate>
+                </Setter>
+            </ControlTheme>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="avares://Dock.Avalonia.Themes.Fluent/DockFluentTheme.axaml" />
-        <Style Selector="Border.highlighted">
-            <Setter Property="BorderBrush" Value="#FFB547"/>
-            <Setter Property="BorderThickness" Value="2"/>
-        </Style>
     </Application.Styles>
 </Application>

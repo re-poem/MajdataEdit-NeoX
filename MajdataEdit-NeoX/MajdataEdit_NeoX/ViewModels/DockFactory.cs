@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
@@ -109,6 +110,13 @@ public class MainDockFactory : Factory
             ["Settings"] = () => _context,
             ["ChartInfo"] = () => _context
         };
+
+        // 浮动窗口宿主:没有 locator 时拖出的面板会进入无宿主的浮动布局,直接"消失"
+        HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>
+        {
+            [nameof(IDockWindow)] = () => new HostWindow()
+        };
+        DefaultHostWindowLocator = () => new HostWindow();
 
         base.InitLayout(layout);
     }

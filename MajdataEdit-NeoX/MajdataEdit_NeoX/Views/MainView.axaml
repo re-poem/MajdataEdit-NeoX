@@ -59,40 +59,36 @@
 						  InitializeLayout="True">
 			<dock:DockControl.DataTemplates>
 				<DataTemplate DataType="core:Tool">
-					<Border Classes.highlighted="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsDockDragEnabled}">
-						<Panel>
-							<v:InspectorView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Inspector}"
-								DisplayTime="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretTime}"
-								DisplayCombo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretCombo}"
-								IsConnected="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsConnected}"
-								SelectedDifficulty="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).SelectedDifficulty}"
-								Level="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Level}"
-								Designer="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Designer}"
-								Offset="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Offset}"
-								PlaybackSpeed="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlaybackSpeed}"
-								IsFollowCursor="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsFollowCursor}" />
-							<c:SimaiVisualizerControl
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Visualizer}"
-								TrackInfo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).TrackInfo}"
-								Chart="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Chart}"
-								Time="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlayheadTime}" />
-						</Panel>
-					</Border>
+					<Panel>
+						<v:InspectorView
+							IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Inspector}"
+							DisplayTime="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretTime}"
+							DisplayCombo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretCombo}"
+							IsConnected="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsConnected}"
+							SelectedDifficulty="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).SelectedDifficulty}"
+							Level="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Level}"
+							Designer="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Designer}"
+							Offset="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Offset}"
+							PlaybackSpeed="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlaybackSpeed}"
+							IsFollowCursor="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsFollowCursor}" />
+						<c:SimaiVisualizerControl
+							IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Visualizer}"
+							TrackInfo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).TrackInfo}"
+							Chart="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Chart}"
+							Time="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlayheadTime}" />
+					</Panel>
 				</DataTemplate>
 				<DataTemplate DataType="core:Document">
-					<Border Classes.highlighted="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsDockDragEnabled}">
-						<Panel>
-							<v:FumenEditorView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Editor}"
-								Fumen="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Fumen}" />
-							<v:SettingsView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Settings}"
-								Settings="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Settings.Current}" />
-							<v:ChartInfoView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=ChartInfo}" />
-						</Panel>
-					</Border>
+					<Panel>
+						<v:FumenEditorView
+							IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Editor}"
+							Fumen="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Fumen}" />
+						<v:SettingsView
+							IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Settings}"
+							Settings="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Settings.Current}" />
+						<v:ChartInfoView
+							IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=ChartInfo}" />
+					</Panel>
 				</DataTemplate>
 			</dock:DockControl.DataTemplates>
 		</dock:DockControl>

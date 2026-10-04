@@ -102,6 +102,8 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isDockDragEnabled;
 
+    partial void OnIsDockDragEnabledChanged(bool value) => DockDragModeState.Instance.IsActive = value;
+
     private readonly Dictionary<IDockable, bool> _originalCanDragStates = new();
     private readonly List<INotifyCollectionChanged> _subscribedCollections = new();
 

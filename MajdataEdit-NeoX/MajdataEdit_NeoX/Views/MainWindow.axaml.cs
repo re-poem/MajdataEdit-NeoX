@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -17,6 +18,17 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
         Deactivated += (s, e) => ResetPressedKeys();
+
+#if DEBUG
+        // 视觉 QA 钩子:MAJ_DEBUG_FORCE_DRAG_MASK=1 启动时直接开启拖拽遮罩,
+        // 用于自动化截图验证遮罩样式(真实交互仍走 Ctrl+Shift+Alt 键盘路径)
+        if (Environment.GetEnvironmentVariable("MAJ_DEBUG_FORCE_DRAG_MASK") == "1")
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(
+                () => MajdataEdit_NeoX.ViewModels.DockDragModeState.Instance.IsActive = true,
+                Avalonia.Threading.DispatcherPriority.Background);
+        }
+#endif
     }
 
     private bool IsControl() => _pressedKeys.Contains(Key.LeftCtrl) || _pressedKeys.Contains(Key.RightCtrl);
