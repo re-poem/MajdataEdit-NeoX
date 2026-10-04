@@ -135,4 +135,63 @@ public class MainDockFactory : Factory
         host.Resources["DockDocumentControlTabStripVisible"] = true;
         return host;
     }
+
+    /// <summary>
+    /// 主窗口 dock 没有 tab,无法在两个面板间切换,因此禁止同一 dock 堆叠两个面板:
+    /// 目标 dock 属于主布局且已有可见面板(不含正被移动的面板自身)时拒绝本次停靠。
+    /// 浮动窗口的 dock 显示 tab,不受此限制。
+    /// </summary>
+    private bool WouldStackInMainLayout(IDock targetDock, IDockable? incoming)
+    {
+        for (IDockable? node = targetDock; node is not null; node = node.Owner)
+        {
+            if (ReferenceEquals(node, _context.Layout))
+            {
+                var visible = targetDock.VisibleDockables;
+                if (visible is null) return false;
+                var others = 0;
+                foreach (var d in visible)
+                {
+                    if (!ReferenceEquals(d, incoming)) others++;
+                }
+                return others > 0;
+            }
+        }
+
+        return false;
+    }
+
+    public override void AddDockable(IDock dock, IDockable dockable)
+    {
+        if (WouldStackInMainLayout(dock, dockable)) return;
+        base.AddDockable(dock, dockable);
+    }
+
+    public override void InsertDockable(IDock dock, IDockable dockable, int index)
+    {
+        if (WouldStackInMainLayout(dock, dockable)) return;
+        base.InsertDockable(dock, dockable, index);
+    }
+
+    public override void MoveDockable(IDock sourceDock, IDock targetDock, IDockable sourceDockable, IDockable? targetDockable)
+    {
+        if (WouldStackInMainLayout(targetDock, sourceDockable)) return;
+        base.MoveDockable(sourceDock, targetDock, sourceDockable, targetDockable);
+    }
+
+    public override void MoveDockable(IDock dock, IDockable sourceDockable, IDockable targetDockable)
+    {
+        if (WouldStackInMainLayout(dock, sourceDockable)) return;
+        base.MoveDockable(dock, sourceDockable, targetDockable);
+    }
+
+    /// <summary>
+    /// 把一个新面板直接浮出(不占据主窗口 dock):先挂到宿主 dock 再立即浮动,
+    /// 内部直连基类绕过单占守卫,面板最终只存在于浮动窗口中。
+    /// </summary>
+    public void FloatDetached(IDock host, IDockable dockable)
+    {
+        base.AddDockable(host, dockable);
+        FloatDockable(dockable);
+    }
 }

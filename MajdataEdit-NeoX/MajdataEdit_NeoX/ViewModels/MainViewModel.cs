@@ -50,7 +50,35 @@ public partial class MainViewModel : ViewModelBase
     }
 
     public IFactory Factory { get; } = null!;
-    public IRootDock Layout { get; } = null!;
+    private IRootDock _layout = null!;
+
+    public IRootDock Layout
+    {
+        get => _layout;
+        set
+        {
+            if (ReferenceEquals(_layout, value)) return;
+            _layout = value;
+            OnPropertyChanged(nameof(Layout));
+        }
+    }
+
+    /// <summary>
+    /// 重建默认布局:关闭全部浮动窗口,替换主布局。
+    /// 所有面板都浮出后主窗口没有可放置目标,此命令是唯一的恢复途径。
+    /// </summary>
+    [RelayCommand]
+    private void ResetLayout()
+    {
+        foreach (var host in Factory.HostWindows.ToArray())
+        {
+            Factory.CloseWindow(host.Window);
+        }
+
+        var layout = Factory.CreateLayout();
+        Factory.InitLayout(layout);
+        Layout = layout;
+    }
 
     public SettingsService Settings { get; } = new();
 

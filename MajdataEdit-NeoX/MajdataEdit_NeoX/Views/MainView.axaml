@@ -2,13 +2,11 @@
 			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
 			 xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
-			 xmlns:core="clr-namespace:Dock.Model.Mvvm.Controls;assembly=Dock.Model.Mvvm"
-			 xmlns:local="using:MajdataEdit_NeoX"
 			 xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
-			 xmlns:v="using:MajdataEdit_NeoX.Views"
-			 xmlns:c="using:MajdataEdit_NeoX.Controls"
 			 xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+
 			 mc:Ignorable="d"
 			 d:DesignWidth="630" d:DesignHeight="440"
 			 x:Class="MajdataEdit_NeoX.Views.MainView"
@@ -27,6 +25,9 @@
 				<MenuItem Header="{ll:Localize Win_Recover}" Command="{Binding OpenRecover}"/>
 				<Separator/>
 				<MenuItem Header="{ll:Localize Gui_ExportVideo}" Command="{Binding Play}" CommandParameter="WsType:PlaybackMode.Record"/>
+				<Separator/>
+				<!-- 本地化键待接入:Gui_ResetLayout -->
+					<MenuItem Header="重置布局" Command="{Binding ResetLayoutCommand}"/>
 			</MenuItem>
 			<MenuItem x:Name="EditMenu" Header="{ll:Localize Gui_Edit}">
 				<MenuItem Header="{ll:Localize Gui_ChartInfo}" Command="{Binding OpenChartInfo}"/>
@@ -54,7 +55,7 @@
 			</MenuItem>
 		</Menu>
 
-		<dock:DockControl Grid.Row="1" 
+		<dock:DockControl Grid.Row="1"
 						  Layout="{Binding Layout}"
 						  InitializeLayout="True">
 		</dock:DockControl>
