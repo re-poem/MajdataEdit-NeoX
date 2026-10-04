@@ -12,6 +12,7 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+        <StyleInclude Source="avares://Dock.Avalonia.Themes.Fluent/DockFluentTheme.axaml" />
         <Style Selector="Border.highlighted">
             <Setter Property="BorderBrush" Value="#FFB547"/>
             <Setter Property="BorderThickness" Value="2"/>
