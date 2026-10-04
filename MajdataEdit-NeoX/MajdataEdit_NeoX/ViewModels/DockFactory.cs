@@ -22,21 +22,24 @@ public class MainDockFactory : Factory
         {
             Id = "Inspector",
             Title = "Inspector",
-            CanClose = false
+            CanClose = false,
+            CanDrag = false
         };
 
         var editor = new Document
         {
             Id = "Editor",
             Title = "Editor",
-            CanClose = false
+            CanClose = false,
+            CanDrag = false
         };
 
         var visualizer = new Tool
         {
             Id = "Visualizer",
             Title = "Visualizer",
-            CanClose = false
+            CanClose = false,
+            CanDrag = false
         };
 
         var leftDock = new ToolDock
@@ -45,7 +48,8 @@ public class MainDockFactory : Factory
             Proportion = 0.19,
             Alignment = Alignment.Left,
             VisibleDockables = CreateList<IDockable>(inspector),
-            ActiveDockable = inspector
+            ActiveDockable = inspector,
+            CanDrag = false
         };
 
         var documentDock = new DocumentDock
@@ -53,7 +57,8 @@ public class MainDockFactory : Factory
             Id = "DocumentDock",
             VisibleDockables = CreateList<IDockable>(editor),
             ActiveDockable = editor,
-            CanCreateDocument = false
+            CanCreateDocument = false,
+            CanDrag = false
         };
 
         var bottomDock = new ToolDock
@@ -62,7 +67,8 @@ public class MainDockFactory : Factory
             Proportion = 0.2,
             Alignment = Alignment.Bottom,
             VisibleDockables = CreateList<IDockable>(visualizer),
-            ActiveDockable = visualizer
+            ActiveDockable = visualizer,
+            CanDrag = false
         };
 
         var mainLayout = new ProportionalDock

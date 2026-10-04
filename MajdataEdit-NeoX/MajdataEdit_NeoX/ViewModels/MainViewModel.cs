@@ -263,7 +263,7 @@ public partial class MainViewModel
     [RelayCommand]
     public void OpenChartInfo()
     {
-        var documentDock = Layout.Navigate("DocumentDock") as DocumentDock;
+        var documentDock = Factory.FindDockable(Layout, d => d.Id == "DocumentDock") as DocumentDock;
         if (documentDock == null) return;
 
         var existing = documentDock.VisibleDockables?.FirstOrDefault(d => d.Id == "ChartInfo");
@@ -288,7 +288,7 @@ public partial class MainViewModel
     [RelayCommand]
     public void OpenSettings()
     {
-        var documentDock = Layout.Navigate("DocumentDock") as DocumentDock;
+        var documentDock = Factory.FindDockable(Layout, d => d.Id == "DocumentDock") as DocumentDock;
         if (documentDock == null) return;
 
         var existing = documentDock.VisibleDockables?.FirstOrDefault(d => d.Id == "Settings");
