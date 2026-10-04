@@ -57,43 +57,6 @@
 		<dock:DockControl Grid.Row="1" 
 						  Layout="{Binding Layout}"
 						  InitializeLayout="True">
-			<dock:DockControl.DataTemplates>
-				<DataTemplate DataType="core:Document">
-					<Grid>
-						<Panel>
-							<v:InspectorView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Inspector}"
-								DisplayTime="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretTime}"
-								DisplayCombo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretCombo}"
-								IsConnected="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsConnected}"
-								SelectedDifficulty="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).SelectedDifficulty}"
-								Level="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Level}"
-								Designer="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Designer}"
-								Offset="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Offset}"
-								PlaybackSpeed="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlaybackSpeed}"
-								IsFollowCursor="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsFollowCursor}" />
-							<c:SimaiVisualizerControl
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Visualizer}"
-								TrackInfo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).TrackInfo}"
-								Chart="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Chart}"
-								Time="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlayheadTime}" />
-							<v:FumenEditorView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Editor}"
-								Fumen="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Fumen}" />
-							<v:SettingsView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Settings}"
-								Settings="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Settings.Current}" />
-							<v:ChartInfoView
-								IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=ChartInfo}" />
-						</Panel>
-						<!-- 拖拽模式遮罩:按住面板任意位置即可拖动;平时隐藏,不影响 tab 拖拽 -->
-						<Border Background="#4DFFFFFF"
-								IsVisible="{Binding IsActive, Source={x:Static vm:DockDragModeState.Instance}}"
-								DockProperties.IsDragArea="True"
-								DockProperties.IsDragEnabled="{Binding CanDrag}" />
-					</Grid>
-				</DataTemplate>
-			</dock:DockControl.DataTemplates>
 		</dock:DockControl>
 	</Grid>
 

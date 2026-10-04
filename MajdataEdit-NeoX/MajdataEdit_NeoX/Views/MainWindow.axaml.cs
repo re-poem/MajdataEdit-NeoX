@@ -29,6 +29,25 @@ public partial class MainWindow : Window
                 () => MajdataEdit_NeoX.ViewModels.DockDragModeState.Instance.IsActive = true,
                 Avalonia.Threading.DispatcherPriority.Background);
         }
+
+        // 视觉 QA 钩子:MAJ_DEBUG_FORCE_FLOAT=1 启动时把 Inspector 浮动出去,
+        // 用于自动化截图验证浮动窗口样式(无边框 + tab)
+        if (Environment.GetEnvironmentVariable("MAJ_DEBUG_FORCE_FLOAT") == "1")
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(
+                () =>
+                {
+                    if (DataContext is MainViewModel vm)
+                    {
+                        var inspector = vm.Factory.FindDockable(vm.Layout, d => d.Id == "Inspector");
+                        if (inspector is not null)
+                        {
+                            vm.Factory.FloatDockable(inspector);
+                        }
+                    }
+                },
+                Avalonia.Threading.DispatcherPriority.Background);
+        }
 #endif
     }
 

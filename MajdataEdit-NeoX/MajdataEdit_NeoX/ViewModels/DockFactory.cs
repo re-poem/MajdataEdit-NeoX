@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Avalonia;
+using Avalonia.Controls;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
@@ -111,13 +113,26 @@ public class MainDockFactory : Factory
         };
 
         // 浮动窗口宿主:没有 locator 时拖出的面板会进入无宿主的浮动布局,直接"消失"。
-        // ShowActivated=false 避免浮动窗口抢焦点(否则主窗口 Deactivated 会打断组合键拖拽)。
+        // ShowActivated=false 避免浮动窗口抢焦点(否则主窗口 Deactivated 会打断组合键拖拽);
+        // WindowDecorations.None = 无边框;浮动窗口的 Resources 把 tab 条覆盖回可见,
+        // 用户通过拖动 tab 把面板停靠回主窗口。
         HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>
         {
-            [nameof(IDockWindow)] = () => new HostWindow { ShowActivated = false }
+            [nameof(IDockWindow)] = CreateFloatHost
         };
-        DefaultHostWindowLocator = () => new HostWindow { ShowActivated = false };
+        DefaultHostWindowLocator = CreateFloatHost;
 
         base.InitLayout(layout);
+    }
+
+    private static HostWindow CreateFloatHost()
+    {
+        var host = new HostWindow
+        {
+            ShowActivated = false,
+            WindowDecorations = WindowDecorations.BorderOnly
+        };
+        host.Resources["DockDocumentControlTabStripVisible"] = true;
+        return host;
     }
 }
