@@ -13,6 +13,7 @@ using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -96,26 +97,66 @@ public partial class MainViewModel
     private bool _isDockDragEnabled;
 
     private readonly Dictionary<IDockable, bool> _originalCanDragStates = new();
+    private NotifyCollectionChangedEventHandler? _dockCollectionChangedHandler;
 
     public void EnableDockDragMode()
     {
         if (IsDockDragEnabled) return;
 
-        IsDockDragEnabled = true;
-        EnableDragForDockables(Layout.VisibleDockables);
+        try
+        {
+            _originalCanDragStates.Clear();
+            IsDockDragEnabled = true;
+            EnableDragForDockables(Layout.VisibleDockables);
+
+            if (Layout is IRootDock rootDock && rootDock.VisibleDockables is INotifyCollectionChanged collection)
+            {
+                _dockCollectionChangedHandler = (_, e) =>
+                {
+                    if (!IsDockDragEnabled || e.NewItems == null) return;
+
+                    foreach (var item in e.NewItems)
+                    {
+                        if (item is IDockable dockable)
+                            EnableDragForDockables(new[] { dockable });
+                    }
+                };
+                collection.CollectionChanged += _dockCollectionChangedHandler;
+            }
+        }
+        catch
+        {
+            try
+            {
+                DisableDockDragMode();
+            }
+            catch
+            {
+            }
+            throw;
+        }
     }
 
     public void DisableDockDragMode()
     {
-        if (!IsDockDragEnabled) return;
+        if (!IsDockDragEnabled && _originalCanDragStates.Count == 0 && _dockCollectionChangedHandler == null) return;
 
-        foreach (var kvp in _originalCanDragStates)
+        try
         {
-            kvp.Key.CanDrag = kvp.Value;
-        }
+            if (Layout is IRootDock rootDock && rootDock.VisibleDockables is INotifyCollectionChanged collection && _dockCollectionChangedHandler != null)
+                collection.CollectionChanged -= _dockCollectionChangedHandler;
+            _dockCollectionChangedHandler = null;
 
-        _originalCanDragStates.Clear();
-        IsDockDragEnabled = false;
+            foreach (var kvp in _originalCanDragStates)
+            {
+                kvp.Key.CanDrag = kvp.Value;
+            }
+        }
+        finally
+        {
+            _originalCanDragStates.Clear();
+            IsDockDragEnabled = false;
+        }
     }
 
     private void EnableDragForDockables(IList<IDockable>? dockables)
@@ -124,7 +165,8 @@ public partial class MainViewModel
 
         foreach (var dockable in dockables)
         {
-            _originalCanDragStates[dockable] = dockable.CanDrag;
+            if (!_originalCanDragStates.ContainsKey(dockable))
+                _originalCanDragStates[dockable] = dockable.CanDrag;
             dockable.CanDrag = true;
 
             if (dockable is IDock dock)
