@@ -30,12 +30,12 @@ public partial class MainViewModel
         Settings.SettingsChanged += OnSettingsChanged;
 
         Factory = new MainDockFactory(this);
-        Layout = Factory.CreateLayout();
-        Factory.InitLayout(Layout);
+        Layout = Factory.CreateLayout()!;
+        Factory.InitLayout(Layout!);
     }
 
-    public IFactory Factory { get; }
-    public IRootDock Layout { get; }
+    public IFactory Factory { get; } = null!;
+    public IRootDock Layout { get; } = null!;
 
     public SettingsService Settings { get; } = new();
 
