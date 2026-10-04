@@ -23,16 +23,22 @@ using MajWebSocket.Types;
 namespace MajdataEdit_NeoX.ViewModels;
 
 public enum AboutPages { Discord, QQ, GitHub, GitHub_ViewX, MajNet }
-public partial class MainViewModel
-    (IFileDialogService fileDialog) : ViewModelBase
+public partial class MainViewModel : ViewModelBase
 {
-    public MainViewModel() : this(new AvaloniaFileDialogService(() => null))
+    private readonly IFileDialogService _fileDialog;
+
+    public MainViewModel(IFileDialogService fileDialog)
     {
+        _fileDialog = fileDialog;
         Settings.SettingsChanged += OnSettingsChanged;
 
         Factory = new MainDockFactory(this);
         Layout = Factory.CreateLayout()!;
         Factory.InitLayout(Layout!);
+    }
+
+    public MainViewModel() : this(new AvaloniaFileDialogService(() => null))
+    {
     }
 
     public IFactory Factory { get; } = null!;
@@ -327,7 +333,7 @@ public partial class MainViewModel
     [RelayCommand]
     public async Task NewFileAsync()
     {
-        var file = await fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Audio Files", ["track.mp3", "track.ogg"])]);
+        var file = await _fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Audio Files", ["track.mp3", "track.ogg"])]);
         if (file == null) return;
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
@@ -339,7 +345,7 @@ public partial class MainViewModel
     [RelayCommand]
     public async Task OpenFileAsync()
     {
-        var file = await fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Majdata Files", ["maidata.txt"])]);
+        var file = await _fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Majdata Files", ["maidata.txt"])]);
         if (file == null) return;
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
