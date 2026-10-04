@@ -13,6 +13,7 @@ using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
 using MajWebSocket.Types;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -91,6 +92,47 @@ public partial class MainViewModel
         set => Settings.Set(s => s.EditSetting.AutoFocusView = value);
     }
 
+    [ObservableProperty]
+    private bool _isDockDragEnabled;
+
+    private readonly Dictionary<IDockable, bool> _originalCanDragStates = new();
+
+    public void EnableDockDragMode()
+    {
+        if (IsDockDragEnabled) return;
+
+        IsDockDragEnabled = true;
+        EnableDragForDockables(Layout.VisibleDockables);
+    }
+
+    public void DisableDockDragMode()
+    {
+        if (!IsDockDragEnabled) return;
+
+        foreach (var kvp in _originalCanDragStates)
+        {
+            kvp.Key.CanDrag = kvp.Value;
+        }
+
+        _originalCanDragStates.Clear();
+        IsDockDragEnabled = false;
+    }
+
+    private void EnableDragForDockables(IList<IDockable>? dockables)
+    {
+        if (dockables == null) return;
+
+        foreach (var dockable in dockables)
+        {
+            _originalCanDragStates[dockable] = dockable.CanDrag;
+            dockable.CanDrag = true;
+
+            if (dockable is IDock dock)
+            {
+                EnableDragForDockables(dock.VisibleDockables);
+            }
+        }
+    }
 
     // ========文件========
     private string? _maidataDir { get; set; }
