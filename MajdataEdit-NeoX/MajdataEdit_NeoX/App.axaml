@@ -21,26 +21,26 @@
                 <Panel>
                     <v:InspectorView
                         IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Inspector}"
-                        DisplayTime="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretTime}"
-                        DisplayCombo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).CaretCombo}"
-                        IsConnected="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsConnected}"
-                        SelectedDifficulty="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).SelectedDifficulty}"
-                        Level="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Level}"
-                        Designer="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Designer}"
-                        Offset="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Offset}"
-                        PlaybackSpeed="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlaybackSpeed}"
-                        IsFollowCursor="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).IsFollowCursor}" />
+                        DisplayTime="{Binding CaretTime, Source={x:Static vm:MainViewModel.Instance}}"
+                        DisplayCombo="{Binding CaretCombo, Source={x:Static vm:MainViewModel.Instance}}"
+                        IsConnected="{Binding IsConnected, Source={x:Static vm:MainViewModel.Instance}}"
+                        SelectedDifficulty="{Binding SelectedDifficulty, Source={x:Static vm:MainViewModel.Instance}}"
+                        Level="{Binding Level, Source={x:Static vm:MainViewModel.Instance}}"
+                        Designer="{Binding Designer, Source={x:Static vm:MainViewModel.Instance}}"
+                        Offset="{Binding Offset, Source={x:Static vm:MainViewModel.Instance}}"
+                        PlaybackSpeed="{Binding PlaybackSpeed, Source={x:Static vm:MainViewModel.Instance}}"
+                        IsFollowCursor="{Binding IsFollowCursor, Source={x:Static vm:MainViewModel.Instance}}" />
                     <c:SimaiVisualizerControl
                         IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Visualizer}"
-                        TrackInfo="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).TrackInfo}"
-                        Chart="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Chart}"
-                        Time="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).PlayheadTime}" />
+                        TrackInfo="{Binding TrackInfo, Source={x:Static vm:MainViewModel.Instance}}"
+                        Chart="{Binding Chart, Source={x:Static vm:MainViewModel.Instance}}"
+                        Time="{Binding PlayheadTime, Source={x:Static vm:MainViewModel.Instance}}" />
                     <v:FumenEditorView
                         IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Editor}"
-                        Fumen="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Fumen}" />
+                        Fumen="{Binding Fumen, Source={x:Static vm:MainViewModel.Instance}}" />
                     <v:SettingsView
                         IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Settings}"
-                        Settings="{Binding $parent[dock:DockControl].((vm:MainViewModel)DataContext).Settings.Current}" />
+                        Settings="{Binding Settings.Current, Source={x:Static vm:MainViewModel.Instance}}" />
                     <v:ChartInfoView
                         IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=ChartInfo}" />
                 </Panel>

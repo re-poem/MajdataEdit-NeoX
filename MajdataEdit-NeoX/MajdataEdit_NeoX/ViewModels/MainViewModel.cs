@@ -30,12 +30,20 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel(IFileDialogService fileDialog)
     {
         _fileDialog = fileDialog;
+        Instance = this;
         Settings.SettingsChanged += OnSettingsChanged;
 
         Factory = new MainDockFactory(this);
         Layout = Factory.CreateLayout()!;
         Factory.InitLayout(Layout!);
     }
+
+    /// <summary>
+    /// 应用唯一的视图模型实例。dock 内容模板的绑定经由它取数,
+    /// 使浮动窗口中的面板与主窗口获得同一份数据(浮动窗口的
+    /// DockControl DataContext 是浮动根布局,取不到 MainViewModel)。
+    /// </summary>
+    public static MainViewModel Instance { get; private set; } = null!;
 
     public MainViewModel() : this(new AvaloniaFileDialogService(() => null))
     {
@@ -374,53 +382,52 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public void OpenChartInfo()
     {
-        var documentDock = Factory.FindDockable(Layout, d => d.Id == "DocumentDock") as DocumentDock;
-        if (documentDock == null) return;
-
-        var existing = documentDock.VisibleDockables?.FirstOrDefault(d => d.Id == "ChartInfo");
-        if (existing != null)
-        {
-            Factory.CloseDockable(existing);
-            return;
-        }
-
-        var chartInfo = new Document
-        {
-            Id = "ChartInfo",
-            Title = "Chart Info",
-            CanClose = true,
-            CanDrag = true
-        };
-
-        Factory.AddDockable(documentDock, chartInfo);
-        Factory.SetActiveDockable(chartInfo);
-        Factory.SetFocusedDockable(documentDock, chartInfo);
+        ToggleFloatDocument("ChartInfo", "Chart Info");
     }
 
     [RelayCommand]
     public void OpenSettings()
     {
-        var documentDock = Factory.FindDockable(Layout, d => d.Id == "DocumentDock") as DocumentDock;
-        if (documentDock == null) return;
+        ToggleFloatDocument("Settings", "Settings");
+    }
 
-        var existing = documentDock.VisibleDockables?.FirstOrDefault(d => d.Id == "Settings");
-        if (existing != null)
+    /// <summary>
+    /// 辅助面板(设置/Chart Info)以浮动窗口开关:主窗口 dock 单占无 tab,
+    /// 不允许两个面板堆在同一 dock,因此这些面板从不进入主布局。
+    /// </summary>
+    private void ToggleFloatDocument(string id, string title)
+    {
+        var existing = FindDocumentAnywhere(id);
+        if (existing is not null)
         {
             Factory.CloseDockable(existing);
             return;
         }
 
-        var settings = new Document
-        {
-            Id = "Settings",
-            Title = "Settings",
-            CanClose = true,
-            CanDrag = true
-        };
+        var documentDock = Factory.FindDockable(Layout, d => d.Id == "DocumentDock") as DocumentDock;
+        if (documentDock is null) return;
 
-        Factory.AddDockable(documentDock, settings);
-        Factory.SetActiveDockable(settings);
-        Factory.SetFocusedDockable(documentDock, settings);
+        var document = new Document { Id = id, Title = title, CanClose = true, CanDrag = true };
+        if (Factory is MainDockFactory mainFactory)
+        {
+            mainFactory.FloatDetached(documentDock, document);
+        }
+    }
+
+    private IDockable? FindDocumentAnywhere(string id)
+    {
+        var inMain = Factory.FindDockable(Layout, d => d.Id == id);
+        if (inMain is not null) return inMain;
+
+        foreach (var host in Factory.HostWindows)
+        {
+            var layout = host.Window?.Layout;
+            if (layout is null) continue;
+            var found = Factory.FindDockable(layout, d => d.Id == id);
+            if (found is not null) return found;
+        }
+
+        return null;
     }
     [RelayCommand]
     public void OpenShortcut()
