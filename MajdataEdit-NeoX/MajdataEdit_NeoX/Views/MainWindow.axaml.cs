@@ -18,6 +18,7 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
         Deactivated += (s, e) => ResetPressedKeys();
+        DockDragPressInterceptor.Attach(this);
 
 #if DEBUG
         // 视觉 QA 钩子:MAJ_DEBUG_FORCE_DRAG_MASK=1 启动时直接开启拖拽遮罩,
