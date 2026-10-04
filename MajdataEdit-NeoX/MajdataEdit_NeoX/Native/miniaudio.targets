@@ -1,6 +1,6 @@
 <Project>
 
-  <!--
+	<!--
     miniaudio native build.
 
     Set these in the importing csproj BEFORE the <Import>:
@@ -16,155 +16,155 @@
     and to publish.
   -->
 
-  <PropertyGroup Label="Miniaudio settings">
-    <MiniaudioRoot Condition="'$(MiniaudioRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\miniaudio\</MiniaudioRoot>
-    <MiniaudioRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(MiniaudioRoot)'))</MiniaudioRoot>
-    <MiniaudioSourceFile>$(MiniaudioRoot)miniaudio.c</MiniaudioSourceFile>
-    <MiniaudioHeaderFile>$(MiniaudioRoot)miniaudio.h</MiniaudioHeaderFile>
+	<PropertyGroup Label="Miniaudio settings">
+		<MiniaudioRoot Condition="'$(MiniaudioRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\ThirdParty\miniaudio\</MiniaudioRoot>
+		<MiniaudioRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(MiniaudioRoot)'))</MiniaudioRoot>
+		<MiniaudioSourceFile>$(MiniaudioRoot)miniaudio.c</MiniaudioSourceFile>
+		<MiniaudioHeaderFile>$(MiniaudioRoot)miniaudio.h</MiniaudioHeaderFile>
 
-    <!-- miniaudio.c already does #define MINIAUDIO_IMPLEMENTATION + #include "miniaudio.h" -->
-    <MiniaudioDefines Condition="'$(MiniaudioDefines)' == ''">MA_ENABLE_ONLY_SPECIFIC_BACKENDS;MA_NO_ENCODING;MA_NO_DEVICE_IO;MA_NO_RESOURCE_MANAGER;MA_NO_NODE_GRAPH;MA_NO_ENGINE</MiniaudioDefines>
-    <_MiniaClDefines>/D $(MiniaudioDefines.Replace(';', ' /D '))</_MiniaClDefines>
-    <_MiniaCcDefines>-D$(MiniaudioDefines.Replace(';', ' -D'))</_MiniaCcDefines>
+		<!-- miniaudio.c already does #define MINIAUDIO_IMPLEMENTATION + #include "miniaudio.h" -->
+		<MiniaudioDefines Condition="'$(MiniaudioDefines)' == ''">MA_ENABLE_ONLY_SPECIFIC_BACKENDS;MA_NO_ENCODING;MA_NO_DEVICE_IO;MA_NO_RESOURCE_MANAGER;MA_NO_NODE_GRAPH;MA_NO_ENGINE</MiniaudioDefines>
+		<_MiniaClDefines>/D $(MiniaudioDefines.Replace(';', ' /D '))</_MiniaClDefines>
+		<_MiniaCcDefines>-D$(MiniaudioDefines.Replace(';', ' -D'))</_MiniaCcDefines>
 
-    <MiniaCC Condition="'$(MiniaCC)' == ''">cc</MiniaCC>
-    <MiniaIosMinVersion Condition="'$(MiniaIosMinVersion)' == ''">13.0</MiniaIosMinVersion>
+		<MiniaCC Condition="'$(MiniaCC)' == ''">cc</MiniaCC>
+		<MiniaIosMinVersion Condition="'$(MiniaIosMinVersion)' == ''">13.0</MiniaIosMinVersion>
 
-    <MiniaOutputDir Condition="'$(MiniaOutputDir)' == ''">$(BaseIntermediateOutputPath)miniaudio\</MiniaOutputDir>
-    <_MiniaOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(MiniaOutputDir)'))</_MiniaOutDir>
-    <_MiniaObjDir>$([MSBuild]::NormalizeDirectory('$(_MiniaOutDir)', 'obj'))</_MiniaObjDir>
-  </PropertyGroup>
+		<MiniaOutputDir Condition="'$(MiniaOutputDir)' == ''">$(BaseIntermediateOutputPath)ThirdParty\miniaudio\</MiniaOutputDir>
+		<_MiniaOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(MiniaOutputDir)'))</_MiniaOutDir>
+		<_MiniaObjDir>$([MSBuild]::NormalizeDirectory('$(_MiniaOutDir)', 'obj'))</_MiniaObjDir>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(MiniaOutputTarget)' == 'desktop'">
-    <_MiniaLibName Condition="$([MSBuild]::IsOSPlatform('Windows'))">miniaudio.dll</_MiniaLibName>
-    <_MiniaLibName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libminiaudio.dylib</_MiniaLibName>
-    <_MiniaLibName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libminiaudio.so</_MiniaLibName>
-  </PropertyGroup>
+	<PropertyGroup Condition="'$(MiniaOutputTarget)' == 'desktop'">
+		<_MiniaLibName Condition="$([MSBuild]::IsOSPlatform('Windows'))">miniaudio.dll</_MiniaLibName>
+		<_MiniaLibName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libminiaudio.dylib</_MiniaLibName>
+		<_MiniaLibName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libminiaudio.so</_MiniaLibName>
+	</PropertyGroup>
 
-  <ItemGroup Condition="'$(MiniaOutputTarget)' == 'android'">
-    <_MiniaAbi Include="arm64-v8a"   Triple="$(MiniaAndroidArm64Triple)" Condition="'$(MiniaAndroidArm64Triple)' != ''" />
-    <_MiniaAbi Include="armeabi-v7a" Triple="$(MiniaAndroidArmTriple)"   Condition="'$(MiniaAndroidArmTriple)' != ''" />
-    <_MiniaAbi Include="x86_64"      Triple="$(MiniaAndroidX64Triple)"   Condition="'$(MiniaAndroidX64Triple)' != ''" />
-    <_MiniaAbi Include="x86"         Triple="$(MiniaAndroidX86Triple)"   Condition="'$(MiniaAndroidX86Triple)' != ''" />
-  </ItemGroup>
+	<ItemGroup Condition="'$(MiniaOutputTarget)' == 'android'">
+		<_MiniaAbi Include="arm64-v8a"   Triple="$(MiniaAndroidArm64Triple)" Condition="'$(MiniaAndroidArm64Triple)' != ''" />
+		<_MiniaAbi Include="armeabi-v7a" Triple="$(MiniaAndroidArmTriple)"   Condition="'$(MiniaAndroidArmTriple)' != ''" />
+		<_MiniaAbi Include="x86_64"      Triple="$(MiniaAndroidX64Triple)"   Condition="'$(MiniaAndroidX64Triple)' != ''" />
+		<_MiniaAbi Include="x86"         Triple="$(MiniaAndroidX86Triple)"   Condition="'$(MiniaAndroidX86Triple)' != ''" />
+	</ItemGroup>
 
-  <!--
+	<!--
     Entry point. Hooked before BeforeBuild (NOT BeforeTargets="Build": that runs
     after CoreBuild, i.e. after files were already copied to the output).
   -->
-  <Target Name="BuildMiniaudio"
-          Condition="'$(MiniaOutputTarget)' != ''"
-          BeforeTargets="BeforeBuild"
-          DependsOnTargets="_MiniaBuildDesktop;_MiniaBuildIos;_MiniaBuildAndroid">
-    <ItemGroup Condition="'$(MiniaOutputTarget)' == 'desktop' and '$(_MiniaLibName)' != ''">
-      <None Include="$(_MiniaOutDir)$(_MiniaLibName)"
-            Link="$(_MiniaLibName)"
-            CopyToOutputDirectory="PreserveNewest"
-            CopyToPublishDirectory="PreserveNewest"
-            Visible="false" />
-    </ItemGroup>
-  </Target>
+	<Target Name="BuildMiniaudio"
+			Condition="'$(MiniaOutputTarget)' != ''"
+			BeforeTargets="BeforeBuild"
+			DependsOnTargets="_MiniaBuildDesktop;_MiniaBuildIos;_MiniaBuildAndroid">
+		<ItemGroup Condition="'$(MiniaOutputTarget)' == 'desktop' and '$(_MiniaLibName)' != ''">
+			<None Include="$(_MiniaOutDir)$(_MiniaLibName)"
+				  Link="$(_MiniaLibName)"
+				  CopyToOutputDirectory="PreserveNewest"
+				  CopyToPublishDirectory="PreserveNewest"
+				  Visible="false" />
+		</ItemGroup>
+	</Target>
 
-  <Target Name="_MiniaCheckSource">
-    <Error Condition="!Exists('$(MiniaudioSourceFile)')"
-           Text="miniaudio source not found at '$(MiniaudioSourceFile)'. Run 'git submodule update --init --recursive', or set MiniaudioRoot." />
-  </Target>
+	<Target Name="_MiniaCheckSource">
+		<Error Condition="!Exists('$(MiniaudioSourceFile)')"
+			   Text="miniaudio source not found at '$(MiniaudioSourceFile)'. Run 'git submodule update --init --recursive', or set MiniaudioRoot." />
+	</Target>
 
-  <!-- ===================== Desktop ===================== -->
+	<!-- ===================== Desktop ===================== -->
 
-  <!-- Plain `dotnet build` doesn't set up the VS dev env, so locate vcvarsall.bat via vswhere. -->
-  <Target Name="_MiniaFindMsvc" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PropertyGroup>
-      <_MiniaVsWhere>$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer\vswhere.exe</_MiniaVsWhere>
-    </PropertyGroup>
+	<!-- Plain `dotnet build` doesn't set up the VS dev env, so locate vcvarsall.bat via vswhere. -->
+	<Target Name="_MiniaFindMsvc" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+		<PropertyGroup>
+			<_MiniaVsWhere>$(MSBuildProgramFiles32)\Microsoft Visual Studio\Installer\vswhere.exe</_MiniaVsWhere>
+		</PropertyGroup>
 
-    <Exec Condition="'$(VCINSTALLDIR)' == '' and Exists('$(_MiniaVsWhere)')"
-          Command='"$(_MiniaVsWhere)" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath'
-          ConsoleToMSBuild="true"
-          StandardOutputImportance="low">
-      <Output TaskParameter="ConsoleOutput" PropertyName="_MiniaVsRoot" />
-    </Exec>
+		<Exec Condition="'$(VCINSTALLDIR)' == '' and Exists('$(_MiniaVsWhere)')"
+			  Command='"$(_MiniaVsWhere)" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath'
+			  ConsoleToMSBuild="true"
+			  StandardOutputImportance="low">
+			<Output TaskParameter="ConsoleOutput" PropertyName="_MiniaVsRoot" />
+		</Exec>
 
-    <PropertyGroup>
-      <_MiniaVcVars Condition="'$(VCINSTALLDIR)' != ''">$([MSBuild]::NormalizePath('$(VCINSTALLDIR)', 'Auxiliary', 'Build', 'vcvarsall.bat'))</_MiniaVcVars>
-      <_MiniaVcVars Condition="'$(_MiniaVcVars)' == '' and '$(_MiniaVsRoot)' != ''">$([MSBuild]::NormalizePath('$(_MiniaVsRoot.Trim())', 'VC', 'Auxiliary', 'Build', 'vcvarsall.bat'))</_MiniaVcVars>
-    </PropertyGroup>
+		<PropertyGroup>
+			<_MiniaVcVars Condition="'$(VCINSTALLDIR)' != ''">$([MSBuild]::NormalizePath('$(VCINSTALLDIR)', 'Auxiliary', 'Build', 'vcvarsall.bat'))</_MiniaVcVars>
+			<_MiniaVcVars Condition="'$(_MiniaVcVars)' == '' and '$(_MiniaVsRoot)' != ''">$([MSBuild]::NormalizePath('$(_MiniaVsRoot.Trim())', 'VC', 'Auxiliary', 'Build', 'vcvarsall.bat'))</_MiniaVcVars>
+		</PropertyGroup>
 
-    <Error Condition="'$(_MiniaVcVars)' == '' or !Exists('$(_MiniaVcVars)')"
-           Text="MSVC (C++ build tools, x64) not found, cannot build miniaudio.dll. Install the 'Desktop development with C++' workload or the VS Build Tools." />
-  </Target>
+		<Error Condition="'$(_MiniaVcVars)' == '' or !Exists('$(_MiniaVcVars)')"
+			   Text="MSVC (C++ build tools, x64) not found, cannot build miniaudio.dll. Install the 'Desktop development with C++' workload or the VS Build Tools." />
+	</Target>
 
-  <Target Name="_MiniaBuildDesktop"
-          Condition="'$(MiniaOutputTarget)' == 'desktop'"
-          DependsOnTargets="_MiniaCheckSource;_MiniaFindMsvc"
-          Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
-          Outputs="$(_MiniaOutDir)$(_MiniaLibName)">
+	<Target Name="_MiniaBuildDesktop"
+			Condition="'$(MiniaOutputTarget)' == 'desktop'"
+			DependsOnTargets="_MiniaCheckSource;_MiniaFindMsvc"
+			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
+			Outputs="$(_MiniaOutDir)$(_MiniaLibName)">
 
-    <Error Condition="'$(_MiniaLibName)' == ''" Text="miniaudio: unsupported desktop host OS." />
-    <MakeDir Directories="$(_MiniaOutDir);$(_MiniaObjDir)" />
+		<Error Condition="'$(_MiniaLibName)' == ''" Text="miniaudio: unsupported desktop host OS." />
+		<MakeDir Directories="$(_MiniaOutDir);$(_MiniaObjDir)" />
 
-    <!-- Windows: /MT so users don't need the VC++ redistributable; MA_DLL makes MA_API dllexport. -->
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          Command='call "$(_MiniaVcVars)" x64 &gt;NUL &amp;&amp; cl /nologo /LD /MT /O2 /W0 /D MA_DLL $(_MiniaClDefines) /Fo"$(_MiniaObjDir)miniaudio.obj" /Fe"$(_MiniaOutDir)miniaudio.dll" "$(MiniaudioSourceFile)"'
-          WorkingDirectory="$(_MiniaObjDir)" />
-    <Delete Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-            Files="$(_MiniaOutDir)miniaudio.lib;$(_MiniaOutDir)miniaudio.exp" />
+		<!-- Windows: /MT so users don't need the VC++ redistributable; MA_DLL makes MA_API dllexport. -->
+		<Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+			  Command='call "$(_MiniaVcVars)" x64 &gt;NUL &amp;&amp; cl /nologo /LD /MT /O2 /W0 /D MA_DLL $(_MiniaClDefines) /Fo"$(_MiniaObjDir)miniaudio.obj" /Fe"$(_MiniaOutDir)miniaudio.dll" "$(MiniaudioSourceFile)"'
+			  WorkingDirectory="$(_MiniaObjDir)" />
+		<Delete Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+				Files="$(_MiniaOutDir)miniaudio.lib;$(_MiniaOutDir)miniaudio.exp" />
 
-    <!-- macOS: universal (arm64 + x86_64) dylib. -->
-    <Exec Condition="$([MSBuild]::IsOSPlatform('OSX'))"
-          Command='$(MiniaCC) -dynamiclib -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=11.0 -install_name @rpath/libminiaudio.dylib $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.dylib" "$(MiniaudioSourceFile)"' />
+		<!-- macOS: universal (arm64 + x86_64) dylib. -->
+		<Exec Condition="$([MSBuild]::IsOSPlatform('OSX'))"
+			  Command='$(MiniaCC) -dynamiclib -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=11.0 -install_name @rpath/libminiaudio.dylib $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.dylib" "$(MiniaudioSourceFile)"' />
 
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Linux'))"
-          Command='$(MiniaCC) -shared -fPIC -O2 $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.so" "$(MiniaudioSourceFile)" -lm -lpthread -ldl' />
-  </Target>
+		<Exec Condition="$([MSBuild]::IsOSPlatform('Linux'))"
+			  Command='$(MiniaCC) -shared -fPIC -O2 $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.so" "$(MiniaudioSourceFile)" -lm -lpthread -ldl' />
+	</Target>
 
-  <!-- ===================== iOS ===================== -->
+	<!-- ===================== iOS ===================== -->
 
-  <!--
+	<!--
     One static lib per RuntimeIdentifier. Device arm64 and simulator arm64 can't
     share one .a, so output goes to <out>/<rid>/libminiaudio.a. The iOS csproj
     should reference it as:
       <NativeReference Include="$(MiniaOutputDir)$(RuntimeIdentifier)/libminiaudio.a" Kind="Static" ForceLoad="true" />
   -->
-  <Target Name="_MiniaPrepareIos">
-    <PropertyGroup>
-      <_MiniaIosRid>$(RuntimeIdentifier)</_MiniaIosRid>
-      <_MiniaIosRid Condition="'$(_MiniaIosRid)' == ''">ios-arm64</_MiniaIosRid>
-      <_MiniaIosSdk>iphoneos</_MiniaIosSdk>
-      <_MiniaIosSdk Condition="$(_MiniaIosRid.StartsWith('iossimulator'))">iphonesimulator</_MiniaIosSdk>
-      <_MiniaIosArch>arm64</_MiniaIosArch>
-      <_MiniaIosArch Condition="$(_MiniaIosRid.EndsWith('-x64'))">x86_64</_MiniaIosArch>
-      <_MiniaIosMinFlag>-miphoneos-version-min=$(MiniaIosMinVersion)</_MiniaIosMinFlag>
-      <_MiniaIosMinFlag Condition="'$(_MiniaIosSdk)' == 'iphonesimulator'">-mios-simulator-version-min=$(MiniaIosMinVersion)</_MiniaIosMinFlag>
-      <_MiniaIosOutDir>$([MSBuild]::NormalizeDirectory('$(_MiniaOutDir)', '$(_MiniaIosRid)'))</_MiniaIosOutDir>
-    </PropertyGroup>
-  </Target>
+	<Target Name="_MiniaPrepareIos">
+		<PropertyGroup>
+			<_MiniaIosRid>$(RuntimeIdentifier)</_MiniaIosRid>
+			<_MiniaIosRid Condition="'$(_MiniaIosRid)' == ''">ios-arm64</_MiniaIosRid>
+			<_MiniaIosSdk>iphoneos</_MiniaIosSdk>
+			<_MiniaIosSdk Condition="$(_MiniaIosRid.StartsWith('iossimulator'))">iphonesimulator</_MiniaIosSdk>
+			<_MiniaIosArch>arm64</_MiniaIosArch>
+			<_MiniaIosArch Condition="$(_MiniaIosRid.EndsWith('-x64'))">x86_64</_MiniaIosArch>
+			<_MiniaIosMinFlag>-miphoneos-version-min=$(MiniaIosMinVersion)</_MiniaIosMinFlag>
+			<_MiniaIosMinFlag Condition="'$(_MiniaIosSdk)' == 'iphonesimulator'">-mios-simulator-version-min=$(MiniaIosMinVersion)</_MiniaIosMinFlag>
+			<_MiniaIosOutDir>$([MSBuild]::NormalizeDirectory('$(_MiniaOutDir)', '$(_MiniaIosRid)'))</_MiniaIosOutDir>
+		</PropertyGroup>
+	</Target>
 
-  <Target Name="_MiniaBuildIos"
-          Condition="'$(MiniaOutputTarget)' == 'ios' and $([MSBuild]::IsOSPlatform('OSX'))"
-          DependsOnTargets="_MiniaCheckSource;_MiniaPrepareIos"
-          Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
-          Outputs="$(_MiniaIosOutDir)libminiaudio.a">
-    <MakeDir Directories="$(_MiniaIosOutDir);$(_MiniaObjDir)" />
-    <Exec Command='xcrun --sdk $(_MiniaIosSdk) clang -arch $(_MiniaIosArch) $(_MiniaIosMinFlag) -O2 -c $(_MiniaCcDefines) -o "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o" "$(MiniaudioSourceFile)"' />
-    <Delete Files="$(_MiniaIosOutDir)libminiaudio.a" />
-    <Exec Command='xcrun libtool -static -o "$(_MiniaIosOutDir)libminiaudio.a" "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o"' />
-  </Target>
+	<Target Name="_MiniaBuildIos"
+			Condition="'$(MiniaOutputTarget)' == 'ios' and $([MSBuild]::IsOSPlatform('OSX'))"
+			DependsOnTargets="_MiniaCheckSource;_MiniaPrepareIos"
+			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
+			Outputs="$(_MiniaIosOutDir)libminiaudio.a">
+		<MakeDir Directories="$(_MiniaIosOutDir);$(_MiniaObjDir)" />
+		<Exec Command='xcrun --sdk $(_MiniaIosSdk) clang -arch $(_MiniaIosArch) $(_MiniaIosMinFlag) -O2 -c $(_MiniaCcDefines) -o "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o" "$(MiniaudioSourceFile)"' />
+		<Delete Files="$(_MiniaIosOutDir)libminiaudio.a" />
+		<Exec Command='xcrun libtool -static -o "$(_MiniaIosOutDir)libminiaudio.a" "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o"' />
+	</Target>
 
-  <!-- ===================== Android ===================== -->
+	<!-- ===================== Android ===================== -->
 
-  <!--
+	<!--
     Skipped (keeping any prebuilt .so) when MiniaAndroidClang isn't set.
     16 KB page alignment is required by Google Play for Android 15+ targets
     (NDK r28+ does this by default; the flag makes older NDKs comply too).
   -->
-  <Target Name="_MiniaBuildAndroid"
-          Condition="'$(MiniaOutputTarget)' == 'android' and '$(MiniaAndroidClang)' != ''"
-          DependsOnTargets="_MiniaCheckSource"
-          Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
-          Outputs="@(_MiniaAbi->'$(_MiniaOutDir)%(Identity)/native/libminiaudio.so')">
-    <MakeDir Directories="$(_MiniaOutDir)%(_MiniaAbi.Identity)/native" />
-    <Exec Command='"$(MiniaAndroidClang)" --target=%(_MiniaAbi.Triple) -shared -fPIC -O2 -Wl,-z,max-page-size=16384 $(_MiniaCcDefines) -o "$(_MiniaOutDir)%(_MiniaAbi.Identity)/native/libminiaudio.so" "$(MiniaudioSourceFile)" -lm' />
-  </Target>
+	<Target Name="_MiniaBuildAndroid"
+			Condition="'$(MiniaOutputTarget)' == 'android' and '$(MiniaAndroidClang)' != ''"
+			DependsOnTargets="_MiniaCheckSource"
+			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
+			Outputs="@(_MiniaAbi->'$(_MiniaOutDir)%(Identity)/native/libminiaudio.so')">
+		<MakeDir Directories="$(_MiniaOutDir)%(_MiniaAbi.Identity)/native" />
+		<Exec Command='"$(MiniaAndroidClang)" --target=%(_MiniaAbi.Triple) -shared -fPIC -O2 -Wl,-z,max-page-size=16384 $(_MiniaCcDefines) -o "$(_MiniaOutDir)%(_MiniaAbi.Identity)/native/libminiaudio.so" "$(MiniaudioSourceFile)" -lm' />
+	</Target>
 
 </Project>

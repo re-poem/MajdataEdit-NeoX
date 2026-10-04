@@ -10,6 +10,12 @@
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**" />
 	</ItemGroup>
+	<ItemGroup>
+		<AdditionalFiles Include="Assets\Localizations\en-US.json" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\MajdataEdit_NeoX.Generators\MajdataEdit_NeoX.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Avalonia" />

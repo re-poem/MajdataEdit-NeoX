@@ -1,4 +1,4 @@
-using MajdataEdit_NeoX.Lang;
+﻿using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Types;
 using Newtonsoft.Json;
 using PropertyModels.ComponentModel;
@@ -11,70 +11,70 @@ namespace MajdataEdit_NeoX.Models.Setting;
 // JSON 键由 [JsonProperty] 锁定；其余属性仅为 Edit 端 UI 元数据，不参与线格式。
 public partial class MajViewSetting
 {
-    [DisplayName(nameof(Resources.Set_TapSpeed))]
+    [DisplayName(LangKeys.Set_TapSpeed)]
     [Range(0, int.MaxValue)]
     [JsonProperty("tapSpeed")]
     public float TapSpeed { get; set; } = 7.5f;
 
-    [DisplayName(nameof(Resources.Set_TouchSpeed))]
+    [DisplayName(LangKeys.Set_TouchSpeed)]
     [Range(0, int.MaxValue)]
     [JsonProperty("touchSpeed")]
     public float TouchSpeed { get; set; } = 7.5f;
 
-    [DisplayName(nameof(Resources.Set_SmoothSlideAnime))]
+    [DisplayName(LangKeys.Set_SmoothSlideAnime)]
     [JsonProperty("smoothSlideAnime")]
     public bool SmoothSlideAnime { get; set; } = true;
 
-    [DisplayName(nameof(Resources.Set_BackgroundDim))]
+    [DisplayName(LangKeys.Set_BackgroundDim)]
     [Range(0, 1)]
     [JsonProperty("backgroundDim")]
     public float BackgroundDim { get; set; } = 0.7f;
 
-    [DisplayName(nameof(Resources.Set_BackgroundOutsideDim))]
+    [DisplayName(LangKeys.Set_BackgroundOutsideDim)]
     [Range(0, 1)]
     [JsonProperty("backgroundOutsideDim")]
     public float BackgroundOutsideDim { get; set; } = 0.3f;
 
-    [DisplayName(nameof(Resources.Set_ComboStatusType))]
+    [DisplayName(LangKeys.Set_ComboStatusType)]
     [JsonProperty("comboStatusType")]
     public BgInfoDisplay ComboStatusType { get; set; } = BgInfoDisplay.Combo;
 
 
-    [DisplayName(nameof(Resources.Set_AutoMode))]
+    [DisplayName(LangKeys.Set_AutoMode)]
     [JsonProperty("autoMode")]
     public AutoPlayMode AutoMode { get; set; } = AutoPlayMode.Enable;
 
 
-    [DisplayName(nameof(Resources.Set_ShowHand))]
+    [DisplayName(LangKeys.Set_ShowHand)]
     [JsonProperty("showHand")]
     public bool ShowHand { get; set; } = false;
 
 
-    [DisplayName(nameof(Resources.Set_OutputFps))]
+    [DisplayName(LangKeys.Set_OutputFps)]
     [Range(1, int.MaxValue)]
     [JsonProperty("outputFps")]
     public int OutputFps { get; set; } = 60;
 
-    [DisplayName(nameof(Resources.Set_ExportQuality))]
+    [DisplayName(LangKeys.Set_ExportQuality)]
     [JsonProperty("exportQuality")]
     public ExportQuality ExportQuality { get; set; } = ExportQuality.High;
 
-    [DisplayName(nameof(Resources.Set_ResizeBg))]
+    [DisplayName(LangKeys.Set_ResizeBg)]
     [JsonProperty("resizeBg")]
     public bool ResizeBg { get; set; } = false;
 
-    [DisplayName(nameof(Resources.Set_UIType))]
+    [DisplayName(LangKeys.Set_UIType)]
     [JsonProperty("uiType")]
     public UIType UIType { get; set; } = UIType.Legacy;
 
-    [DisplayName(nameof(Resources.Set_GlobalAudioOffset))]
+    [DisplayName(LangKeys.Set_GlobalAudioOffset)]
     [JsonProperty("globalAudioOffset")]
     public double GlobalAudioOffset { get; set; } = 0;
 
-    [DisplayName(nameof(Resources.Set_LegacySlideLayer))]
+    [DisplayName(LangKeys.Set_LegacySlideLayer)]
     [JsonProperty("legacySlideLayer")]
     public bool LegacySlideLayer { get; set; } = false;
-    [DisplayName(nameof(Resources.Set_MineAutoSlide))]
+    [DisplayName(LangKeys.Set_MineAutoSlide)]
     [JsonProperty("mineAutoSlide")]
     public bool MineAutoSlide { get; set; } = true;
 }

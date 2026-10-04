@@ -1,4 +1,4 @@
-using MajdataEdit_NeoX.Lang;
+﻿using MajdataEdit_NeoX.Lang;
 using Newtonsoft.Json;
 using PropertyModels.ComponentModel;
 using System.ComponentModel;

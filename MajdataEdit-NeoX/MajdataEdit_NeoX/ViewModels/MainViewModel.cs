@@ -11,6 +11,8 @@ using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
 using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
+using MajdataEdit_NeoX.Lang;
+using Avalonia.PropertyGrid.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -371,7 +373,7 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public async Task NewFileAsync()
     {
-        var file = await _fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Audio Files", ["track.mp3", "track.ogg"])]);
+        var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Audio Files", ["track.mp3", "track.ogg"])]);
         if (file == null) return;
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
@@ -383,7 +385,7 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public async Task OpenFileAsync()
     {
-        var file = await _fileDialog.OpenFileAsync(Lang.Resources.Gui_Open, [new FileDialogFilter("Majdata Files", ["maidata.txt"])]);
+        var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Majdata Files", ["maidata.txt"])]);
         if (file == null) return;
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
