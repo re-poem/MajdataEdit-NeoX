@@ -78,14 +78,14 @@ internal partial class SimaiVisualizerControl : Control
 
 
 
-    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
+    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
     public partial double Time { get; set; }
+
+    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    public partial float ZoomLevel { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial TrackInfo? TrackInfo { get; set; }
-
-    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial float ZoomLevel { get; set; } = 1f;
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial SimaiChart? Chart { get; set; }

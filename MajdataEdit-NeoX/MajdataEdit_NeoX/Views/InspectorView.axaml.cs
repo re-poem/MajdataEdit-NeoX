@@ -13,7 +13,7 @@ public partial class InspectorView : UserControl
     // ====== 显示态（one-way）======
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial string DisplayTime { get; set; } = "0:00";
+    public partial double DisplayTime { get; set; } = 0;
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial int DisplayCombo { get; set; } = 1;

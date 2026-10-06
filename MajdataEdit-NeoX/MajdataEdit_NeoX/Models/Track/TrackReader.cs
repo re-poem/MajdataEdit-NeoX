@@ -8,27 +8,6 @@ namespace MajdataEdit_NeoX.Models.Track;
 
 internal static class TrackReader
 {
-    public static TrackInfo ReadTrackFromDir(string dirPath)
-    {
-        if (File.Exists(dirPath))
-            return ReadTrack(dirPath);
-        else if (Directory.Exists(dirPath))
-        {
-            string[] files;
-            files = Directory.GetFiles(dirPath, "*.mp3");
-            if (files.Length > 0)
-                return ReadTrack(files[0]);
-            files = Directory.GetFiles(dirPath, "*.ogg");
-            if (files.Length > 0)
-                return ReadTrack(files[0]);
-
-            throw new FileNotFoundException("No .mp3 or .ogg files found in the directory.");
-        }
-        else
-        {
-            throw new DirectoryNotFoundException($"The specified path '{dirPath}' does not exist.");
-        }
-    }
     public static TrackInfo ReadTrack(string path) => new(path);
 }
 

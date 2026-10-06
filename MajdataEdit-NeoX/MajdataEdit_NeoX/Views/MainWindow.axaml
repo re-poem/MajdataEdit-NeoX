@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
+        xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
         xmlns:views="using:MajdataEdit_NeoX.Views"
 
         mc:Ignorable="d"
@@ -12,7 +13,7 @@
 
         x:Class="MajdataEdit_NeoX.Views.MainWindow"
         Icon="/Assets/favicon.ico"
-        Title="MajdataEdit_NeoX">
+        Title="{Binding WindowTitle, Source={x:Static vm:MainViewModel.Instance}}">
 
     <views:MainView />
 </Window>

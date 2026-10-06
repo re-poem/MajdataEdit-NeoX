@@ -17,6 +17,9 @@
                              Margin="5"
                              Padding="5"
                              FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+
+                             FontSize="{Binding #Root.FontSize}"
+                             WordWrap="{Binding #Root.WordWrap}"
                              />
 
 </UserControl>

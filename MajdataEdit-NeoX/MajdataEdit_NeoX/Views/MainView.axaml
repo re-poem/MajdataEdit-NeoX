@@ -6,6 +6,8 @@
 			 xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
 			 xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
 			 xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+			 xmlns:v="using:MajdataEdit_NeoX.Views"
+			 xmlns:c="using:MajdataEdit_NeoX.Controls"
 
 			 mc:Ignorable="d"
 			 d:DesignWidth="630" d:DesignHeight="440"
@@ -20,7 +22,8 @@
 			<MenuItem Header="{ll:Localize Gui_File}">
 				<MenuItem Header="{ll:Localize Gui_New}" Command="{Binding NewFileAsync}"/>
 				<MenuItem Header="{ll:Localize Gui_Open}" Command="{Binding OpenFileAsync}"/>
-				<MenuItem Header="{ll:Localize Gui_Save}" Command="{Binding SaveFile}"/>
+				<MenuItem Header="{ll:Localize Gui_Save}" Command="{Binding SaveFileAsync}"/>
+				<MenuItem Header="{ll:Localize Gui_Reload}" Command="{Binding ReloadFile}"/>
 				<Separator/>
 				<MenuItem Header="{ll:Localize Win_Recover}" Command="{Binding OpenRecover}"/>
 				<Separator/>
@@ -55,7 +58,63 @@
 		<dock:DockControl Grid.Row="1"
 						  Layout="{Binding Layout}"
 						  InitializeLayout="True">
+			<DockControl.DataTemplates>
+
+				<DataTemplate DataType="vm:InspectorTool">
+					<v:InspectorView
+						x:DataType="vm:MainViewModel"
+						DataContext="{Binding Context}"
+						DisplayTime="{Binding PlayheadTime}"
+						DisplayCombo="{Binding CaretCombo}"
+						IsConnected="{Binding IsConnected}"
+						SelectedDifficulty="{Binding SelectedDifficulty}"
+						Level="{Binding Level}"
+						Designer="{Binding Designer}"
+						Offset="{Binding Offset}"
+						PlaybackSpeed="{Binding PlaybackSpeed}"
+						IsFollowCursor="{Binding IsFollowCursor}" />
+				</DataTemplate>
+				<DataTemplate DataType="vm:VisualizerTool">
+					<!-- TODO: Signature -->
+					<c:SimaiVisualizerControl
+						x:DataType="vm:MainViewModel"
+						DataContext="{Binding Context}"
+						Time="{Binding PlayheadTime}"
+						ZoomLevel="{Binding ZoomLevel}"
+						TrackInfo="{Binding TrackInfo}"
+						Chart="{Binding Chart}"
+						Offset="{Binding Offset}"
+						CaretTime="{Binding CaretTime}"
+						IsAnimated="{Binding WaveAnimated}"
+						/>
+				</DataTemplate>
+				<DataTemplate DataType="vm:EditorTool">
+					<v:FumenEditorView
+						x:DataType="vm:MainViewModel"
+						DataContext="{Binding Context}"
+						Fumen="{Binding Fumen}"
+						FontSize="{Binding FontSize}"
+						WordWrap="{Binding WordWrap}"
+						CaretOffset="{Binding CaretOffset}"
+						/>
+				</DataTemplate>
+				<!-- TODO: Cover -->
+				<DataTemplate DataType="vm:ChartInfoTool">
+					<v:ChartInfoView
+						x:DataType="vm:MainViewModel"
+						Maidata="{Binding Maidata}"
+						Cover="{Binding Cover}"
+						/>
+				</DataTemplate>
+				<DataTemplate DataType="vm:SettingsTool">
+					<v:SettingsView
+						x:DataType="vm:MainViewModel"
+						Settings="{Binding Settings.Current}"
+						SettingsChanged="{Binding RefreshSettings}"
+						/>
+				</DataTemplate>
+			</DockControl.DataTemplates>
+
 		</dock:DockControl>
 	</Grid>
-
 </UserControl>

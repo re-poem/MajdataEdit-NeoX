@@ -1,6 +1,6 @@
 using System;
 
-namespace MajdataEdit_NeoX.Types;
+namespace MajdataEdit_NeoX.Models.IO;
 
 public sealed class ChartEditRecord
 {

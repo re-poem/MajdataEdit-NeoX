@@ -4,17 +4,22 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 
              xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+             xmlns:conv="using:MajdataEdit_NeoX.Converters"
 
              mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="370"
              x:Class="MajdataEdit_NeoX.Views.InspectorView"
              x:Name="Root">
+
+    <UserControl.Resources>
+        <conv:SecondsToTimeConverter x:Key="SecondsToTime" />
+    </UserControl.Resources>
 
     <Grid ColumnDefinitions="2.2*,3*"
           RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
         <Label Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2"
                Height="90" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0 30 0 0"
-               Content="{Binding #Root.DisplayTime}" />
+               Content="{Binding #Root.DisplayTime, Converter={StaticResource SecondsToTime}}" />
         <DockPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="0 -6 0 3">
             <Label Height="30" FontSize="10" DockPanel.Dock="Left"
                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"

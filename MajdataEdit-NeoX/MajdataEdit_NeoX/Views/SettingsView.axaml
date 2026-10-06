@@ -7,6 +7,7 @@
              x:Class="MajdataEdit_NeoX.Views.SettingsView"
              x:Name="Root">
 
-    <apc:PropertyGrid DataContext="{Binding #Root.Settings}"></apc:PropertyGrid>
+    <apc:PropertyGrid DataContext="{Binding #Root.Settings}"
+                      CommandExecuted="PropertyGrid_CommandExecuted"/>
 
 </UserControl>

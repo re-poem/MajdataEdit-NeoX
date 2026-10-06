@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using MajdataEdit_NeoX.Types;
+using MajdataEdit_NeoX.ViewModels;
 
 namespace MajdataEdit_NeoX;
 

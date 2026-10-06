@@ -4,7 +4,7 @@ using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using System;
 
-namespace MajdataEdit_NeoX.Types;
+namespace MajdataEdit_NeoX.Models.Fumen;
 
 public sealed class FumenCompletionItem(string text, object? content = null, object? description = null) : ICompletionData
 {

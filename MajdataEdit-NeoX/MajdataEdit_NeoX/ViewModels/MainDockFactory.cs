@@ -10,82 +10,78 @@ using Dock.Model.Mvvm.Controls;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
-public class MainDockFactory : Factory
-{
-    private readonly MainViewModel _context;
 
-    public MainDockFactory(MainViewModel context)
-    {
-        _context = context;
-    }
+// TODO: 让这个不要那么丑陋
+public class InspectorTool : Tool { }
+public class EditorTool : Tool { }
+public class VisualizerTool : Tool { }
+public class ChartInfoTool : Tool { }
+public class SettingsTool : Tool { }
+public class MainDockFactory
+    (MainViewModel mainVm) : Factory
+{
+    private Tool? _inspector;
+    private Tool? _editor;
+    private Tool? _visualizer;
 
     public override IRootDock CreateLayout()
     {
-        // 全部面板统一为 Document:tab 常驻且可拖拽停靠;组合键遮罩作为
-        // "按住面板任意位置拖动"的补充方式(CanDrag 保持 true 供两者共用)
-        var inspector = new Document
+        _inspector = new InspectorTool
         {
             Id = "Inspector",
             Title = "Inspector",
             CanClose = false,
-            CanDrag = true
+            CanDrag = true,
         };
-
-        var editor = new Document
+        _editor = new EditorTool
         {
             Id = "Editor",
             Title = "Editor",
             CanClose = false,
-            CanDrag = true
+            CanDrag = true,
         };
-
-        var visualizer = new Document
+        _visualizer = new VisualizerTool
         {
             Id = "Visualizer",
             Title = "Visualizer",
             CanClose = false,
-            CanDrag = true
+            CanDrag = true,
         };
 
-        var leftDock = new DocumentDock
-        {
-            Id = "LeftDock",
-            Proportion = 0.19,
-            VisibleDockables = CreateList<IDockable>(inspector),
-            ActiveDockable = inspector,
-            CanCreateDocument = false
-        };
-
-        var documentDock = new DocumentDock
-        {
-            Id = "DocumentDock",
-            VisibleDockables = CreateList<IDockable>(editor),
-            ActiveDockable = editor,
-            CanCreateDocument = false
-        };
-
-        var bottomDock = new DocumentDock
-        {
-            Id = "BottomDock",
-            Proportion = 0.2,
-            VisibleDockables = CreateList<IDockable>(visualizer),
-            ActiveDockable = visualizer,
-            CanCreateDocument = false
-        };
 
         var mainLayout = new ProportionalDock
         {
             Id = "MainLayout",
             Orientation = Orientation.Horizontal,
             VisibleDockables = CreateList<IDockable>(
-                leftDock,
+                new ToolDock
+                {
+                    Id = "InspectorDock",
+                    Proportion = 0.2,
+                    VisibleDockables = CreateList<IDockable>(_inspector),
+                    ActiveDockable = _inspector,
+                },
+                new ProportionalDockSplitter(),
                 new ProportionalDock
                 {
                     Id = "RightLayout",
                     Orientation = Orientation.Vertical,
                     VisibleDockables = CreateList<IDockable>(
-                        documentDock,
-                        bottomDock
+                        new ToolDock
+                        {
+                            Id = "EditorDock",
+                            Proportion = 0.75,
+                            VisibleDockables = CreateList<IDockable>(_editor),
+                            ActiveDockable = _editor,
+                        },
+                        new ProportionalDockSplitter(),
+                        new ToolDock
+                        {
+                            Id = "VisualizerDock",
+                            Proportion = 0.25,
+                            VisibleDockables = CreateList<IDockable>(_visualizer),
+                            ActiveDockable = _visualizer,
+                        }
                     )
                 }
             )
@@ -93,7 +89,6 @@ public class MainDockFactory : Factory
 
         var rootDock = CreateRootDock();
         rootDock.Id = "Root";
-        rootDock.Title = "Root";
         rootDock.VisibleDockables = CreateList<IDockable>(mainLayout);
         rootDock.ActiveDockable = mainLayout;
         rootDock.DefaultDockable = mainLayout;
@@ -101,54 +96,52 @@ public class MainDockFactory : Factory
         return rootDock;
     }
 
+
     public override void InitLayout(IDockable layout)
     {
+        // Context宿主：全都绑主vm
         ContextLocator = new Dictionary<string, Func<object?>>
         {
-            ["Inspector"] = () => _context,
-            ["Editor"] = () => _context,
-            ["Visualizer"] = () => _context,
-            ["Settings"] = () => _context,
-            ["ChartInfo"] = () => _context
+            ["Inspector"] = () => mainVm,
+            ["Editor"] = () => mainVm,
+            ["Visualizer"] = () => mainVm,
+            ["Settings"] = () => mainVm,
+            ["ChartInfo"] = () => mainVm
         };
+
+
 
         // 浮动窗口宿主:没有 locator 时拖出的面板会进入无宿主的浮动布局,直接"消失"。
         // ShowActivated=false 避免浮动窗口抢焦点(否则主窗口 Deactivated 会打断组合键拖拽);
         // WindowDecorations.None = 无边框;浮动窗口的 Resources 把 tab 条覆盖回可见,
-        // 用户通过拖动 tab 把面板停靠回主窗口。
         HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>
         {
             [nameof(IDockWindow)] = CreateFloatHost
         };
         DefaultHostWindowLocator = CreateFloatHost;
 
+        static HostWindow CreateFloatHost()
+        {
+            var host = new HostWindow
+            {
+                ShowActivated = false,
+                WindowDecorations = WindowDecorations.BorderOnly,
+                DocumentChromeControlsWholeWindow = true
+            };
+            host.Resources["DockDocumentControlTabStripVisible"] = true;
+
+            return host;
+        }
+
         base.InitLayout(layout);
     }
 
-    private static HostWindow CreateFloatHost()
-    {
-        var host = new HostWindow
-        {
-            ShowActivated = false,
-            WindowDecorations = WindowDecorations.BorderOnly,
-            // chrome 占满窗口:tab 条贴顶,配合 DocumentTabStrip.EnableWindowDrag
-            // 实现拖 tab 条移动窗口位置
-            DocumentChromeControlsWholeWindow = true
-        };
-        host.Resources["DockDocumentControlTabStripVisible"] = true;
-        return host;
-    }
 
-    /// <summary>
-    /// 主窗口 dock 没有 tab,无法在两个面板间切换,因此禁止同一 dock 堆叠两个面板:
-    /// 目标 dock 属于主布局且已有可见面板(不含正被移动的面板自身)时拒绝本次停靠。
-    /// 浮动窗口的 dock 显示 tab,不受此限制。
-    /// </summary>
     private bool IsInMainLayout(IDock targetDock)
     {
         for (IDockable? node = targetDock; node is not null; node = node.Owner)
         {
-            if (ReferenceEquals(node, _context.Layout))
+            if (ReferenceEquals(node, mainVm.Layout))
             {
                 return true;
             }
@@ -157,6 +150,11 @@ public class MainDockFactory : Factory
         return false;
     }
 
+    /// <summary>
+    /// 主窗口 dock 没有 tab,无法在两个面板间切换,因此禁止同一 dock 堆叠两个面板:
+    /// 目标 dock 属于主布局且已有可见面板(不含正被移动的面板自身)时拒绝本次停靠。
+    /// 浮动窗口的 dock 显示 tab,不受此限制。
+    /// </summary>
     private bool WouldStackInMainLayout(IDock targetDock, IDockable? incoming)
     {
         if (!IsInMainLayout(targetDock)) return false;
@@ -211,11 +209,13 @@ public class MainDockFactory : Factory
         base.RemoveDockable(dockable, collapse);
     }
 
+
+
     /// <summary>
     /// 把一个新面板直接浮出(不占据主窗口 dock):先挂到宿主 dock 再立即浮动,
     /// 内部直连基类绕过单占守卫,面板最终只存在于浮动窗口中。
     /// </summary>
-    public void FloatDetached(IDock host, IDockable dockable)
+    public void AddFloat(IDock host, IDockable dockable)
     {
         base.AddDockable(host, dockable);
         FloatDockable(dockable);

@@ -1,4 +1,3 @@
-using MajdataEdit_NeoX.Types;
 using Microsoft.Data.Sqlite;
 using System;
 

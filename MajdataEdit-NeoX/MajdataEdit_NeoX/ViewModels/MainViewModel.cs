@@ -9,36 +9,42 @@ using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
-using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
 using MajdataEdit_NeoX.Lang;
 using Avalonia.PropertyGrid.Services;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MajWebSocket.Types;
+using MajdataEdit_NeoX.Input;
+using Avalonia.Media.Imaging;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
 public enum AboutPages { Discord, QQ, GitHub, GitHub_ViewX, MajNet }
 public partial class MainViewModel : ViewModelBase
 {
-    private readonly IFileDialogService _fileDialog;
+    // Design
+    public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
 
+    private readonly IFileDialogService _fileDialog;
     public MainViewModel(IFileDialogService fileDialog)
     {
         _fileDialog = fileDialog;
         Instance = this;
+
         Settings.SettingsChanged += OnSettingsChanged;
 
         Factory = new MainDockFactory(this);
         Layout = Factory.CreateLayout()!;
         Factory.InitLayout(Layout!);
     }
+
 
     /// <summary>
     /// 应用唯一的视图模型实例。dock 内容模板的绑定经由它取数,
@@ -47,13 +53,9 @@ public partial class MainViewModel : ViewModelBase
     /// </summary>
     public static MainViewModel Instance { get; private set; } = null!;
 
-    public MainViewModel() : this(new AvaloniaFileDialogService(() => null))
-    {
-    }
 
     public IFactory Factory { get; } = null!;
     private IRootDock _layout = null!;
-
     public IRootDock Layout
     {
         get => _layout;
@@ -65,17 +67,25 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    public SettingsService Settings { get; } = new();
 
+
+    // ========设置========
+
+    public SettingsService Settings { get; } = new();
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
         OnPropertyChanged(nameof(Language));
         OnPropertyChanged(nameof(FontSize));
-        OnPropertyChanged(nameof(AutoCheckUpdatesOnStartup));
         OnPropertyChanged(nameof(WaveAnimated));
         OnPropertyChanged(nameof(WordWrap));
         OnPropertyChanged(nameof(BackgroundImagePath));
-        OnPropertyChanged(nameof(AutoFocusView));
+        RefreshSettings();
+    }
+
+    [RelayCommand] // 两条路径：SettingsGrid 的 CommandExecuted 事件，或手动 Settings.Set() 的事件
+    public void RefreshSettings()
+    {
+        LocalizationService.Default.SelectCulture(Language);
     }
 
     public string Language
@@ -88,12 +98,6 @@ public partial class MainViewModel : ViewModelBase
     {
         get => Settings.Current.EditSetting.FontSize;
         set => Settings.Set(s => s.EditSetting.FontSize = value);
-    }
-
-    public bool AutoCheckUpdatesOnStartup
-    {
-        get => Settings.Current.EditSetting.AutoCheckUpdatesOnStartup;
-        set => Settings.Set(s => s.EditSetting.AutoCheckUpdatesOnStartup = value);
     }
 
     public bool WaveAnimated
@@ -114,122 +118,11 @@ public partial class MainViewModel : ViewModelBase
         set => Settings.Set(s => s.EditSetting.BackgroundImagePath = value);
     }
 
-    public bool AutoFocusView
-    {
-        get => Settings.Current.EditSetting.AutoFocusView;
-        set => Settings.Set(s => s.EditSetting.AutoFocusView = value);
-    }
-
-    [ObservableProperty]
-    private bool _isDockDragEnabled;
-
-    partial void OnIsDockDragEnabledChanged(bool value) => DockDragModeState.Instance.IsActive = value;
-
-    private readonly Dictionary<IDockable, bool> _originalCanDragStates = new();
-    private readonly List<INotifyCollectionChanged> _subscribedCollections = new();
-
-    public void EnableDockDragMode()
-    {
-        if (IsDockDragEnabled) return;
-
-        try
-        {
-            _originalCanDragStates.Clear();
-            IsDockDragEnabled = true;
-            SubscribeCollectionChanges(Layout.VisibleDockables);
-            EnableDragForDockables(Layout.VisibleDockables);
-        }
-        catch
-        {
-            try
-            {
-                DisableDockDragMode();
-            }
-            catch
-            {
-            }
-            throw;
-        }
-    }
-
-    public void DisableDockDragMode()
-    {
-        if (!IsDockDragEnabled && _originalCanDragStates.Count == 0 && _subscribedCollections.Count == 0) return;
-
-        try
-        {
-            foreach (var collection in _subscribedCollections)
-            {
-                collection.CollectionChanged -= OnDockablesCollectionChanged;
-            }
-            _subscribedCollections.Clear();
-
-            foreach (var kvp in _originalCanDragStates)
-            {
-                kvp.Key.CanDrag = kvp.Value;
-            }
-        }
-        finally
-        {
-            _originalCanDragStates.Clear();
-            IsDockDragEnabled = false;
-        }
-    }
-
-    private void SubscribeCollectionChanges(IList<IDockable>? dockables)
-    {
-        if (dockables == null) return;
-
-        foreach (var dockable in dockables)
-        {
-            if (dockable is not IDock dock) continue;
-
-            if (dock.VisibleDockables is INotifyCollectionChanged collection && !_subscribedCollections.Contains(collection))
-            {
-                collection.CollectionChanged += OnDockablesCollectionChanged;
-                _subscribedCollections.Add(collection);
-            }
-            SubscribeCollectionChanges(dock.VisibleDockables);
-        }
-    }
-
-    private void OnDockablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (!IsDockDragEnabled || e.NewItems == null) return;
-
-        foreach (var item in e.NewItems)
-        {
-            if (item is IDockable dockable)
-            {
-                SubscribeCollectionChanges(new[] { dockable });
-                EnableDragForDockables(new[] { dockable });
-            }
-        }
-    }
-
-    private void EnableDragForDockables(IList<IDockable>? dockables)
-    {
-        if (dockables == null) return;
-
-        foreach (var dockable in dockables)
-        {
-            if (!_originalCanDragStates.ContainsKey(dockable))
-                _originalCanDragStates[dockable] = dockable.CanDrag;
-            dockable.CanDrag = true;
-
-            if (dockable is IDock dock)
-            {
-                EnableDragForDockables(dock.VisibleDockables);
-            }
-        }
-    }
-
     // ========文件========
-    private string? _maidataDir { get; set; }
-
     [ObservableProperty]
     // 文件变化刷新
     [NotifyPropertyChangedFor(nameof(Title))]
+    [NotifyPropertyChangedFor(nameof(WindowTitle))] // Title与WindowTitle绑定
     [NotifyPropertyChangedFor(nameof(Artist))]
     [NotifyPropertyChangedFor(nameof(FinalDesigner))]
     [NotifyPropertyChangedFor(nameof(Offset))]
@@ -250,6 +143,7 @@ public partial class MainViewModel : ViewModelBase
         {
             case nameof(MaidataFile.Title):
                 OnPropertyChanged(nameof(Title));
+                OnPropertyChanged(nameof(WindowTitle)); // Title与WindowTitle绑定
                 break;
             case nameof(MaidataFile.Artist):
                 OnPropertyChanged(nameof(Artist));
@@ -276,9 +170,6 @@ public partial class MainViewModel : ViewModelBase
                 break;
         }
     }
-
-    [ObservableProperty]
-    public partial TrackInfo? TrackInfo { get; private set; } = null;
 
     // ========编辑态========
     [ObservableProperty]
@@ -333,17 +224,88 @@ public partial class MainViewModel : ViewModelBase
     }
 
 
+    // ======外围（一般来说跟着Maidata一起变化）
+
+    /// <summary>
+    /// 从maidata.txt所在目录推导出maidata、track、bg、pv等文件的路径。
+    /// </summary>
+    /// <returns>是否扫描到最基本的maidata和track文件</returns>
+    private bool UpdatePath(string maidataDir)
+    {
+        _maidataDir = maidataDir;
+        _maidataPath = null;
+        _trackPath = null;
+        _imagePath = null;
+        _videoPath = null;
+        // scan
+        if (_maidataDir is not null)
+        {
+            _maidataPath = Path.Combine(_maidataDir, "maidata.txt");
+            if (!File.Exists(_maidataPath)) return false;
+
+            _trackPath = _maidataDir + "/track.mp3";
+            if (!File.Exists(_trackPath)) _trackPath = _maidataDir + "/track.ogg";
+            if (!File.Exists(_trackPath)) return false;
+
+            _imagePath = _maidataDir + "/bg.jpg";
+            if (!File.Exists(_imagePath)) _imagePath = _maidataDir + "/bg.png";
+            if (!File.Exists(_imagePath)) _imagePath = "";
+
+            _videoPath = _maidataDir + "/pv.mp4";
+            if (!File.Exists(_videoPath)) _videoPath = _maidataDir + "/bg.mp4";
+            if (!File.Exists(_videoPath)) _videoPath = "";
+
+            return true;
+        }
+        return false;
+    }
+    private string? _maidataDir;
+    private string? _maidataPath;
+    private string? _trackPath;
+    private string? _imagePath;
+    private string? _videoPath;
+    private void UpdateResources()
+    {
+        if (File.Exists(_trackPath)) TrackInfo = TrackReader.ReadTrack(_trackPath);
+        if (File.Exists(_imagePath)) Cover = new Bitmap(_imagePath);
+    }
+
+    [ObservableProperty]
+    public partial TrackInfo? TrackInfo { get; private set; }
+    [ObservableProperty]
+    public partial Bitmap? Cover { get; set; }
 
 
-    [ObservableProperty] public partial int CaretTime { get; set; }
-    [ObservableProperty] public partial int PlayheadTime { get; set; }
 
+    // ========临时态========
+    // TODO: 没有效果
+    public string WindowTitle
+    {
+        get
+        {
+            if (Maidata is null)
+                return "MajdataEdit-NeoX";
+            else
+            {
+                if (Maidata.IsDirty)
+                    return $"MajdataEdit-NeoX - {Maidata.Title}*";
+                else
+                    return $"MajdataEdit-NeoX - {Maidata.Title}";
+            }
+        }
+    }
+
+
+    [ObservableProperty] public partial int CaretOffset { get; set; }
+    [ObservableProperty] public partial double CaretTime { get; set; }
     [ObservableProperty] public partial int CaretCombo { get; set; }
+    [ObservableProperty] public partial double PlayheadTime { get; set; }
+
     [ObservableProperty] public partial float PlaybackSpeed { get; set; }
     [ObservableProperty] public partial bool IsFollowCursor { get; set; }
 
 
-    [ObservableProperty] public partial float ZoomLevel { get; set; }
+    [ObservableProperty] public partial float ZoomLevel { get; set; } = 1f;
 
 
     // ========连接态========
@@ -361,9 +323,11 @@ public partial class MainViewModel : ViewModelBase
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
 
-        _maidataDir = dir;
+        File.Create(dir + "/maidata.txt");
+        // TODO: 这里应该弹窗提示
+        if (!UpdatePath(dir)) return;
         Maidata = MaidataFile.New();
-        TrackInfo = TrackReader.ReadTrack(file);
+        UpdateResources();
     }
     [RelayCommand]
     public async Task OpenFileAsync()
@@ -373,16 +337,29 @@ public partial class MainViewModel : ViewModelBase
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
 
-        _maidataDir = dir;
+        // TODO: 这里应该弹窗提示，maidata.txt所在目录没有track文件，无法打开。
+        if (!UpdatePath(dir)) return;
         Maidata = MaidataFile.Parse(File.ReadAllText(file));
-        TrackInfo = TrackReader.ReadTrackFromDir(dir);
+        UpdateResources();
     }
     [RelayCommand]
-    public void SaveFile()
+    public async Task SaveFileAsync()
     {
+        if (!File.Exists(_maidataPath)) return;
+        if (Maidata is null) return;
 
+        var text = MaidataFile.Deparse(Maidata);
+        await File.WriteAllTextAsync(_maidataPath, text);
     }
+    [RelayCommand]
+    public void ReloadFile()
+    {
+        if (!Directory.Exists(_maidataDir)) return;
 
+        if (!UpdatePath(_maidataDir)) return;
+        Maidata = MaidataFile.Parse(_maidataPath!);
+        UpdateResources();
+    }
 
 
 
@@ -420,10 +397,17 @@ public partial class MainViewModel : ViewModelBase
         var documentDock = Factory.FindDockable(Layout, d => d.Id == "DocumentDock") as DocumentDock;
         if (documentDock is null) return;
 
-        var document = new Document { Id = id, Title = title, CanClose = true, CanDrag = true };
+        var document = new Document
+        {
+            Id = id,
+            Title = title,
+            CanClose = true,
+            CanDrag = true,
+            DockCapabilityOverrides = new DockCapabilityOverrides()
+        };
         if (Factory is MainDockFactory mainFactory)
         {
-            mainFactory.FloatDetached(documentDock, document);
+            mainFactory.AddFloat(documentDock, document);
         }
     }
     private IDockable? FindDocumentAnywhere(string id)
@@ -498,4 +482,84 @@ public partial class MainViewModel : ViewModelBase
     {
 
     }
+
+
+
+
+
+
+
+
+
+    // WIRE UP
+
+    private bool _isSlidingPlayhead;
+    partial void OnCaretOffsetChanged(int value)
+    {
+        if (Chart is null) return;
+        var timings = Chart.Timings;
+        var caretTime = 0d;
+        var combo = 0;
+        if (timings.Length == 0) return;
+
+        foreach (var t in timings)
+        {
+            if ((long)t.FumenPos >= value)
+            {
+                caretTime = t.Time;
+                break;
+            }
+            else
+            {
+                foreach (var note in t.Notes)
+                    combo += 1;
+            }
+        }
+
+        CaretTime = caretTime;
+        CaretCombo = combo;
+
+        if (InputManager.Instance.IsControl && !_isSlidingPlayhead)
+        {
+            PlayheadTime = caretTime;
+        }
+    }
+    partial void OnPlayheadTimeChanged(double value)
+    {
+        if (Chart is null) return;
+        _isSlidingPlayhead = true;
+
+        var timings = Chart.Timings;
+        if (timings.Length == 0) return;
+
+        int lo = 0, hi = timings.Length;
+        while (lo < hi)
+        {
+            int mid = lo + ((hi - lo) >> 1);
+
+            if (timings[mid].Time < value)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+
+        if (lo == 0)
+            CaretOffset = (int)timings[0].FumenPos;
+        else
+        {
+            if (lo == timings.Length)
+                lo = timings.Length - 1;
+            var a = timings[lo - 1].Time;
+            var b = timings[lo].Time;
+            lo = value - a <= b - value
+                ? lo - 1
+                : lo;
+
+            CaretOffset = (int)timings[lo].FumenPos;
+        }
+
+        _isSlidingPlayhead = false;
+    }
+
+
 }

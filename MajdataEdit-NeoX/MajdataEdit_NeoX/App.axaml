@@ -1,71 +1,17 @@
 ﻿<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:MajdataEdit_NeoX"
-             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
-             xmlns:v="using:MajdataEdit_NeoX.Views"
-             xmlns:c="using:MajdataEdit_NeoX.Controls"
-             xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
-             xmlns:core="clr-namespace:Dock.Model.Mvvm.Controls;assembly=Dock.Model.Mvvm"
              x:Class="MajdataEdit_NeoX.App"
              RequestedThemeVariant="Default">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
-    <!--
-        Dockable 内容模板放在应用级:主窗口与浮动窗口中的 DockControl 都能解析。
-        (浮动窗口的 DockControl 没有本地模板,放在 MainView 里会导致浮动面板渲染为空)
-    -->
     <Application.DataTemplates>
         <local:ViewLocator />
-        <DataTemplate DataType="core:Document">
-            <Grid>
-                <Panel>
-                    <v:InspectorView
-                        IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Inspector}"
-                        DisplayTime="{Binding CaretTime, Source={x:Static vm:MainViewModel.Instance}}"
-                        DisplayCombo="{Binding CaretCombo, Source={x:Static vm:MainViewModel.Instance}}"
-                        IsConnected="{Binding IsConnected, Source={x:Static vm:MainViewModel.Instance}}"
-                        SelectedDifficulty="{Binding SelectedDifficulty, Source={x:Static vm:MainViewModel.Instance}}"
-                        Level="{Binding Level, Source={x:Static vm:MainViewModel.Instance}}"
-                        Designer="{Binding Designer, Source={x:Static vm:MainViewModel.Instance}}"
-                        Offset="{Binding Offset, Source={x:Static vm:MainViewModel.Instance}}"
-                        PlaybackSpeed="{Binding PlaybackSpeed, Source={x:Static vm:MainViewModel.Instance}}"
-                        IsFollowCursor="{Binding IsFollowCursor, Source={x:Static vm:MainViewModel.Instance}}" />
-                    <c:SimaiVisualizerControl
-                        IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Visualizer}"
-                        TrackInfo="{Binding TrackInfo, Source={x:Static vm:MainViewModel.Instance}}"
-                        Chart="{Binding Chart, Source={x:Static vm:MainViewModel.Instance}}"
-                        Time="{Binding PlayheadTime, Source={x:Static vm:MainViewModel.Instance}}" />
-                    <v:FumenEditorView
-                        IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Editor}"
-                        Fumen="{Binding Fumen, Source={x:Static vm:MainViewModel.Instance}}" />
-                    <v:SettingsView
-                        IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=Settings}"
-                        Settings="{Binding Settings.Current, Source={x:Static vm:MainViewModel.Instance}}" />
-                    <v:ChartInfoView
-                        IsVisible="{Binding Id, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=ChartInfo}" />
-                </Panel>
-                <!-- 拖拽模式遮罩:按住面板任意位置即可拖动;平时隐藏,不影响 tab 拖拽 -->
-                <Border Background="#4DFFFFFF"
-                        IsVisible="{Binding IsActive, Source={x:Static vm:DockDragModeState.Instance}}"
-                        DockProperties.IsDragArea="True"
-                        DockProperties.IsDragEnabled="{Binding CanDrag}" />
-            </Grid>
-        </DataTemplate>
     </Application.DataTemplates>
-
-    <Application.Resources>
-        <!-- 主窗口 dock 不显示 tab;浮动窗口在自身 Resources 中覆盖回 True -->
-        <x:Boolean x:Key="DockDocumentControlTabStripVisible">False</x:Boolean>
-        <x:Boolean x:Key="DockDocumentTabStripSeparatorVisible">False</x:Boolean>
-    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
-        <StyleInclude Source="avares://Dock.Avalonia.Themes.Fluent/DockFluentTheme.axaml" />
-        <!-- 浮动窗口(BorderOnly 无标题栏)拖 tab 条空白处移动窗口位置 -->
-        <Style Selector="HostWindow DocumentTabStrip">
-            <Setter Property="EnableWindowDrag" Value="True" />
-        </Style>
+        <DockFluentTheme />
     </Application.Styles>
 </Application>

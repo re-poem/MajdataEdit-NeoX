@@ -1,5 +1,4 @@
 using MajdataEdit_NeoX.Base;
-using MajdataEdit_NeoX.Types;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -75,41 +74,41 @@ public static class Completions
     {
         using var doc = JsonDocument.Parse(json);
         var dict = new Dictionary<string, FumenCompletionItem[]>();
-        
+
         foreach (var prop in doc.RootElement.EnumerateObject())
         {
             if (prop.Value.ValueKind != JsonValueKind.Array) continue;
-            
+
             var entries = new List<FumenCompletionItem>();
             foreach (var node in prop.Value.EnumerateArray())
             {
                 if (node.ValueKind != JsonValueKind.Array || node.GetArrayLength() < 1) continue;
-                
+
                 var text = node[0].GetString();
                 if (text is null) continue;
-                
+
                 var content = node.GetArrayLength() > 1 && node[1].ValueKind != JsonValueKind.Null
                     ? node[1].GetString()
                     : null;
-                    
+
                 var description = node.GetArrayLength() > 2 && node[2].ValueKind != JsonValueKind.Null
                     ? node[2].GetString()
                     : null;
-                    
+
                 entries.Add(new FumenCompletionItem(text, content, description));
             }
-            
+
             if (entries.Count > 0)
                 dict[prop.Name] = entries.ToArray();
         }
-        
+
         return dict;
     }
 
     private static string Serialize(IReadOnlyDictionary<string, FumenCompletionItem[]> completions)
     {
         var root = new JsonObject();
-        
+
         foreach (var (trigger, items) in completions)
         {
             var array = new JsonArray();
@@ -125,7 +124,7 @@ public static class Completions
             }
             root[trigger] = array;
         }
-        
+
         return root.ToJsonString(JsonOptions);
     }
 

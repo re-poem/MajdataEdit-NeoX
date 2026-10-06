@@ -16,21 +16,13 @@ public class SettingsService
     private MajSetting? _currentSettings;
     private readonly Lock _lock = new();
 
+
+    public MajSetting Current => _currentSettings!;
     public event EventHandler? SettingsChanged;
 
-    public MajSetting Current
+    public SettingsService()
     {
-        get
-        {
-            lock (_lock)
-            {
-                if (_currentSettings == null)
-                {
-                    Load();
-                }
-                return _currentSettings!;
-            }
-        }
+        Load();
     }
 
     public void Set(Action<MajSetting> setter)

@@ -94,6 +94,7 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="Assets\Localizations\" />
+	  <Folder Include="Docs\" />
 	</ItemGroup>
 
 </Project>

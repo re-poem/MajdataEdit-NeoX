@@ -19,6 +19,9 @@ namespace MajdataEdit_NeoX.Views
             InitializeComponent();
         }
 
+
+
+
         [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
         public partial Bitmap Cover { get; set; } = null!;
 

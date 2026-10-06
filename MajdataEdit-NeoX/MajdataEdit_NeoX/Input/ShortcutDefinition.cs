@@ -6,6 +6,11 @@ using System.Text;
 
 namespace MajdataEdit_NeoX.Input;
 
+public sealed record ShortcutDefinition(
+    string FunctionKey,
+    string GestureText,
+    KeyGesture Gesture,
+    string? PluginIconKey = null);
 internal static class ShortcutDefinitions
 {
     public static IReadOnlyList<ShortcutDefinition> All { get; } =
