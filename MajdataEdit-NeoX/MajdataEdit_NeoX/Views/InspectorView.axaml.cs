@@ -44,7 +44,7 @@ public partial class InspectorView : UserControl
     // ====== 播放态 ======
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
-    public partial float PlaybackSpeed { get; set; } = 1f;
+    public partial float PlaybackSpeed { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
     public partial bool IsFollowCursor { get; set; }

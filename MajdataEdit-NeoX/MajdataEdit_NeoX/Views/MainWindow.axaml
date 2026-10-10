@@ -8,8 +8,8 @@
 
         mc:Ignorable="d"
         d:DesignWidth="630" d:DesignHeight="460"
-        MinWidth="630" MinHeight="460"
-        Width="630" Height="460"
+        MinWidth="680" MinHeight="540"
+        Width="680" Height="540"
 
         x:Class="MajdataEdit_NeoX.Views.MainWindow"
         Icon="/Assets/favicon.ico"

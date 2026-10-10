@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Dock.Avalonia.Controls;
@@ -7,47 +5,74 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
+using Dock.Settings;
+using FluentAvalonia.UI.Controls;
+using System;
+using System.Collections.Generic;
+using System.Reflection.Metadata;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
 
-// TODO: 让这个不要那么丑陋
-public class InspectorTool : Tool { }
-public class EditorTool : Tool { }
-public class VisualizerTool : Tool { }
-public class ChartInfoTool : Tool { }
-public class SettingsTool : Tool { }
+public class InspectorTool : Tool
+{
+    public InspectorTool()
+    {
+        Id = "Inspector";
+        Title = "Inspector";
+        CanClose = false;
+        CanDrag = true;
+    }
+}
+public class EditorTool : Tool
+{
+    public EditorTool()
+    {
+        Id = "Editor";
+        Title = "Editor";
+        CanClose = false;
+        CanDrag = true;
+    }
+}
+public class VisualizerTool : Tool
+{
+    public VisualizerTool()
+    {
+        Id = "Visualizer";
+        Title = "Visualizer";
+        CanClose = false;
+        CanDrag = true;
+    }
+}
+public class ChartInfoTool : Tool
+{
+    public ChartInfoTool()
+    {
+        Id = "ChartInfo";
+        Title = "ChartInfo";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
+public class SettingsTool : Tool
+{
+    public SettingsTool()
+    {
+        Id = "Settings";
+        Title = "Settings";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
 public class MainDockFactory
     (MainViewModel mainVm) : Factory
 {
-    private Tool? _inspector;
-    private Tool? _editor;
-    private Tool? _visualizer;
-
+    private IRootDock _rootDock = null!;
     public override IRootDock CreateLayout()
     {
-        _inspector = new InspectorTool
-        {
-            Id = "Inspector",
-            Title = "Inspector",
-            CanClose = false,
-            CanDrag = true,
-        };
-        _editor = new EditorTool
-        {
-            Id = "Editor",
-            Title = "Editor",
-            CanClose = false,
-            CanDrag = true,
-        };
-        _visualizer = new VisualizerTool
-        {
-            Id = "Visualizer",
-            Title = "Visualizer",
-            CanClose = false,
-            CanDrag = true,
-        };
-
+        var inspector = new InspectorTool();
+        var editor = new EditorTool();
+        var visualizer = new VisualizerTool();
 
         var mainLayout = new ProportionalDock
         {
@@ -58,8 +83,8 @@ public class MainDockFactory
                 {
                     Id = "InspectorDock",
                     Proportion = 0.2,
-                    VisibleDockables = CreateList<IDockable>(_inspector),
-                    ActiveDockable = _inspector,
+                    VisibleDockables = CreateList<IDockable>(inspector),
+                    ActiveDockable = inspector,
                 },
                 new ProportionalDockSplitter(),
                 new ProportionalDock
@@ -71,16 +96,16 @@ public class MainDockFactory
                         {
                             Id = "EditorDock",
                             Proportion = 0.75,
-                            VisibleDockables = CreateList<IDockable>(_editor),
-                            ActiveDockable = _editor,
+                            VisibleDockables = CreateList<IDockable>(editor),
+                            ActiveDockable = editor,
                         },
                         new ProportionalDockSplitter(),
                         new ToolDock
                         {
                             Id = "VisualizerDock",
                             Proportion = 0.25,
-                            VisibleDockables = CreateList<IDockable>(_visualizer),
-                            ActiveDockable = _visualizer,
+                            VisibleDockables = CreateList<IDockable>(visualizer),
+                            ActiveDockable = visualizer,
                         }
                     )
                 }
@@ -92,6 +117,7 @@ public class MainDockFactory
         rootDock.VisibleDockables = CreateList<IDockable>(mainLayout);
         rootDock.ActiveDockable = mainLayout;
         rootDock.DefaultDockable = mainLayout;
+        _rootDock = rootDock;
 
         return rootDock;
     }
@@ -99,39 +125,19 @@ public class MainDockFactory
 
     public override void InitLayout(IDockable layout)
     {
-        // Context宿主：全都绑主vm
-        ContextLocator = new Dictionary<string, Func<object?>>
-        {
-            ["Inspector"] = () => mainVm,
-            ["Editor"] = () => mainVm,
-            ["Visualizer"] = () => mainVm,
-            ["Settings"] = () => mainVm,
-            ["ChartInfo"] = () => mainVm
-        };
-
-
-
-        // 浮动窗口宿主:没有 locator 时拖出的面板会进入无宿主的浮动布局,直接"消失"。
-        // ShowActivated=false 避免浮动窗口抢焦点(否则主窗口 Deactivated 会打断组合键拖拽);
-        // WindowDecorations.None = 无边框;浮动窗口的 Resources 把 tab 条覆盖回可见,
-        HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>
-        {
-            [nameof(IDockWindow)] = CreateFloatHost
-        };
-        DefaultHostWindowLocator = CreateFloatHost;
-
-        static HostWindow CreateFloatHost()
+        // Context：全都绑主vm
+        DefaultContextLocator = () => mainVm;
+        // HostWindow
+        DefaultHostWindowLocator = () =>
         {
             var host = new HostWindow
             {
-                ShowActivated = false,
                 WindowDecorations = WindowDecorations.BorderOnly,
                 DocumentChromeControlsWholeWindow = true
             };
-            host.Resources["DockDocumentControlTabStripVisible"] = true;
 
             return host;
-        }
+        };
 
         base.InitLayout(layout);
     }
@@ -176,6 +182,15 @@ public class MainDockFactory
         if (WouldStackInMainLayout(dock, dockable)) return;
         base.AddDockable(dock, dockable);
     }
+    /// <summary>
+    /// 把一个新面板直接浮出(不占据主窗口 dock):先挂到宿主 dock 再立即浮动,
+    /// 内部直连基类绕过单占守卫,面板最终只存在于浮动窗口中。
+    /// </summary>
+    public void AddFloat(IDock host, IDockable dockable)
+    {
+        base.AddDockable(host, dockable);
+        FloatDockable(dockable, new() { OwnerMode = DockWindowOwnerMode.RootWindow });
+    }
 
     public override void InsertDockable(IDock dock, IDockable dockable, int index)
     {
@@ -210,14 +225,33 @@ public class MainDockFactory
     }
 
 
-
-    /// <summary>
-    /// 把一个新面板直接浮出(不占据主窗口 dock):先挂到宿主 dock 再立即浮动,
-    /// 内部直连基类绕过单占守卫,面板最终只存在于浮动窗口中。
-    /// </summary>
-    public void AddFloat(IDock host, IDockable dockable)
+    public void FloatOrActivateTool<T>() where T : Tool, new()
     {
-        base.AddDockable(host, dockable);
-        FloatDockable(dockable);
+        var existing = FindToolAnywhere<T>();
+        if (existing is not null)
+        {
+            SetActiveDockable(existing);
+            return;
+        }
+
+        var tool = new T();
+        InitDockable(tool, null);
+        AddFloat(_rootDock, tool);
+    }
+
+    private IDockable? FindToolAnywhere<T>() where T : Tool
+    {
+        var inMain = FindDockable(mainVm.Layout, d => d is T);
+        if (inMain is not null) return inMain;
+
+        foreach (var host in HostWindows)
+        {
+            var layout = host.Window?.Layout;
+            if (layout is null) continue;
+            var found = FindDockable(layout, d => d is T);
+            if (found is not null) return found;
+        }
+
+        return null;
     }
 }

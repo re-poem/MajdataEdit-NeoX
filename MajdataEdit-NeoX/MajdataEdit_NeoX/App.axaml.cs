@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.PropertyGrid.Services;
+using Dock.Settings;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Services;
@@ -10,6 +11,7 @@ using MajdataEdit_NeoX.ViewModels;
 using MajdataEdit_NeoX.Views;
 using System;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -36,7 +38,10 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        LaunchViewIfNotRunning();
+
         LocalizationService.Default.AddExtraService(new MajLocalizationService());
+
         // 组合根：IFileDialogService 注入 MainViewModel。
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -81,6 +86,36 @@ public partial class App : Application
         foreach (Avalonia.Controls.Window window in e.NewItems)
         {
             InputManager.Instance.Attach(window);
+        }
+    }
+
+    public static void LaunchViewIfNotRunning()
+    {
+        var path = OperatingSystem.IsWindows()
+            ? MajEnv.GetPath("MajdataView.exe")
+            : MajEnv.GetPath("MajdataView");
+        if (!File.Exists(path))
+        {
+            Debug.WriteLine($"[ViewLauncherService] {path} not found");
+            return;
+        }
+
+        if (Process.GetProcessesByName("MajdataViewX").Length > 0)
+            return;
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = false,
+                WorkingDirectory = Path.GetDirectoryName(path) ?? Environment.CurrentDirectory,
+            };
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ViewLauncherService] Failed to launch MajdataViewX: {ex.Message}");
         }
     }
 }

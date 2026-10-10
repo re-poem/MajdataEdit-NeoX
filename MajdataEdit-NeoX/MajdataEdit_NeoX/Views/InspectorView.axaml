@@ -5,17 +5,21 @@
 
              xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
              xmlns:conv="using:MajdataEdit_NeoX.Converters"
+             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
 
-             mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="370"
+             mc:Ignorable="d" d:DesignWidth="120" d:DesignHeight="430"
              x:Class="MajdataEdit_NeoX.Views.InspectorView"
+             x:DataType="vm:MainViewModel"
              x:Name="Root">
 
     <UserControl.Resources>
         <conv:SecondsToTimeConverter x:Key="SecondsToTime" />
+        <StreamGeometry x:Key="stop">M320-640v320-320Zm-80 400v-480h480v480H240Zm80-80h320v-320H320v320Z</StreamGeometry>
+        <StreamGeometry x:Key="play_pause">M200-312v-336l240 168-240 168Zm320-8v-320h80v320h-80Zm160 0v-320h80v320h-80Z</StreamGeometry>
     </UserControl.Resources>
 
     <Grid ColumnDefinitions="2.2*,3*"
-          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
         <Label Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2"
                Height="90" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0 30 0 0"
@@ -72,15 +76,27 @@
                        ShowButtonSpinner="False"/>
 
 
-        <StackPanel Grid.Column="0" Grid.Row="7"
+        <CheckBox Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="2"
+                  IsChecked="{Binding #Root.IsFollowCursor}" Content="{ll:Localize Gui_FollowCursor}"
+                  Margin="0 4 0 0" HorizontalAlignment="Center"/>
+        <StackPanel Grid.Column="0" Grid.Row="8"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
-            <CheckBox IsChecked="{Binding #Root.IsFollowCursor}" Margin="20 4 0 0" HorizontalAlignment="Center"/>
-            <Label Content="{ll:Localize Gui_FollowCursor}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center"/>
+            <CheckBox IsChecked="{Binding #Root.IsConnected}" IsEnabled="False" Margin="15 4 0 0" HorizontalAlignment="Center"/>
+            <Label Content="{ll:Localize Gui_Connected}" FontSize="8" Margin="5 -7 0 0" HorizontalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Grid.Row="7"
-                    VerticalAlignment="Center" HorizontalAlignment="Center">
-            <CheckBox IsChecked="{Binding #Root.IsConnected}" IsEnabled="False" Margin="20 4 0 0" HorizontalAlignment="Center"/>
-            <Label Content="{ll:Localize Gui_Connected}" FontSize="8" Margin="10 -7 0 0" HorizontalAlignment="Center" />
+        <Button Grid.Column="1" Grid.Row="8" Margin="4 0 4 0" FontSize="12"
+                VerticalAlignment="Center" HorizontalAlignment="Center"
+                Content="{ll:Localize Gui_Record}" Command="{Binding PlayIncludeOp}" />
+
+        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="9"
+                    Orientation="Horizontal" Spacing="5" Margin="0 6 0 0"
+                    HorizontalAlignment="Center">
+            <Button Height="50" Width="50" Command="{Binding StopAsync}">
+                <PathIcon Width="13" Data="{StaticResource stop}"/>
+            </Button>
+            <Button Height="50" Width="50" Command="{Binding PlayPause}">
+                <PathIcon Data="{StaticResource play_pause}"/>
+            </Button>
         </StackPanel>
 
     </Grid>
