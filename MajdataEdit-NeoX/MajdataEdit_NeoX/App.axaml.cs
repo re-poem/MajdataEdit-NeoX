@@ -38,6 +38,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        MajEnv.InitializeUserFiles();
         LaunchViewIfNotRunning();
 
         LocalizationService.Default.AddExtraService(new MajLocalizationService());

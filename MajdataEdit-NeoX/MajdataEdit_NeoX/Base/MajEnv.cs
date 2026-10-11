@@ -3,13 +3,13 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace MajdataEdit_NeoX.Base;
 
 public static partial class MajEnv
 {
+
     public static string MajBase
     {
         get
@@ -26,17 +26,57 @@ public static partial class MajEnv
             return AppDomain.CurrentDomain.BaseDirectory;
         }
     }
-    public static string GetPath(string relativePath) => Path.Combine(MajBase, relativePath);
+    public static string GetPath(string relativePath) => 
+        Path.Combine(MajBase, relativePath);
 
-    public static string MmfAudioTimePath =>
-        GetPath("majdata_time.dat");
-    public static string LuaPluginsPath =>
-        GetPath("Plugins");
 
+    // TODO: require another way 
+    // public static string MmfAudioTimePath => GetPath("majdata_time.dat");
     public static string SettingsFile => GetPath("Settings.json");
     public static string CrashFile => GetPath("crash.log");
     public static string DatabaseFile => GetPath("editor.db");
+
     public static string CompletionFile => GetPath("completions.json");
+    public static string GrammarFile => GetPath("simai.tmLanguage.json");
+    public static string DefaultBackgroundImageFile => GetPath("xxlb.png");
+    public static string LuaPluginsPath => GetPath("Plugins");
+
+    /// <summary>
+    /// Copies editable defaults out of the package into the writable app-data directory.
+    /// Existing files are deliberately preserved so user changes survive upgrades.
+    /// </summary>
+    public static void InitializeUserFiles()
+    {
+        Directory.CreateDirectory(LuaPluginsPath);
+
+        // CopyDefaultFile("completions.json", CompletionFile); // in Completions.cs, auto generate
+        CopyDefaultFile("simai.tmLanguage.json", GrammarFile);
+        CopyDefaultFile("xxlb.png", DefaultBackgroundImageFile);
+        CopyDefaultFile("Plugins/Mirror.lua", Path.Combine(LuaPluginsPath, "Mirror.lua"));
+        CopyDefaultFile("Plugins/Subdivide.lua", Path.Combine(LuaPluginsPath, "Subdivide.lua"));
+    }
+
+    private static void CopyDefaultFile(string packageName, string destination)
+    {
+        if (File.Exists(destination)) return;
+
+        var legacyFile = GetPath(packageName.Replace('/', Path.DirectorySeparatorChar));
+        if (File.Exists(legacyFile))
+        {
+            File.Copy(legacyFile, destination);
+            return;
+        }
+
+        var resourceName = $"MajdataEdit_NeoX.{packageName.Replace('/', '.')}";
+        using var source = typeof(MajEnv).Assembly.GetManifestResourceStream(resourceName);
+        if (source is null) return;
+
+        using var target = File.Create(destination);
+        source.CopyTo(target);
+    }
+
+
+
 
     public static void ActivateProcessWindow(Process? process)
     {

@@ -9,6 +9,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.TextMate;
 using CommunityToolkit.Mvvm.ComponentModel;
+using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Models.Fumen;
 using PropertyGenerator.Avalonia;
@@ -30,7 +31,7 @@ public partial class FumenEditorView : UserControl
         InputMethod.SetIsInputMethodEnabled(Editor.TextArea, false);
 
         var install = TextMate.InstallTextMate(Editor, new RegistryOptions(ThemeName.DarkPlus));
-        install.SetGrammarFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "simai.tmLanguage.json"));
+        install.SetGrammarFile(MajEnv.GrammarFile);
 
         Editor.TextArea.TextEntered += TextArea_TextEntered;
         Editor.TextArea.AddHandler(KeyDownEvent, TextArea_PreviewKeyDown, RoutingStrategies.Tunnel);

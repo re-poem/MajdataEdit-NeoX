@@ -59,9 +59,6 @@ public class SettingsService
 
                     _currentSettings = root.ToObject<MajSetting>();
                     _currentSettings ??= new MajSetting();
-                    _currentSettings.EditSetting ??= new MajEditSetting();
-                    if (_currentSettings.EditSetting.PlayerIps.Count == 0)
-                        _currentSettings.EditSetting.PlayerIps.Add("127.0.0.1");
                 }
                 else
                 {

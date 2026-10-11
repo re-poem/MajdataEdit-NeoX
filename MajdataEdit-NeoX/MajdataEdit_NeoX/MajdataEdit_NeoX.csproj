@@ -45,24 +45,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="simai.tmLanguage.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
-	<ItemGroup>
-		<None Update="completions.json">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
-	<ItemGroup>
-		<None Update="xxlb.png">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
-	<ItemGroup>
-		<None Update="Plugins\*.lua">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
+		<EmbeddedResource Include="simai.tmLanguage.json" />
+		<EmbeddedResource Include="xxlb.png" />
+		<EmbeddedResource Include="Plugins\*.lua" />
 	</ItemGroup>
 
 	<!--
