@@ -64,6 +64,8 @@ public class SettingsTool : Tool
         CanDrag = true;
     }
 }
+
+
 public class MainDockFactory
     (MainViewModel mainVm) : Factory
 {
@@ -74,43 +76,87 @@ public class MainDockFactory
         var editor = new EditorTool();
         var visualizer = new VisualizerTool();
 
-        var mainLayout = new ProportionalDock
+        ProportionalDock mainLayout;
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
-            Id = "MainLayout",
-            Orientation = Orientation.Horizontal,
-            VisibleDockables = CreateList<IDockable>(
-                new ToolDock
-                {
-                    Id = "InspectorDock",
-                    Proportion = 0.2,
-                    VisibleDockables = CreateList<IDockable>(inspector),
-                    ActiveDockable = inspector,
-                },
-                new ProportionalDockSplitter(),
-                new ProportionalDock
-                {
-                    Id = "RightLayout",
-                    Orientation = Orientation.Vertical,
-                    VisibleDockables = CreateList<IDockable>(
-                        new ToolDock
-                        {
-                            Id = "EditorDock",
-                            Proportion = 0.75,
-                            VisibleDockables = CreateList<IDockable>(editor),
-                            ActiveDockable = editor,
-                        },
-                        new ProportionalDockSplitter(),
-                        new ToolDock
-                        {
-                            Id = "VisualizerDock",
-                            Proportion = 0.25,
-                            VisibleDockables = CreateList<IDockable>(visualizer),
-                            ActiveDockable = visualizer,
-                        }
-                    )
-                }
-            )
-        };
+            mainLayout = new ProportionalDock
+            {
+                Id = "MainLayout",
+                Orientation = Orientation.Horizontal,
+                VisibleDockables = CreateList<IDockable>(
+                    new ToolDock
+                    {
+                        Id = "InspectorDock",
+                        Proportion = 0.2,
+                        VisibleDockables = CreateList<IDockable>(inspector),
+                        ActiveDockable = inspector,
+                    },
+                    new ProportionalDockSplitter(),
+                    new ProportionalDock
+                    {
+                        Id = "RightLayout",
+                        Orientation = Orientation.Vertical,
+                        VisibleDockables = CreateList<IDockable>(
+                            new ToolDock
+                            {
+                                Id = "EditorDock",
+                                Proportion = 0.75,
+                                VisibleDockables = CreateList<IDockable>(editor),
+                                ActiveDockable = editor,
+                            },
+                            new ProportionalDockSplitter(),
+                            new ToolDock
+                            {
+                                Id = "VisualizerDock",
+                                Proportion = 0.25,
+                                VisibleDockables = CreateList<IDockable>(visualizer),
+                                ActiveDockable = visualizer,
+                            }
+                        )
+                    }
+                )
+            };
+        }
+        else
+        {
+            mainLayout = new ProportionalDock
+            {
+                Id = "MainLayout",
+                Orientation = Orientation.Horizontal,
+                VisibleDockables = CreateList<IDockable>(
+                    new ToolDock
+                    {
+                        Id = "InspectorDock",
+                        Proportion = 0.2,
+                        VisibleDockables = CreateList<IDockable>(inspector),
+                        ActiveDockable = inspector,
+                    },
+                    new ProportionalDockSplitter(),
+                    new ProportionalDock
+                    {
+                        Id = "RightLayout",
+                        Orientation = Orientation.Vertical,
+                        VisibleDockables = CreateList<IDockable>(
+                            new ToolDock
+                            {
+                                Id = "EditorDock",
+                                Proportion = 0.75,
+                                VisibleDockables = CreateList<IDockable>(editor),
+                                ActiveDockable = editor,
+                            },
+                            new ProportionalDockSplitter(),
+                            new ToolDock
+                            {
+                                Id = "VisualizerDock",
+                                Proportion = 0.25,
+                                VisibleDockables = CreateList<IDockable>(visualizer),
+                                ActiveDockable = visualizer,
+                            }
+                        )
+                    }
+                )
+            };
+        }
 
         var rootDock = CreateRootDock();
         rootDock.Id = "Root";
