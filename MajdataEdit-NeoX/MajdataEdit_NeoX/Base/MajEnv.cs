@@ -72,5 +72,4 @@ public static partial class MajEnv
     private static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     public static readonly string MAJDATA_VERSION_STRING = $"v{Assembly.GetExecutingAssembly().GetName().Version!.ToString(3)}";
-    public static readonly SemanticVersion MAJDATA_VERSION = SemanticVersion.Parse(MAJDATA_VERSION_STRING);
 }

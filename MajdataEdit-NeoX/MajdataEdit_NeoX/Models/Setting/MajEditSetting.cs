@@ -3,6 +3,7 @@ using PropertyModels.ComponentModel;
 using PropertyModels.ComponentModel.DataAnnotations;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace MajdataEdit_NeoX.Models.Setting;
 
@@ -10,6 +11,9 @@ public class MajEditSetting
 {
     [DisplayName(LangKeys.Set_Language)]
     public string Language { get; set; } = "en-US";
+
+    [DisplayName(LangKeys.Set_PlayerIps)]
+    public List<string> PlayerIps { get; set; } = ["127.0.0.1"];
 
     [DisplayName(LangKeys.Set_FontSize)]
     [Range(1, 100)]

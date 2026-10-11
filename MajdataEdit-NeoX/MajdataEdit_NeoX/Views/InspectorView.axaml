@@ -82,7 +82,11 @@
         <StackPanel Grid.Column="0" Grid.Row="8"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
             <CheckBox IsChecked="{Binding #Root.IsConnected}" IsEnabled="False" Margin="15 4 0 0" HorizontalAlignment="Center"/>
-            <Label Content="{ll:Localize Gui_Connected}" FontSize="8" Margin="5 -7 0 0" HorizontalAlignment="Center" />
+            <TextBlock FontSize="8" Margin="5 -7 0 0" HorizontalAlignment="Center">
+                <Run Text="Conn [" />
+                <Run Text="{Binding #Root.ActiveConnectionCount}" />
+                <Run Text="]" />
+            </TextBlock>
         </StackPanel>
         <Button Grid.Column="1" Grid.Row="8" Margin="4 0 4 0" FontSize="12"
                 VerticalAlignment="Center" HorizontalAlignment="Center"

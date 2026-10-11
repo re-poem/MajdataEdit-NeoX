@@ -21,6 +21,9 @@ public partial class InspectorView : UserControl
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial bool IsConnected { get; set; } = true;
 
+    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
+    public partial int ActiveConnectionCount { get; set; }
+
 
 
 

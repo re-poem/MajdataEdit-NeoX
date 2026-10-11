@@ -5,15 +5,97 @@
 
         xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
         xmlns:views="using:MajdataEdit_NeoX.Views"
+        xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
 
         mc:Ignorable="d"
         d:DesignWidth="630" d:DesignHeight="460"
         MinWidth="680" MinHeight="540"
         Width="680" Height="540"
 
-        x:Class="MajdataEdit_NeoX.Views.MainWindow"
-        Icon="/Assets/favicon.ico"
-        Title="{Binding WindowTitle, Source={x:Static vm:MainViewModel.Instance}}">
+        Title="{Binding WindowTitle}"
 
-    <views:MainView />
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40"
+        WindowDecorations="BorderOnly"
+        WindowStartupLocation="CenterScreen"
+
+        x:Class="MajdataEdit_NeoX.Views.MainWindow"
+        x:DataType="vm:MainViewModel">
+
+    <Grid RowDefinitions="40,*">
+        <!-- 自绘标题栏 -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                WindowDecorationProperties.ElementRole="TitleBar">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+
+                <Image Grid.Column="0"
+                       Width="20" Height="20" Margin="12,0"
+                       Source="/Assets/favicon.ico"/>
+
+                <Menu Grid.Column="1" Margin="-3,0"
+                      VerticalAlignment="Center"
+                      WindowDecorationProperties.ElementRole="User">
+                    <MenuItem Header="{ll:Localize Gui_File}">
+                        <MenuItem Header="{ll:Localize Gui_New}" Command="{Binding NewFileAsync}"/>
+                        <MenuItem Header="{ll:Localize Gui_Open}" Command="{Binding OpenFileAsync}"/>
+                        <MenuItem Header="{ll:Localize Gui_Save}" Command="{Binding SaveFileAsync}"/>
+                        <MenuItem Header="{ll:Localize Gui_Reload}" Command="{Binding ReloadFileAsync}"/>
+                        <Separator/>
+                        <MenuItem Header="{ll:Localize Win_Recover}" Command="{Binding OpenRecover}"/>
+                        <Separator/>
+                        <MenuItem Header="{ll:Localize Gui_ExportVideo}" Command="{Binding PlayRecord}"/>
+                    </MenuItem>
+                    <MenuItem x:Name="EditMenu" Header="{ll:Localize Gui_Edit}">
+                        <MenuItem Header="{ll:Localize Gui_ChartInfo}" Command="{Binding OpenChartInfo}"/>
+                        <Separator/>
+                        <MenuItem Header="{ll:Localize Gui_FindAndReplace}" Command="{Binding ShowFindReplace}"/>
+                        <Separator/>
+                    </MenuItem>
+                    <MenuItem Header="{ll:Localize Gui_Setting}">
+                        <MenuItem Header="{ll:Localize Gui_Setting}" Command="{Binding OpenSettings}"/>
+                        <MenuItem Header="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateAsync}" CommandParameter="false"/>
+                    </MenuItem>
+                    <MenuItem Header="{ll:Localize Gui_Tools}">
+                        <MenuItem Header="{ll:Localize Gui_BpmTap}" Command="{Binding OpenBpmTap}"/>
+                        <Separator/>
+                    </MenuItem>
+                    <MenuItem Header="{ll:Localize Gui_About}">
+                        <MenuItem Header="{ll:Localize Gui_ShortcutOverview}" Command="{Binding OpenShortcut}"/>
+                        <Separator/>
+                        <MenuItem Header="Discord" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.Discord}"/>
+                        <MenuItem Header="QQ" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.QQ}"/>
+                        <Separator/>
+                        <MenuItem Header="Github" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub}"/>
+                        <MenuItem Header="Github (ViewX)" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub_ViewX}"/>
+                        <MenuItem Header="Majnet" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.MajNet}"/>
+                    </MenuItem>
+                </Menu>
+
+                <Border Grid.Column="2"
+                        Margin="8,0,0,0"
+                        Padding="7,2,7,2"
+                        Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                        BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                        BorderThickness="1"
+                        CornerRadius="3"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="{Binding WindowTitle}"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- 窗口控制按钮 -->
+                <StackPanel Grid.Column="4"
+                            Orientation="Horizontal"
+                            WindowDecorationProperties.ElementRole="User">
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <views:MainView />
+        </Grid>
+    </Grid>
 </Window>

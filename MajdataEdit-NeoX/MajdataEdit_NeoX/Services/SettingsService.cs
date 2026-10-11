@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Models.Setting;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -34,6 +35,14 @@ public class SettingsService
         }
     }
 
+    public void NotifyChanged()
+    {
+        lock (_lock)
+        {
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     public void Load()
     {
         lock (_lock)
@@ -43,10 +52,16 @@ public class SettingsService
                 if (File.Exists(MajEnv.SettingsFile))
                 {
                     var json = File.ReadAllText(MajEnv.SettingsFile);
-                    _currentSettings = JsonConvert.DeserializeObject<MajSetting>(json);
+                    var root = JObject.Parse(json);
+                    var playerIps = root["EditSetting"]?["PlayerIps"];
+                    if (playerIps?.Type == JTokenType.String)
+                        root["EditSetting"]!["PlayerIps"] = new JArray(playerIps.ToObject<string>() ?? "127.0.0.1");
 
-                    // Ensure settings is not null after deserialization
+                    _currentSettings = root.ToObject<MajSetting>();
                     _currentSettings ??= new MajSetting();
+                    _currentSettings.EditSetting ??= new MajEditSetting();
+                    if (_currentSettings.EditSetting.PlayerIps.Count == 0)
+                        _currentSettings.EditSetting.PlayerIps.Add("127.0.0.1");
                 }
                 else
                 {

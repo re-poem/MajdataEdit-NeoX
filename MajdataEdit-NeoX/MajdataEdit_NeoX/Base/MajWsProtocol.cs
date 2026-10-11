@@ -8,5 +8,7 @@ internal static class MajWsProtocol
 {
     public const int Port = 8083;
     public const string ServicePath = "/majdata";
-    public static string ServerUrl => $"ws://127.0.0.1:{Port}{ServicePath}";
+    public static string ServerUrl => CreateServerUrl("127.0.0.1");
+
+    public static string CreateServerUrl(string ip) => $"ws://{ip}:{Port}{ServicePath}";
 }

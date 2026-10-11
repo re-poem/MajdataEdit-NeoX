@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -12,26 +13,144 @@ using MajProtocol.Types;
 using MajProtocol.Types.Enums;
 using MajProtocol.Types.Request;
 using MajProtocol.Types.Response;
+using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Models.Setting;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using MajdataEdit_NeoX.Base;
 
 namespace MajdataEdit_NeoX.Models.Connection;
 
 internal sealed class PlayerConnection : IAsyncDisposable
 {
-    public bool IsConnected => _client?.State == WebSocketState.Open;
+    private sealed class Endpoint : IAsyncDisposable
+    {
+        public Endpoint(string ip)
+        {
+            Ip = ip;
+            Outgoing = Channel.CreateUnbounded<RequestEnvelope>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = false,
+            });
+        }
+
+        public string Ip { get; }
+        public ClientWebSocket? Client;
+        public readonly Channel<RequestEnvelope> Outgoing;
+        public readonly SemaphoreSlim ConnectGate = new(1, 1);
+        public readonly CancellationTokenSource LifetimeCts = new();
+        public readonly Lock StateLock = new();
+        public ViewSummary Summary = new();
+        public Task? SendLoop;
+        public Task? ReceiveLoop;
+        public bool Disposed;
+
+        public bool IsConnected => Client?.State == WebSocketState.Open;
+
+        public async Task<bool> ConnectAsync(PlayerConnection owner)
+        {
+            if (IsConnected) return true;
+
+            await ConnectGate.WaitAsync(LifetimeCts.Token);
+            try
+            {
+                if (IsConnected) return true;
+
+                var client = new ClientWebSocket();
+                client.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+                await client.ConnectAsync(new Uri(MajWsProtocol.CreateServerUrl(Ip)), LifetimeCts.Token);
+
+                var previous = Interlocked.Exchange(ref Client, client);
+                if (previous is not null)
+                {
+                    try { await previous.CloseAsync(WebSocketCloseStatus.NormalClosure, "rotate", CancellationToken.None); }
+                    catch { /* swallow */ }
+                    previous.Dispose();
+                }
+
+                SendLoop = Task.Run(() => owner.SendLoopAsync(this, LifetimeCts.Token));
+                ReceiveLoop = Task.Run(() => owner.ReceiveLoopAsync(this, LifetimeCts.Token));
+                owner.OnConnectedChanged?.Invoke(true);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            finally
+            {
+                ConnectGate.Release();
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (Disposed) return;
+            Disposed = true;
+            LifetimeCts.Cancel();
+            Outgoing.Writer.TryComplete();
+
+            var client = Interlocked.Exchange(ref Client, null);
+            if (client is not null)
+            {
+                try
+                {
+                    if (client.State == WebSocketState.Open)
+                        await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", CancellationToken.None);
+                }
+                catch { /* swallow */ }
+                client.Dispose();
+            }
+
+            if (SendLoop is not null)
+            {
+                try { await SendLoop; }
+                catch (OperationCanceledException) { }
+                catch { /* swallow */ }
+            }
+            if (ReceiveLoop is not null)
+            {
+                try { await ReceiveLoop; }
+                catch (OperationCanceledException) { }
+                catch { /* swallow */ }
+            }
+
+            LifetimeCts.Dispose();
+            ConnectGate.Dispose();
+        }
+    }
+
+    private readonly Lock _endpointsLock = new();
+    private readonly List<Endpoint> _endpoints = new();
+    private int _activeConnectionCount;
+    private bool _disposed;
+
+    public PlayerConnection(IEnumerable<string> ips)
+    {
+        SetEndpoints(ips);
+    }
+
+    public bool IsConnected => ActiveConnectionCount > 0;
+
+    public int ActiveConnectionCount
+    {
+        get
+        {
+            lock (_endpointsLock) return _activeConnectionCount;
+        }
+    }
 
     public ViewSummary ViewSummary
     {
-        get { lock (_stateLock) return _summary; }
+        get
+        {
+            var endpoint = PrimaryEndpoint;
+            if (endpoint is null) return new();
+            lock (endpoint.StateLock) return endpoint.Summary;
+        }
     }
 
-    public ViewStatus State
-    {
-        get { lock (_stateLock) return _summary.State; }
-    }
+    public ViewStatus State => ViewSummary.State;
 
     /// <summary>所有状态变化（含 Idle↔Loaded、Loaded↔Playing、Playing↔Paused 等）会触发。</summary>
     public event Action<ViewStatus, ViewStatus>? OnViewStateChanged;
@@ -57,37 +176,42 @@ internal sealed class PlayerConnection : IAsyncDisposable
     /// <summary>连接状态变化：连上 true / 断开 false（对端关闭 / 接收循环退出）。</summary>
     public event Action<bool>? OnConnectedChanged;
 
-    private ViewSummary _summary = new();
-    private readonly Lock _stateLock = new();
-
-    private ClientWebSocket? _client;
-    private readonly Channel<RequestEnvelope> _outgoing =
-        Channel.CreateUnbounded<RequestEnvelope>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = false,
-        });
-
-    private readonly SemaphoreSlim _connectGate = new(1, 1);
-    private readonly CancellationTokenSource _lifetimeCts = new();
-    private Task? _sendLoop;
-    private Task? _recvLoop;
-    private bool _disposed;
-
-    public async Task<bool> ConnectAsync(string? url = null)
+    public async Task<bool> ConnectAsync()
     {
-        if (IsConnected) return true;
-        url ??= MajWsProtocol.ServerUrl;
-        return await ConnectToPlayerAsync(url);
+        if (_disposed) return false;
+        var endpoints = SnapshotEndpoints();
+        if (endpoints.Count == 0) return false;
+
+        var results = await Task.WhenAll(endpoints.Select(endpoint => endpoint.ConnectAsync(this)));
+        UpdateActiveConnectionCount();
+        return results.Any(result => result);
+    }
+
+    public async Task SetPlayersAsync(IEnumerable<string> ips)
+    {
+        if (_disposed) return;
+
+        var normalized = NormalizeIps(ips);
+        var oldEndpoints = SnapshotEndpoints();
+        lock (_endpointsLock)
+        {
+            _endpoints.Clear();
+            _endpoints.AddRange(normalized.Select(ip => new Endpoint(ip)));
+            _activeConnectionCount = 0;
+        }
+
+        await Task.WhenAll(oldEndpoints.Select(endpoint => endpoint.DisposeAsync().AsTask()));
+        UpdateActiveConnectionCount();
+        if (!_disposed) await ConnectAsync();
     }
 
     public Task LoadAsync(string trackPath, string imagePath, string? videoPath)
-        => EnqueueAsync(RequestType.Load, new LoadRequest
+        => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Load, new LoadRequest
         {
             TrackPath = trackPath,
             ImagePath = imagePath,
             VideoPath = videoPath,
-        });
+        }));
 
     public Task SettingAsync(MajViewSetting viewSetting, MajVolumeSetting volumeSetting)
     {
@@ -98,19 +222,12 @@ internal sealed class PlayerConnection : IAsyncDisposable
             ["volumeSetting"] = JToken.FromObject(volumeSetting,
                 JsonSerializer.Create(MajProtocolSerializer.DefaultSettings)),
         };
-        return EnqueueAsync(RequestType.Setting, payload);
+        return BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Setting, payload));
     }
 
-    public Task ParseAsync(
-        string simaiFumen,
-        int clockCount,
-        float offset,
-        string title,
-        string artist,
-        string level,
-        string designer,
-        int difficulty)
-        => EnqueueAsync(RequestType.Parse, new ParseRequest
+    public Task ParseAsync(string simaiFumen, int clockCount, float offset, string title,
+        string artist, string level, string designer, int difficulty)
+        => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Parse, new ParseRequest
         {
             SimaiFumen = simaiFumen,
             ClockCount = clockCount,
@@ -120,62 +237,66 @@ internal sealed class PlayerConnection : IAsyncDisposable
             Level = level,
             Designer = designer,
             Difficulty = difficulty,
-        });
+        }));
 
     public Task PlayAsync(PlaybackMode mode, double startAt, float speed, string? maidataPath)
-        => EnqueueAsync(RequestType.Play, new PlayRequest
+        => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Play, new PlayRequest
         {
             PlayMode = mode,
             StartAt = startAt,
             Speed = speed,
             MaidataPath = maidataPath,
-        });
+        }));
 
-    public Task PauseAsync() => EnqueueAsync(RequestType.Pause, null);
-    public Task ResumeAsync() => EnqueueAsync(RequestType.Resume, null);
-    public Task StopAsync() => EnqueueAsync(RequestType.Stop, null);
-    public Task ResetAsync() => EnqueueAsync(RequestType.Reset, null);
-    public Task StateAsync() => EnqueueAsync(RequestType.State, null);
+    public Task PauseAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Pause, null));
+    public Task ResumeAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Resume, null));
+    public Task StopAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Stop, null));
+    public Task ResetAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Reset, null));
+    public Task StateAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.State, null));
 
-    //==================== internal: connection / loops ====================
+    private static string[] NormalizeIps(IEnumerable<string> ips)
+        => ips
+            .Where(ip => !string.IsNullOrWhiteSpace(ip))
+            .Select(ip => ip.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
-    private async Task<bool> ConnectToPlayerAsync(string url)
+    private void SetEndpoints(IEnumerable<string> ips)
     {
-        await _connectGate.WaitAsync(_lifetimeCts.Token);
-        try
-        {
-            if (IsConnected) return true;
+        lock (_endpointsLock)
+            _endpoints.AddRange(NormalizeIps(ips).Select(ip => new Endpoint(ip)));
+    }
 
-            var client = new ClientWebSocket();
-            client.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
-            await client.ConnectAsync(new Uri(url), _lifetimeCts.Token);
+    private List<Endpoint> SnapshotEndpoints()
+    {
+        lock (_endpointsLock) return _endpoints.ToList();
+    }
 
-            // 替换旧 client；起循环
-            var previous = Interlocked.Exchange(ref _client, client);
-            if (previous is not null)
-            {
-                try { await previous.CloseAsync(WebSocketCloseStatus.NormalClosure, "rotate", CancellationToken.None); }
-                catch { /* swallow */ }
-            }
-
-            _sendLoop = Task.Run(() => SendLoopAsync(_lifetimeCts.Token));
-            _recvLoop = Task.Run(() => ReceiveLoopAsync(_lifetimeCts.Token));
-            OnConnectedChanged?.Invoke(true);
-            return true;
-        }
-        catch (Exception)
+    private Endpoint? PrimaryEndpoint
+    {
+        get
         {
-            return false;
-        }
-        finally
-        {
-            _connectGate.Release();
+            lock (_endpointsLock)
+                return _endpoints.FirstOrDefault(endpoint => endpoint.IsConnected);
         }
     }
 
-    private async Task EnqueueAsync(RequestType type, object? payload)
+    private async Task BroadcastAsync(Func<Endpoint, Task> operation)
     {
-        if (_lifetimeCts.IsCancellationRequested)
+        var endpoints = SnapshotEndpoints().Where(endpoint => endpoint.IsConnected).ToArray();
+        await Task.WhenAll(endpoints.Select(async endpoint =>
+        {
+            try { await operation(endpoint); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PlayerConnection] broadcast {endpoint.Ip}: {ex.Message}");
+            }
+        }));
+    }
+
+    private async Task EnqueueAsync(Endpoint endpoint, RequestType type, object? payload)
+    {
+        if (endpoint.LifetimeCts.IsCancellationRequested)
             throw new ObjectDisposedException(nameof(PlayerConnection));
 
         JToken? requestData = payload switch
@@ -186,39 +307,37 @@ internal sealed class PlayerConnection : IAsyncDisposable
                 JsonSerializer.Create(MajProtocolSerializer.DefaultSettings)),
         };
 
-        var envelope = new RequestEnvelope
+        await endpoint.Outgoing.Writer.WriteAsync(new RequestEnvelope
         {
             ProtocolVersion = ProtocolVersion.Current,
             RequestType = type,
             RequestData = requestData,
-        };
-        await _outgoing.Writer.WriteAsync(envelope, _lifetimeCts.Token);
+        }, endpoint.LifetimeCts.Token);
     }
 
-    private async Task SendLoopAsync(CancellationToken ct)
+    private async Task SendLoopAsync(Endpoint endpoint, CancellationToken ct)
     {
-        var client = _client;
+        var client = endpoint.Client;
         if (client is null) return;
         try
         {
-            await foreach (var envelope in _outgoing.Reader.ReadAllAsync(ct))
+            await foreach (var envelope in endpoint.Outgoing.Reader.ReadAllAsync(ct))
             {
-                var json = MajProtocolSerializer.Serialize(envelope);
-                var bytes = Encoding.UTF8.GetBytes(json);
-                var seg = new ArraySegment<byte>(bytes);
-                await client.SendAsync(seg, WebSocketMessageType.Text, endOfMessage: true, ct);
+                var bytes = Encoding.UTF8.GetBytes(MajProtocolSerializer.Serialize(envelope));
+                await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
+                    endOfMessage: true, ct);
             }
         }
-        catch (OperationCanceledException) { /* end of life */ }
+        catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] send loop: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] send {endpoint.Ip}: {ex.Message}");
         }
     }
 
-    private async Task ReceiveLoopAsync(CancellationToken ct)
+    private async Task ReceiveLoopAsync(Endpoint endpoint, CancellationToken ct)
     {
-        var client = _client;
+        var client = endpoint.Client;
         if (client is null) return;
         var buffer = new byte[16 * 1024];
         try
@@ -229,29 +348,26 @@ internal sealed class PlayerConnection : IAsyncDisposable
                 WebSocketReceiveResult result;
                 do
                 {
-                    var seg = new ArraySegment<byte>(buffer);
-                    result = await client.ReceiveAsync(seg, ct);
-                    if (result.MessageType == WebSocketMessageType.Close)
-                        return;
+                    result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                    if (result.MessageType == WebSocketMessageType.Close) return;
                     ms.Write(buffer, 0, result.Count);
                 } while (!result.EndOfMessage);
 
-                var json = Encoding.UTF8.GetString(ms.ToArray());
-                ProcessIncoming(json);
+                ProcessIncoming(endpoint, Encoding.UTF8.GetString(ms.ToArray()));
             }
         }
-        catch (OperationCanceledException) { /* end of life */ }
+        catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] recv loop: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] receive {endpoint.Ip}: {ex.Message}");
         }
         finally
         {
-            OnConnectedChanged?.Invoke(false);
+            UpdateActiveConnectionCount();
         }
     }
 
-    private void ProcessIncoming(string json)
+    private void ProcessIncoming(Endpoint endpoint, string json)
     {
         try
         {
@@ -259,114 +375,84 @@ internal sealed class PlayerConnection : IAsyncDisposable
             if (envelope is null) return;
             var env = envelope.Value;
 
-            // 事件通道：服务端主动推送的语义事件
             if (env.ResponseType == ResponseType.Event)
             {
                 var evt = MajProtocolSerializer.DeserializeResponsePayload<EventResponse>(env);
-                if (evt is not null) DispatchEvent(evt.Value);
+                if (evt is not null) DispatchEvent(endpoint, evt.Value);
                 return;
             }
 
             if (env.ResponseType == ResponseType.Error)
             {
-                // 协议规定错误信息走 ViewSummary.ErrMsg；ResponseEnvelope 没有 Error 字段。
                 if (env.ResponseData is JObject jobj)
-                {
-                    var errMsg = jobj["errMsg"]?.Value<string>();
-                    OnViewError?.Invoke(errMsg);
-                }
+                    OnViewError?.Invoke(jobj["errMsg"]?.Value<string>());
                 return;
             }
 
-            // Ok 响应（State 查询 / Setting / Reset 等）：可能带 ViewSummary，需要更新本地镜像
-            if (env.ResponseData is null) return;
-            var summary = MajProtocolSerializer.DeserializeResponsePayload<ViewSummary>(env);
-            if (summary is not null) UpdateSummary(summary.Value);
+            if (env.ResponseData is not null)
+            {
+                var summary = MajProtocolSerializer.DeserializeResponsePayload<ViewSummary>(env);
+                if (summary is not null) UpdateSummary(endpoint, summary.Value);
+            }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] parse incoming: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] parse {endpoint.Ip}: {ex.Message}");
         }
     }
 
-    private void DispatchEvent(EventResponse evt)
+    private void DispatchEvent(Endpoint endpoint, EventResponse evt)
     {
-        // EventResponse 自带的 Summary 先更新本地镜像（含 timeline 与 error 信息）
-        if (evt.Summary is not null) UpdateSummary(evt.Summary.Value);
+        if (evt.Summary is not null) UpdateSummary(endpoint, evt.Summary.Value);
 
         switch (evt.EventType)
         {
-            case EventType.LoadOk:
-                OnLoadFinished?.Invoke();
-                break;
-            case EventType.PlayStarted:
-                OnPlayStarted?.Invoke();
-                break;
-            case EventType.PlayResumed:
-                OnPlayResumed?.Invoke();
-                break;
-            case EventType.PlayPaused:
-                OnPlayPaused?.Invoke();
-                break;
-            case EventType.PlayStopped:
-                OnPlayStopped?.Invoke();
-                break;
+            case EventType.LoadOk: OnLoadFinished?.Invoke(); break;
+            case EventType.PlayStarted: OnPlayStarted?.Invoke(); break;
+            case EventType.PlayResumed: OnPlayResumed?.Invoke(); break;
+            case EventType.PlayPaused: OnPlayPaused?.Invoke(); break;
+            case EventType.PlayStopped: OnPlayStopped?.Invoke(); break;
         }
     }
 
-    private void UpdateSummary(ViewSummary newSummary)
+    private void UpdateSummary(Endpoint endpoint, ViewSummary newSummary)
     {
         ViewStatus oldState;
-        lock (_stateLock)
+        lock (endpoint.StateLock)
         {
-            oldState = _summary.State;
-            _summary = newSummary;
+            oldState = endpoint.Summary.State;
+            endpoint.Summary = newSummary;
         }
 
-        // timeline 等字段的高频刷新不广播；只有真正的状态迁移才触发。
-        if (oldState != newSummary.State)
+        if (ReferenceEquals(PrimaryEndpoint, endpoint) && oldState != newSummary.State)
             OnViewStateChanged?.Invoke(oldState, newSummary.State);
-
-        // 大多数 Event 让OnViewStateChanged干就行；这里只关心 Error 状态。
         if (newSummary.State == ViewStatus.Error)
             OnViewError?.Invoke(newSummary.ErrMsg);
+    }
+
+    private void UpdateActiveConnectionCount()
+    {
+        int count;
+        lock (_endpointsLock)
+        {
+            count = _endpoints.Count(endpoint => endpoint.IsConnected);
+            if (count == _activeConnectionCount) return;
+            _activeConnectionCount = count;
+        }
+        OnConnectedChanged?.Invoke(count > 0);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
-
-        _lifetimeCts.Cancel();
-        _outgoing.Writer.TryComplete();
-
-        var client = Interlocked.Exchange(ref _client, null);
-        if (client is not null)
+        var endpoints = SnapshotEndpoints();
+        lock (_endpointsLock)
         {
-            try
-            {
-                if (client.State == WebSocketState.Open)
-                    await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown",
-                        CancellationToken.None);
-            }
-            catch { /* swallow */ }
-            client.Dispose();
+            _endpoints.Clear();
+            _activeConnectionCount = 0;
         }
-
-        if (_sendLoop is not null)
-        {
-            try { await _sendLoop; }
-            catch (OperationCanceledException) { }
-            catch { /* swallow */ }
-        }
-        if (_recvLoop is not null)
-        {
-            try { await _recvLoop; }
-            catch (OperationCanceledException) { }
-            catch { /* swallow */ }
-        }
-
-        _lifetimeCts.Dispose();
-        _connectGate.Dispose();
+        await Task.WhenAll(endpoints.Select(endpoint => endpoint.DisposeAsync().AsTask()));
+        OnConnectedChanged?.Invoke(false);
     }
 }

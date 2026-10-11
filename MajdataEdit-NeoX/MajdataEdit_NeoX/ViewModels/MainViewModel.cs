@@ -10,6 +10,7 @@ using MajdataEdit_NeoX.Models.Connection;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
+using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Views;
 using MajdataEdit_NeoX.Lang;
 using Avalonia.PropertyGrid.Services;
@@ -30,7 +31,7 @@ using Avalonia.Media.Imaging;
 namespace MajdataEdit_NeoX.ViewModels;
 
 public enum AboutPages { Discord, QQ, GitHub, GitHub_ViewX, MajNet }
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     // Design
     public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
@@ -40,6 +41,7 @@ public partial class MainViewModel : ViewModelBase
     {
         _fileDialog = fileDialog;
         Instance = this;
+        _player = new PlayerConnection(Settings.Current.EditSetting.PlayerIps);
 
         Factory = new MainDockFactory(this);
         Layout = Factory.CreateLayout()!;
@@ -48,10 +50,13 @@ public partial class MainViewModel : ViewModelBase
         Settings.SettingsChanged += OnSettingsChanged;
 
         _player.OnViewStateChanged += OnPlayerStateChanged;
-        _player.OnConnectedChanged += _ =>
+        _player.OnConnectedChanged += connected =>
         {
-            _pushedSetting = false; // 连接状态变了，设置视为未推，下一次 Parse/Play 重推
+            _pushedSetting = false;
+            _chartDirty = true;
             OnPropertyChanged(nameof(IsConnected));
+            OnPropertyChanged(nameof(ActiveConnectionCount));
+            _ = SynchronizeConnectedPlayersAsync();
         };
 
         _timelineTimer.Tick += (_, _) =>
@@ -92,19 +97,21 @@ public partial class MainViewModel : ViewModelBase
     public SettingsService Settings { get; } = new();
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
+        _ = _player.SetPlayersAsync(Settings.Current.EditSetting.PlayerIps);
         OnPropertyChanged(nameof(Language));
         OnPropertyChanged(nameof(FontSize));
         OnPropertyChanged(nameof(WaveAnimated));
         OnPropertyChanged(nameof(WordWrap));
         OnPropertyChanged(nameof(BackgroundImagePath));
-        RefreshSettings();
-    }
-
-    [RelayCommand] // 两条路径：SettingsGrid 的 CommandExecuted 事件，或手动 Settings.Set() 的事件
-    public void RefreshSettings()
-    {
         LocalizationService.Default.SelectCulture(Language);
     }
+
+    [RelayCommand] // PropertyGrid 直接修改 Current 时，通过此入口广播设置变更。
+    public void RefreshSettings()
+    {
+        Settings.NotifyChanged();
+    }
+
 
     public string Language
     {
@@ -309,7 +316,6 @@ public partial class MainViewModel : ViewModelBase
 
     // 窗口
 
-    // TODO: 没有效果
     public string WindowTitle
     {
         get
@@ -319,9 +325,9 @@ public partial class MainViewModel : ViewModelBase
             else
             {
                 if (Maidata.IsDirty)
-                    return $"MajdataEdit-NeoX - {Maidata.Title}*";
+                    return $"{Maidata.Title}*";
                 else
-                    return $"MajdataEdit-NeoX - {Maidata.Title}";
+                    return $"{Maidata.Title}";
             }
         }
     }
@@ -347,13 +353,15 @@ public partial class MainViewModel : ViewModelBase
     // 变化通知在构造函数 _player.OnConnectedChanged
     // 因为直接绑的 _client.State，没法 Observable
     public bool IsConnected => _player.IsConnected;
+    public int ActiveConnectionCount => _player.ActiveConnectionCount;
 
-    private readonly PlayerConnection _player = new();
+    private readonly PlayerConnection _player;
     private ViewStatus _viewState = ViewStatus.Idle;
     private TaskCompletionSource? _busyTcs; // 等待非Busy状态
 
     private bool _chartDirty; // 谱面解析被跳过（断连/播放中），待连接且空闲后补推
     private bool _pushedSetting; // 在任一连接完成之后，有至少一次settings提交
+    private readonly SemaphoreSlim _syncGate = new(1, 1);
     private double? _lastPlayTime; // 供Stop进行回退
 
     // 播放期间的时间线跟踪：本地 Stopwatch 推算（origin + elapsed × speed），
@@ -497,6 +505,30 @@ public partial class MainViewModel : ViewModelBase
         _pushedSetting = true;
     }
 
+    private async Task SynchronizeConnectedPlayersAsync()
+    {
+        await _syncGate.WaitAsync();
+        try
+        {
+            if (!_player.IsConnected || Maidata is null || _trackPath is null)
+                return;
+            if (_viewState is ViewStatus.Playing or ViewStatus.Paused)
+                return;
+
+            await _player.LoadAsync(_trackPath, _imagePath ?? string.Empty, _videoPath);
+            await EnsureSettingAsync();
+            await ParseAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainViewModel] player sync: {ex.Message}");
+        }
+        finally
+        {
+            _syncGate.Release();
+        }
+    }
+
     private async Task LoadAsync()
     {
         if (_trackPath is null) return;
@@ -576,7 +608,7 @@ public partial class MainViewModel : ViewModelBase
     public async Task PlayPause()
     {
         if (Maidata is null) return;
-        if (!IsConnected) return;
+        if (!await _player.ConnectAsync()) return;
 
         switch (_viewState)
         {
@@ -751,4 +783,10 @@ public partial class MainViewModel : ViewModelBase
 
     #endregion
 
+    public async ValueTask DisposeAsync()
+    {
+        _timelineTimer.Stop();
+        Settings.SettingsChanged -= OnSettingsChanged;
+        await _player.DisposeAsync();
+    }
 }
