@@ -6,17 +6,20 @@ namespace MajdataEdit_NeoX.Models.Setting;
 
 public class MajSetting
 {
-    [DisplayName(LangKeys.Cat_EditSetting)]
+    [Category(LangKeys.Cat_EditSetting)]
+    [DisplayName("")]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     [ExpandableObjectDisplayMode(IsCategoryBuiltinOrder = NullableBooleanType.Yes)]
     public MajEditSetting EditSetting { get; set; } = new();
 
-    [DisplayName(LangKeys.Cat_ViewSetting)]
+    [Category(LangKeys.Cat_ViewSetting)]
+    [DisplayName("")]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     [ExpandableObjectDisplayMode(IsCategoryBuiltinOrder = NullableBooleanType.Yes)]
     public MajViewSetting ViewSetting { get; set; } = new();
 
-    [DisplayName(LangKeys.Cat_VolumeSetting)]
+    [Category(LangKeys.Cat_VolumeSetting)]
+    [DisplayName("")]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     [ExpandableObjectDisplayMode(IsCategoryBuiltinOrder = NullableBooleanType.Yes)]
     public MajVolumeSetting VolumeSetting { get; set; } = new();

@@ -8,6 +8,10 @@
              x:Name="Root">
 
     <apc:PropertyGrid DataContext="{Binding #Root.Settings}"
-                      CommandExecuted="PropertyGrid_CommandExecuted"/>
+                      CommandExecuted="PropertyGrid_CommandExecuted"
+                      IsAutoNameWidth="True"
+                      IsQuickFilterVisible="False"
+
+                      />
 
 </UserControl>

@@ -16,27 +16,172 @@
 
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40"
-        WindowDecorations="BorderOnly"
+        WindowDecorations="Full"
         WindowStartupLocation="CenterScreen"
 
         x:Class="MajdataEdit_NeoX.Views.MainWindow"
-        x:DataType="vm:MainViewModel">
+        x:DataType="vm:MainViewModel"
+        x:Name="Root">
+
+    <Window.Styles>
+        <Style Selector="Button.Caption">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.Caption:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1F808080"/>
+        </Style>
+        <Style Selector="Button.Caption:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#33808080"/>
+        </Style>
+        <Style Selector="Button.Caption.Close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#C42B1C"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.Caption.Close:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#B22A1B"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+
+        <!-- 1. 三种颜色:填充 / 描边 / 悬停符号色 -->
+        <Style Selector="Button.Traffic.Close">
+            <Setter Property="Background" Value="#FF5F57"/>
+            <Setter Property="BorderBrush" Value="#E2463F"/>
+            <Setter Property="Foreground" Value="#4D0000"/>
+        </Style>
+        <Style Selector="Button.Traffic.Minimize">
+            <Setter Property="Background" Value="#FEBC2E"/>
+            <Setter Property="BorderBrush" Value="#DEA123"/>
+            <Setter Property="Foreground" Value="#985712"/>
+        </Style>
+        <Style Selector="Button.Traffic.Maximize">
+            <Setter Property="Background" Value="#28C840"/>
+            <Setter Property="BorderBrush" Value="#1AAB29"/>
+            <Setter Property="Foreground" Value="#0B6504"/>
+        </Style>
+
+        <!-- 2. 符号默认隐藏,鼠标移到整组上时三个一起显示 -->
+        <Style Selector="Button.Traffic PathIcon">
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+        <Style Selector="StackPanel.TrafficLights:pointerover Button.Traffic PathIcon">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+        <!-- 3. 窗口失焦:变成灰点(半透明灰,深浅色主题都能用) -->
+        <Style Selector="StackPanel.TrafficLights.Inactive:not(:pointerover) Button.Traffic">
+            <Setter Property="Background" Value="#66808080"/>
+            <Setter Property="BorderBrush" Value="#4D808080"/>
+        </Style>
+    </Window.Styles>
+
+    <Window.Resources>
+        <StreamGeometry x:Key="Icon.Minimize">
+            M0,4.5 H10 V5.5 H0 Z
+        </StreamGeometry>
+        <StreamGeometry x:Key="Icon.Maximize">
+            M2,0 H8 A2,2 0 0 1 10,2 V8 A2,2 0 0 1 8,10 H2 A2,2 0 0 1 0,8 V2 A2,2 0 0 1 2,0 Z
+            M2,1 A1,1 0 0 0 1,2 V8 A1,1 0 0 0 2,9 H8 A1,1 0 0 0 9,8 V2 A1,1 0 0 0 8,1 Z
+        </StreamGeometry>
+        <StreamGeometry x:Key="Icon.Restore">
+            M2,2 H6 A2,2 0 0 1 8,4 V8 A2,2 0 0 1 6,10 H2 A2,2 0 0 1 0,8 V4 A2,2 0 0 1 2,2 Z
+            M2,3 A1,1 0 0 0 1,4 V8 A1,1 0 0 0 2,9 H6 A1,1 0 0 0 7,8 V4 A1,1 0 0 0 6,3 Z
+            M2,2 A2,2 0 0 1 4,0 H8 A2,2 0 0 1 10,2 V6 A2,2 0 0 1 8,8 V7 A1,1 0 0 0 9,6 V2 A1,1 0 0 0 8,1 H4 A1,1 0 0 0 3,2 Z
+        </StreamGeometry>
+        <StreamGeometry x:Key="Icon.Close">
+            M0,0 H0.71 L5,4.29 L9.29,0 H10 V0.71 L5.71,5 L10,9.29 V10 H9.29 L5,5.71 L0.71,10 H0 V9.29 L4.29,5 L0,0.71 Z
+        </StreamGeometry>
+
+
+        <StreamGeometry x:Key="Icon.Mac.Close">
+            M0,0 H0.85 L3,2.15 L5.15,0 H6 V0.85 L3.85,3 L6,5.15 V6 H5.15 L3,3.85 L0.85,6 H0 V5.15 L2.15,3 L0,0.85 Z
+        </StreamGeometry>
+        <StreamGeometry x:Key="Icon.Mac.Minimize">
+            M0,2.4 H6 V3.6 H0 Z
+        </StreamGeometry>
+        <StreamGeometry x:Key="Icon.Mac.Maximize">
+            M6,0 V5 L1,0 Z M0,6 V1 L5,6 Z
+        </StreamGeometry>
+        <StreamGeometry x:Key="Icon.Mac.Restore">
+            M3.6,2.4 V0 L6,2.4 Z M2.4,3.6 V6 L0,3.6 Z
+        </StreamGeometry>
+
+        <!-- 圆点按钮:12×12,0.5px 描边,按下时叠一层半透明黑 -->
+        <ControlTheme x:Key="TrafficLightButton" TargetType="Button">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Panel>
+                        <Border CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="0.5"/>
+                        <Border x:Name="Overlay" CornerRadius="6"
+                                Background="#33000000" IsVisible="False"/>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Panel>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pressed /template/ Border#Overlay">
+                <Setter Property="IsVisible" Value="True"/>
+            </Style>
+        </ControlTheme>
+    </Window.Resources>
 
     <Grid RowDefinitions="40,*">
         <!-- 自绘标题栏 -->
         <Border Grid.Row="0"
                 Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                 WindowDecorationProperties.ElementRole="TitleBar">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
-                <Image Grid.Column="0"
+                <StackPanel x:Name="MacControls"
+                            Classes="TrafficLights"
+                            Classes.Inactive="{Binding !$parent[Window].IsActive}"
+                            Orientation="Horizontal" Spacing="8"
+                            Margin="14,0,5,0"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="User">
+                    <Button Classes="Traffic Close" Theme="{StaticResource TrafficLightButton}"
+                            Click="CloseWindow">
+                        <PathIcon Data="{StaticResource Icon.Mac.Close}" Width="6" Height="6"/>
+                    </Button>
+                    <Button Classes="Traffic Minimize" Theme="{StaticResource TrafficLightButton}"
+                            Click="MinimizeWindow">
+                        <PathIcon Data="{StaticResource Icon.Mac.Minimize}" Width="6" Height="6"/>
+                    </Button>
+                    <Button Classes="Traffic Maximize" Theme="{StaticResource TrafficLightButton}"
+                            Click="ToggleMaximizeWindow">
+                        <Panel>
+                            <PathIcon Data="{StaticResource Icon.Mac.Maximize}" Width="6" Height="6"
+                                      IsVisible="{Binding !#Root.IsMaximized}"/>
+                            <PathIcon Data="{StaticResource Icon.Mac.Restore}" Width="6" Height="6"
+                                      IsVisible="{Binding #Root.IsMaximized}"/>
+                        </Panel>
+                    </Button>
+                </StackPanel>
+
+                <Image Grid.Column="1"
                        Width="20" Height="20" Margin="12,0"
                        Source="/Assets/favicon.ico"/>
 
-                <Menu Grid.Column="1" Margin="-3,0"
-                      VerticalAlignment="Center"
+                <Menu Grid.Column="2" Margin="-3,0"
+                      VerticalAlignment="Center" Height="28"
                       WindowDecorationProperties.ElementRole="User">
-                    <MenuItem Header="{ll:Localize Gui_File}">
+                    <MenuItem Header="{ll:Localize Gui_File}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_New}" Command="{Binding NewFileAsync}"/>
                         <MenuItem Header="{ll:Localize Gui_Open}" Command="{Binding OpenFileAsync}"/>
                         <MenuItem Header="{ll:Localize Gui_Save}" Command="{Binding SaveFileAsync}"/>
@@ -46,21 +191,21 @@
                         <Separator/>
                         <MenuItem Header="{ll:Localize Gui_ExportVideo}" Command="{Binding PlayRecord}"/>
                     </MenuItem>
-                    <MenuItem x:Name="EditMenu" Header="{ll:Localize Gui_Edit}">
+                    <MenuItem x:Name="EditMenu" Header="{ll:Localize Gui_Edit}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_ChartInfo}" Command="{Binding OpenChartInfo}"/>
                         <Separator/>
                         <MenuItem Header="{ll:Localize Gui_FindAndReplace}" Command="{Binding ShowFindReplace}"/>
                         <Separator/>
                     </MenuItem>
-                    <MenuItem Header="{ll:Localize Gui_Setting}">
+                    <MenuItem Header="{ll:Localize Gui_Setting}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_Setting}" Command="{Binding OpenSettings}"/>
                         <MenuItem Header="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateAsync}" CommandParameter="false"/>
                     </MenuItem>
-                    <MenuItem Header="{ll:Localize Gui_Tools}">
+                    <MenuItem Header="{ll:Localize Gui_Tools}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_BpmTap}" Command="{Binding OpenBpmTap}"/>
                         <Separator/>
                     </MenuItem>
-                    <MenuItem Header="{ll:Localize Gui_About}">
+                    <MenuItem Header="{ll:Localize Gui_About}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_ShortcutOverview}" Command="{Binding OpenShortcut}"/>
                         <Separator/>
                         <MenuItem Header="Discord" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.Discord}"/>
@@ -72,7 +217,7 @@
                     </MenuItem>
                 </Menu>
 
-                <Border Grid.Column="2"
+                <Border Grid.Column="3"
                         Margin="8,0,0,0"
                         Padding="7,2,7,2"
                         Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
@@ -86,10 +231,25 @@
                                VerticalAlignment="Center"/>
                 </Border>
 
-                <!-- 窗口控制按钮 -->
-                <StackPanel Grid.Column="4"
+                <StackPanel x:Name="DesktopControls"
+                            Grid.Column="5"
                             Orientation="Horizontal"
                             WindowDecorationProperties.ElementRole="User">
+
+                    <Button Classes="Caption" Click="MinimizeWindow">
+                        <PathIcon Data="{StaticResource Icon.Minimize}" Width="10" Height="10"/>
+                    </Button>
+                    <Button Classes="Caption" Click="ToggleMaximizeWindow">
+                        <Panel>
+                            <PathIcon Data="{StaticResource Icon.Maximize}" Width="10" Height="10"
+                                      IsVisible="{Binding !#Root.IsMaximized}"/>
+                            <PathIcon Data="{StaticResource Icon.Restore}" Width="10" Height="10"
+                                      IsVisible="{Binding #Root.IsMaximized}"/>
+                        </Panel>
+                    </Button>
+                    <Button Classes="Caption Close" Click="CloseWindow">
+                        <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10"/>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>

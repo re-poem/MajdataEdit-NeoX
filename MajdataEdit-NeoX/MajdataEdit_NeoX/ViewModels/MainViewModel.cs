@@ -413,6 +413,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         var text = MaidataFile.Deparse(Maidata);
         await File.WriteAllTextAsync(_maidataPath, text);
+        Maidata.MarkAsSaved();
     }
     [RelayCommand]
     public async Task ReloadFileAsync()

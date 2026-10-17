@@ -74,6 +74,24 @@
 	</Application.DataTemplates>
 
 
+
+	<!-- 窗口缩放动画需要WindowDecorations="Full"，但是会导致avalonia自己画导航，这里给它抹掉，经测试不能放在Window.Resources... -->
+	<Application.Resources>
+		<ControlTheme x:Key="{x:Type WindowDrawnDecorations}" TargetType="WindowDrawnDecorations">
+			<Setter Property="Template">
+				<WindowDrawnDecorationsTemplate>
+					<WindowDrawnDecorationsContent>
+						<WindowDrawnDecorationsContent.Overlay>
+							<DockPanel Height="{TemplateBinding TitleBarHeight}"
+									   VerticalAlignment="Top"
+									   Margin="{TemplateBinding ShadowThickness}"/>
+						</WindowDrawnDecorationsContent.Overlay>
+					</WindowDrawnDecorationsContent>
+				</WindowDrawnDecorationsTemplate>
+			</Setter>
+		</ControlTheme>
+	</Application.Resources>
+
 	<Application.Styles>
 		<FluentTheme />
 		<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />

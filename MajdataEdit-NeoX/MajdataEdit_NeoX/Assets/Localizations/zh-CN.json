@@ -2,6 +2,8 @@
   "Cat_EditSetting": "编辑器设置",
   "Cat_ViewSetting": "View设置",
   "Cat_VolumeSetting": "音量设置",
+  "Cat_View_PlayBackSetting": "回放设置",
+  "Cat_View_OutputSetting": "导出设置",
   "Gui_Difficulty": "难度",
   "Gui_File": "文件",
   "Gui_Reload": "重新加载",

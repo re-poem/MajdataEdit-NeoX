@@ -17,7 +17,7 @@ namespace MajdataEdit_NeoX.Models.Fumen;
 public sealed partial class MaidataFile : ObservableObject, IDisposable
 {
     [ObservableProperty]
-    public partial bool IsDirty { get; set; }
+    public partial bool IsDirty { get; private set; }
 
 
 
