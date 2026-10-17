@@ -50,6 +50,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Factory.InitLayout(Layout!);
 
         Settings.SettingsChanged += OnSettingsChanged;
+        RefreshSettings();
 
         _player.OnViewStateChanged += OnPlayerStateChanged;
         _player.OnConnectedChanged += connected =>
@@ -99,13 +100,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public SettingsService Settings { get; } = new();
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
-        _ = _player.SetPlayersAsync(Settings.Current.EditSetting.PlayerIps);
         OnPropertyChanged(nameof(Language));
         OnPropertyChanged(nameof(FontSize));
         OnPropertyChanged(nameof(WaveAnimated));
         OnPropertyChanged(nameof(WordWrap));
         OnPropertyChanged(nameof(BackgroundImagePath));
-        LocalizationService.Default.SelectCulture(Language);
+        _ = _player.SetPlayersAsync(Settings.Current.EditSetting.PlayerIps);
+        Task.Run(() =>
+        {
+            LocalizationService.Default.SelectCulture(Language);
+            Settings.Save();
+        });
     }
 
     [RelayCommand] // PropertyGrid 直接修改 Current 时，通过此入口广播设置变更。
@@ -400,6 +405,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 常驻 UI 时钟：非播放状态的 tick 直接跳过，因此不需要启停控制和跨线程取消那套机器。
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
 
+    // 编辑记录
     private readonly ChartEditService _chartEditService;
     private readonly ChartEditTimer _chartEditTimer = new();
     private string? _recordedChartPath;

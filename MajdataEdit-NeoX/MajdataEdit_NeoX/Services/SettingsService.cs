@@ -50,7 +50,11 @@ public class SettingsService
                 {
                     var json = File.ReadAllText(MajEnv.SettingsFile);
                     var root = JObject.Parse(json);
-                    _currentSettings = root.ToObject<MajSetting>();
+                    var serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings
+                    {
+                        ObjectCreationHandling = ObjectCreationHandling.Replace
+                    });
+                    _currentSettings = root.ToObject<MajSetting>(serializer);
                     _currentSettings ??= new MajSetting();
                 }
                 else
