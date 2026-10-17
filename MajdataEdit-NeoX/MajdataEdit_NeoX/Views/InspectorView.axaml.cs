@@ -54,8 +54,19 @@ public partial class InspectorView : UserControl
 
 
 
+    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    public partial bool IsWide { get; set; }
+
+
+
     public InspectorView()
     {
         InitializeComponent();
+    }
+
+    private void ToggleWide(object? sender, Avalonia.Input.TappedEventArgs e)
+    {
+        if (IsWide) IsWide = false;
+        else IsWide = true;
     }
 }

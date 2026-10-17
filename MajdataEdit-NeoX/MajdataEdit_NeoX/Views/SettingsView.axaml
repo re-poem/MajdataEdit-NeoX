@@ -2,16 +2,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:apc="clr-namespace:Avalonia.PropertyGrid.Controls;assembly=Avalonia.PropertyGrid"
+             xmlns:c="using:MajdataEdit_NeoX.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="MajdataEdit_NeoX.Views.SettingsView"
              x:Name="Root">
 
-    <apc:PropertyGrid DataContext="{Binding #Root.Settings}"
-                      CommandExecuted="PropertyGrid_CommandExecuted"
-                      IsAutoNameWidth="True"
-                      IsQuickFilterVisible="False"
-
-                      />
+    <c:LocalizedPropertyGrid x:Name="SettingsGrid"
+                             DataContext="{Binding #Root.Settings}"
+                             CommandExecuted="PropertyGrid_CommandExecuted"
+                             IsAutoNameWidth="True"
+                             IsQuickFilterVisible="False"
+                             IsTitleVisible="False"
+                             />
 
 </UserControl>

@@ -25,22 +25,19 @@ public class SettingsService
     {
         Load();
     }
+    public void NotifyChanged()
+    {
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public void Set(Action<MajSetting> setter)
     {
         lock (_lock)
         {
             setter(Current);
-            SettingsChanged?.Invoke(this, EventArgs.Empty);
         }
-    }
 
-    public void NotifyChanged()
-    {
-        lock (_lock)
-        {
-            SettingsChanged?.Invoke(this, EventArgs.Empty);
-        }
+        NotifyChanged();
     }
 
     public void Load()
@@ -53,10 +50,6 @@ public class SettingsService
                 {
                     var json = File.ReadAllText(MajEnv.SettingsFile);
                     var root = JObject.Parse(json);
-                    var playerIps = root["EditSetting"]?["PlayerIps"];
-                    if (playerIps?.Type == JTokenType.String)
-                        root["EditSetting"]!["PlayerIps"] = new JArray(playerIps.ToObject<string>() ?? "127.0.0.1");
-
                     _currentSettings = root.ToObject<MajSetting>();
                     _currentSettings ??= new MajSetting();
                 }
@@ -100,18 +93,6 @@ public class SettingsService
                 Console.WriteLine($"Failed to save settings: {ex.Message}");
                 throw;
             }
-        }
-    }
-
-    /// <summary>
-    /// Reset settings to defaults
-    /// </summary>
-    public void Reset()
-    {
-        lock (_lock)
-        {
-            _currentSettings = new MajSetting();
-            Save();
         }
     }
 }

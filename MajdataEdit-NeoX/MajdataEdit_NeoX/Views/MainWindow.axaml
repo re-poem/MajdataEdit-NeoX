@@ -9,7 +9,6 @@
 
         mc:Ignorable="d"
         d:DesignWidth="630" d:DesignHeight="460"
-        MinWidth="680" MinHeight="540"
         Width="680" Height="540"
 
         Title="{Binding WindowTitle}"
