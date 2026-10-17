@@ -3,12 +3,12 @@ using System;
 
 namespace MajdataEdit_NeoX.Models.IO;
 
-public sealed class ChartEditDatabase : IDisposable
+public sealed class ChartEditService : IDisposable
 {
     private readonly SqliteConnection _connection;
     private bool _disposed;
 
-    public ChartEditDatabase(string dbPath)
+    public ChartEditService(string dbPath)
     {
         _connection = new SqliteConnection($"Data Source={dbPath}");
         _connection.Open();
@@ -34,32 +34,32 @@ public sealed class ChartEditDatabase : IDisposable
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = """
             SELECT ChartPath, SelectedDifficulty, TrackTime, TotalEditDurationTicks
-            FROM ChartEditRecords WHERE ChartPath = @path
+            FROM ChartEditRecords
+            WHERE ChartPath = @path
             """;
         cmd.Parameters.AddWithValue("@path", chartPath);
 
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
 
-        return new ChartEditRecord
-        {
-            ChartPath = reader.GetString(0),
-            SelectedDifficulty = reader.GetInt32(1),
-            TrackTime = reader.GetDouble(2),
-            TotalEditDuration = TimeSpan.FromTicks(reader.GetInt64(3))
-        };
+        return new ChartEditRecord(
+            reader.GetInt32(1),
+            reader.GetDouble(2),
+            TimeSpan.FromTicks(reader.GetInt64(3)),
+            reader.GetString(0));
     }
 
     public void UpsertRecord(ChartEditRecord record)
     {
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = """
-            INSERT INTO ChartEditRecords (ChartPath, SelectedDifficulty, TrackTime, TotalEditDurationTicks)
+            INSERT INTO ChartEditRecords
+                (ChartPath, SelectedDifficulty, TrackTime, TotalEditDurationTicks)
             VALUES (@path, @difficulty, @trackTime, @duration)
             ON CONFLICT(ChartPath) DO UPDATE SET
-                SelectedDifficulty = @difficulty,
-                TrackTime = @trackTime,
-                TotalEditDurationTicks = @duration
+                SelectedDifficulty = excluded.SelectedDifficulty,
+                TrackTime = excluded.TrackTime,
+                TotalEditDurationTicks = excluded.TotalEditDurationTicks
             """;
         cmd.Parameters.AddWithValue("@path", record.ChartPath);
         cmd.Parameters.AddWithValue("@difficulty", record.SelectedDifficulty);

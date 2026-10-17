@@ -7,6 +7,7 @@ using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
 using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.Connection;
+using MajdataEdit_NeoX.Models.IO;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
@@ -42,6 +43,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _fileDialog = fileDialog;
         Instance = this;
         _player = new PlayerConnection(Settings.Current.EditSetting.PlayerIps);
+        _chartEditService = new ChartEditService(MajEnv.DatabaseFile);
 
         Factory = new MainDockFactory(this);
         Layout = Factory.CreateLayout()!;
@@ -163,6 +165,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         oldValue?.PropertyChanged -= Maidata_PropertyChanged;
         newValue?.PropertyChanged += Maidata_PropertyChanged;
+        if (newValue is not null && _maidataPath is not null)
+            LoadChartEditRecord(_maidataPath);
         _ = ParseAsync();
     }
     private void Maidata_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -265,15 +269,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// <returns>是否扫描到最基本的maidata和track文件</returns>
     private bool UpdatePath(string maidataDir)
     {
+        SaveChartEditRecord();
         _maidataDir = maidataDir;
         _maidataPath = null;
         _trackPath = null;
         _imagePath = null;
         _videoPath = null;
+        _recordedChartPath = null;
+        _chartEditTimer.Reset();
         // scan
         if (_maidataDir is not null)
         {
-            _maidataPath = Path.Combine(_maidataDir, "maidata.txt");
+            _maidataPath = Path.GetFullPath(Path.Combine(_maidataDir, "maidata.txt"));
             if (!File.Exists(_maidataPath)) return false;
 
             _trackPath = _maidataDir + "/track.mp3";
@@ -302,6 +309,28 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (File.Exists(_trackPath)) TrackInfo = TrackReader.ReadTrack(_trackPath);
         if (File.Exists(_imagePath)) Cover = new Bitmap(_imagePath);
     }
+    private void LoadChartEditRecord(string chartPath)
+    {
+        var record = _chartEditService.GetRecord(chartPath);
+        _recordedChartPath = chartPath;
+        SelectedDifficulty = record?.SelectedDifficulty ?? 0;
+        PlayheadTime = record?.TrackTime ?? 0;
+        _chartEditTimer.LoadAccumulated(record?.TotalEditDuration ?? TimeSpan.Zero);
+        _chartEditTimer.Start();
+    }
+
+    private void SaveChartEditRecord()
+    {
+        if (_recordedChartPath is null) return;
+
+        _chartEditTimer.Pause();
+        _chartEditService.UpsertRecord(new ChartEditRecord(
+            SelectedDifficulty,
+            PlayheadTime,
+            _chartEditTimer.Elapsed,
+            _recordedChartPath));
+    }
+
 
     [ObservableProperty]
     public partial TrackInfo? TrackInfo { get; private set; }
@@ -370,6 +399,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private float _timelineSpeed = 1f;
     // 常驻 UI 时钟：非播放状态的 tick 直接跳过，因此不需要启停控制和跨线程取消那套机器。
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+
+    private readonly ChartEditService _chartEditService;
+    private readonly ChartEditTimer _chartEditTimer = new();
+    private string? _recordedChartPath;
 
 
     #region Commands - 窗口
@@ -787,7 +820,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _timelineTimer.Stop();
+        SaveChartEditRecord();
         Settings.SettingsChanged -= OnSettingsChanged;
         await _player.DisposeAsync();
+        _chartEditService.Dispose();
     }
 }

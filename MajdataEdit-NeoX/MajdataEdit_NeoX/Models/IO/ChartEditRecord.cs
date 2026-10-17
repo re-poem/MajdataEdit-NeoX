@@ -2,10 +2,8 @@ using System;
 
 namespace MajdataEdit_NeoX.Models.IO;
 
-public sealed class ChartEditRecord
-{
-    public string ChartPath { get; set; } = string.Empty;
-    public int SelectedDifficulty { get; set; }
-    public double TrackTime { get; set; }
-    public TimeSpan TotalEditDuration { get; set; }
-}
+public readonly record struct ChartEditRecord(
+    int SelectedDifficulty,
+    double TrackTime,
+    TimeSpan TotalEditDuration,
+    string ChartPath);
