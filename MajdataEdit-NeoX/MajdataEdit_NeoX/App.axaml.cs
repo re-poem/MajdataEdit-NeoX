@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
@@ -51,6 +52,7 @@ public partial class App : Application
             {
                 DataContext = new MainViewModel(fileDialog),
             };
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
             // 集中给所有 Window 挂 InputManager:desktop.Windows 运行时是
             // AvaloniaList<Window>(实现 INotifyCollectionChanged)。MainWindow
