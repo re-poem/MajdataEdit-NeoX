@@ -16,15 +16,12 @@ namespace MajdataEdit_NeoX.ViewModels;
 
 public class InspectorTool : Tool
 {
-    public bool InitWide { get; set; }
-    public InspectorTool(bool initWide)
+    public InspectorTool()
     {
         Id = "Inspector";
         Title = "Inspector";
         CanClose = false;
         CanDrag = true;
-
-        InitWide = initWide;
     }
 }
 public class EditorTool : Tool
@@ -78,7 +75,7 @@ public class MainDockFactory
         ProportionalDock mainLayout;
         if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
-            var inspector = new InspectorTool(false);
+            var inspector = new InspectorTool();
             var editor = new EditorTool();
             var visualizer = new VisualizerTool();
 
@@ -122,7 +119,7 @@ public class MainDockFactory
         }
         else
         {
-            var inspector = new InspectorTool(true);
+            var inspector = new InspectorTool();
             var editor = new EditorTool();
             var visualizer = new VisualizerTool();
 

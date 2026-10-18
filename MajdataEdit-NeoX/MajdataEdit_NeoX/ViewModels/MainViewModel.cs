@@ -1,3 +1,7 @@
+using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
+using Avalonia.PropertyGrid.Services;
+using Avalonia.Threading;
 using Cimai;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -5,29 +9,28 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
-using MajdataEdit_NeoX.Models.Fumen;
+using MajdataEdit_NeoX.Base;
+using MajdataEdit_NeoX.Input;
+using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.Connection;
+using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.IO;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
-using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Views;
-using MajdataEdit_NeoX.Lang;
-using Avalonia.PropertyGrid.Services;
-using Avalonia.Threading;
+using MajProtocol.Types.Enums;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MajProtocol.Types.Enums;
-using MajdataEdit_NeoX.Input;
-using Avalonia.Media.Imaging;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
@@ -41,17 +44,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public MainViewModel(IFileDialogService fileDialog)
     {
         _fileDialog = fileDialog;
-        Instance = this;
-        _player = new PlayerConnection(Settings.Current.EditSetting.PlayerIps);
-        _chartEditMng = new ChartEditManager(MajEnv.DatabaseFile);
 
-        Factory = new MainDockFactory(this);
-        Layout = Factory.CreateLayout()!;
-        Factory.InitLayout(Layout!);
+        LoadSettings();
 
-        Settings.SettingsChanged += OnSettingsChanged;
-        RefreshSettings();
-
+        _player = new PlayerConnection(Settings.EditSetting.PlayerIps);
         _player.OnViewStateChanged += OnPlayerStateChanged;
         _player.OnConnectedChanged += connected =>
         {
@@ -62,6 +58,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _ = SynchronizeConnectedPlayersAsync();
         };
 
+        _chartEditMng = new ChartEditManager(MajEnv.DatabaseFile);
+
         _timelineTimer.Tick += (_, _) =>
         {
             if (!_player.IsConnected) return;
@@ -69,15 +67,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             PlayheadTime = _timelineOrigin + _timelineClock.Elapsed.TotalSeconds * _timelineSpeed;
         };
         _timelineTimer.Start();
+
+        Factory = new MainDockFactory(this);
+        Layout = Factory.CreateLayout()!;
+        Factory.InitLayout(Layout!);
     }
 
-
-    /// <summary>
-    /// 应用唯一的视图模型实例。dock 内容模板的绑定经由它取数,
-    /// 使浮动窗口中的面板与主窗口获得同一份数据(浮动窗口的
-    /// DockControl DataContext 是浮动根布局,取不到 MainViewModel)。
-    /// </summary>
-    public static MainViewModel Instance { get; private set; } = null!;
 
 
     public MainDockFactory Factory { get; } = null!;
@@ -97,57 +92,148 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #region 设置
 
-    public SettingsManager Settings { get; } = new();
-    private void OnSettingsChanged(object? sender, EventArgs e)
+    // 全局唯一，不要直接修改内部项，用转发的property修改
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Language))]
+    [NotifyPropertyChangedFor(nameof(FontSize))]
+    [NotifyPropertyChangedFor(nameof(WaveAnimated))]
+    [NotifyPropertyChangedFor(nameof(WordWrap))]
+    [NotifyPropertyChangedFor(nameof(BackgroundImagePath))]
+    public partial MajSetting Settings { get; set; } = new();
+
+    public void LoadSettings()
     {
-        OnPropertyChanged(nameof(Language));
-        OnPropertyChanged(nameof(FontSize));
-        OnPropertyChanged(nameof(WaveAnimated));
-        OnPropertyChanged(nameof(WordWrap));
-        OnPropertyChanged(nameof(BackgroundImagePath));
-        _ = _player.SetPlayersAsync(Settings.Current.EditSetting.PlayerIps);
-        Task.Run(() =>
+        try
         {
-            LocalizationService.Default.SelectCulture(Language);
-            Settings.Save();
-        });
+            if (File.Exists(MajEnv.SettingsFile))
+            {
+                var json = File.ReadAllText(MajEnv.SettingsFile);
+                var root = JObject.Parse(json);
+                var serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings
+                {
+                    ObjectCreationHandling = ObjectCreationHandling.Replace
+                });
+                Settings = root.ToObject<MajSetting>(serializer) ?? new();
+            }
+            else
+            {
+                Settings = new MajSetting();
+                SaveSettings(); // Save defaults
+            }
+        }
+        catch (Exception ex)
+        {
+            // If load fails, use defaults
+            Console.WriteLine($"Failed to load settings: {ex.Message}");
+            Settings = new MajSetting();
+        }
     }
 
-    [RelayCommand] // PropertyGrid 直接修改 Current 时，通过此入口广播设置变更。
-    public void RefreshSettings()
+    public void SaveSettings()
     {
-        Settings.NotifyChanged();
+        try
+        {
+            if (Settings == null)
+                return;
+
+            var directory = Path.GetDirectoryName(MajEnv.SettingsFile);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var json = JsonConvert.SerializeObject(Settings, Formatting.Indented);
+            File.WriteAllText(MajEnv.SettingsFile, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to save settings: {ex.Message}");
+            throw;
+        }
     }
 
+    // PropertyGrid 修改设置时，通过此入口提醒设置变更。
+    [RelayCommand]
+    public void NotifySettingsChanged(string settingName)
+    {
+        switch (settingName)
+        {
+            case nameof(MajSetting.EditSetting.PlayerIps):
+                _ = _player.SetPlayersAsync(Settings.EditSetting.PlayerIps);
+                break;
+            case nameof(MajSetting.EditSetting.Language):
+                LocalizationService.Default.SelectCulture(Language);
+                break;
+        }
+        OnPropertyChanged(settingName);
+        SaveSettings();
+    }
+
+    // 模板代码，对设置项进行展开和提醒
 
     public string Language
     {
-        get => Settings.Current.EditSetting.Language;
-        set => Settings.Set(s => s.EditSetting.Language = value);
+        get => Settings.EditSetting.Language;
+        set
+        {
+            if (Settings.EditSetting.Language.Equals(value))
+                return;
+
+            Settings.EditSetting.Language = value;
+            OnPropertyChanged(nameof(Language));
+        }
     }
 
     public float FontSize
     {
-        get => Settings.Current.EditSetting.FontSize;
-        set => Settings.Set(s => s.EditSetting.FontSize = value);
+        get => Settings.EditSetting.FontSize;
+        set
+        {
+            if (Settings.EditSetting.FontSize.Equals(value))
+                return;
+
+            Settings.EditSetting.FontSize = value;
+            OnPropertyChanged(nameof(FontSize));
+        }
     }
 
     public bool WaveAnimated
     {
-        get => Settings.Current.EditSetting.WaveAnimated;
-        set => Settings.Set(s => s.EditSetting.WaveAnimated = value);
+        get => Settings.EditSetting.WaveAnimated;
+        set
+        {
+            if (Settings.EditSetting.WaveAnimated.Equals(value))
+                return;
+
+            Settings.EditSetting.WaveAnimated = value;
+            OnPropertyChanged(nameof(WaveAnimated));
+        }
     }
 
     public bool WordWrap
     {
-        get => Settings.Current.EditSetting.WordWrap;
-        set => Settings.Set(s => s.EditSetting.WordWrap = value);
+        get => Settings.EditSetting.WordWrap;
+        set
+        {
+            if (Settings.EditSetting.WordWrap.Equals(value))
+                return;
+
+            Settings.EditSetting.WordWrap = value;
+            OnPropertyChanged(nameof(WordWrap));
+        }
     }
 
     public string BackgroundImagePath
     {
-        get => Settings.Current.EditSetting.BackgroundImagePath;
-        set => Settings.Set(s => s.EditSetting.BackgroundImagePath = value);
+        get => Settings.EditSetting.BackgroundImagePath;
+        set
+        {
+            if (Settings.EditSetting.BackgroundImagePath.Equals(value))
+                return;
+
+            Settings.EditSetting.BackgroundImagePath = value;
+            OnPropertyChanged(nameof(BackgroundImagePath));
+        }
     }
 
     #endregion
@@ -541,7 +627,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task EnsureSettingAsync()
     {
         if (_pushedSetting) return;
-        await _player.SettingAsync(Settings.Current.ViewSetting, Settings.Current.VolumeSetting);
+        await _player.SettingAsync(Settings.ViewSetting, Settings.VolumeSetting);
         _pushedSetting = true;
     }
 
@@ -827,7 +913,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         _timelineTimer.Stop();
         SaveChartEditRecord();
-        Settings.SettingsChanged -= OnSettingsChanged;
         await _player.DisposeAsync();
         _chartEditMng.Dispose();
     }

@@ -67,8 +67,8 @@
 			<v:SettingsView
 				x:DataType="vm:MainViewModel"
 				DataContext="{Binding Context}"
-				Settings="{Binding Settings.Current}"
-				SettingsChanged="{Binding RefreshSettings}"
+				Settings="{Binding Settings}"
+				SettingsChanged="{Binding NotifySettingsChanged}"
 				/>
 		</DataTemplate>
 	</Application.DataTemplates>

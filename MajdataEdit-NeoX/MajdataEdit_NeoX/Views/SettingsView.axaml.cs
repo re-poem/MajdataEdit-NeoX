@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.PropertyGrid.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.ViewModels;
@@ -25,6 +26,8 @@ public partial class SettingsView : UserControl
     }
     private void PropertyGrid_CommandExecuted(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        SettingsChanged?.Execute(null);
+        if (e is not RoutedCommandExecutedEventArgs args) return;
+
+        SettingsChanged?.Execute(args.Property.Name);
     }
 }
