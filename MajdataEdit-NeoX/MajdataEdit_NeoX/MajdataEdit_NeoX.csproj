@@ -34,6 +34,7 @@
 		<PackageReference Include="Dock.Avalonia.Themes.Fluent" />
 		<PackageReference Include="Dock.Model" />
 		<PackageReference Include="Dock.Model.Mvvm" />
+		<PackageReference Include="Dock.Serializer.SystemTextJson" />
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
 		<PackageReference Include="MajProtocol" />
@@ -78,8 +79,8 @@
 		</None>
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Assets\Localizations\" />
-	  <Folder Include="Docs\" />
+		<Folder Include="Assets\Localizations\" />
+		<Folder Include="Docs\" />
 	</ItemGroup>
 
 </Project>

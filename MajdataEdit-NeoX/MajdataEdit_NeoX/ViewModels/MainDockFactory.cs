@@ -69,7 +69,8 @@ public class SettingsTool : Tool
 public class MainDockFactory
     (MainViewModel mainVm) : Factory
 {
-    private IRootDock _rootDock = null!;
+    private IRootDock _rootDock => mainVm.Layout;
+    // 默认Dock写在这里
     public override IRootDock CreateLayout()
     {
         ProportionalDock mainLayout;
@@ -167,7 +168,6 @@ public class MainDockFactory
         rootDock.VisibleDockables = CreateList<IDockable>(mainLayout);
         rootDock.ActiveDockable = mainLayout;
         rootDock.DefaultDockable = mainLayout;
-        _rootDock = rootDock;
 
         return rootDock;
     }

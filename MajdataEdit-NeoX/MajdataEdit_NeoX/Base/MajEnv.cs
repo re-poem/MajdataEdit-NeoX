@@ -33,6 +33,7 @@ public static partial class MajEnv
     // TODO: require another way 
     // public static string MmfAudioTimePath => GetPath("majdata_time.dat");
     public static string SettingsFile => GetPath("Settings.json");
+    public static string LayoutFile => GetPath("layout.json");
     public static string CrashFile => GetPath("crash.log");
     public static string DatabaseFile => GetPath("editor.db");
 

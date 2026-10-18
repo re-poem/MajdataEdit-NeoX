@@ -61,6 +61,8 @@
 				DataContext="{Binding Context}"
 				Maidata="{Binding Maidata}"
 				Cover="{Binding Cover}"
+				ImportBgCover="{Binding ImportBgCoverCommand}"
+				ImportBgVideo="{Binding ImportBgVideoCommand}"
 				/>
 		</DataTemplate>
 		<DataTemplate DataType="vm:SettingsTool">

@@ -9,6 +9,7 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
+using Dock.Serializer.SystemTextJson;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Lang;
@@ -69,11 +70,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _timelineTimer.Start();
 
         Factory = new MainDockFactory(this);
-        Layout = Factory.CreateLayout()!;
-        Factory.InitLayout(Layout!);
+        Layout = LoadLayout() ?? Factory.CreateLayout()!;
+        Factory.InitLayout(Layout);
     }
 
 
+
+    #region Layout
 
     public MainDockFactory Factory { get; } = null!;
     private IRootDock _layout = null!;
@@ -87,6 +90,38 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             OnPropertyChanged(nameof(Layout));
         }
     }
+
+    private void SaveLayout()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(MajEnv.LayoutFile)!);
+            using var stream = File.Create(MajEnv.LayoutFile);
+            new DockSerializer().Save(stream, Layout);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to save dock layout: {ex.Message}");
+        }
+    }
+
+    private IRootDock? LoadLayout()
+    {
+        if (!File.Exists(MajEnv.LayoutFile)) return null;
+
+        try
+        {
+            using var stream = File.OpenRead(MajEnv.LayoutFile);
+            return new DockSerializer().Load<IRootDock?>(stream);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load dock layout: {ex.Message}");
+            return null;
+        }
+    }
+
+    #endregion
 
 
 
@@ -354,6 +389,83 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     // ======外围（一般来说跟着Maidata一起变化）
 
+    [RelayCommand]
+    private async Task ImportBgCoverAsync(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(_maidataDir) || !File.Exists(sourcePath)) return;
+
+        var extension = Path.GetExtension(sourcePath);
+        if (string.IsNullOrWhiteSpace(extension)) return;
+
+        var destination = Path.Combine(_maidataDir, "bg" + extension);
+        var temporaryPath = Path.Combine(_maidataDir, $".bg-import-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await using (var source = File.OpenRead(sourcePath))
+            await using (var target = File.Create(temporaryPath))
+                await source.CopyToAsync(target);
+
+            foreach (var existingPath in Directory.EnumerateFiles(_maidataDir, "bg.*").ToArray())
+            {
+                if (Path.GetFileName(existingPath).StartsWith("bg-old.", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(Path.GetExtension(existingPath), ".mp4", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var existingExtension = Path.GetExtension(existingPath);
+                var archivedPath = Path.Combine(_maidataDir, "bg-old" + existingExtension);
+                if (File.Exists(archivedPath)) File.Delete(archivedPath);
+                File.Move(existingPath, archivedPath);
+            }
+
+            File.Move(temporaryPath, destination);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+
+        _coverPath = destination;
+        UpdateResources();
+        if (_player.IsConnected && _trackPath is not null)
+            await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
+    }
+
+    [RelayCommand]
+    private async Task ImportBgVideoAsync(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(_maidataDir) || !File.Exists(sourcePath)) return;
+
+        var extension = Path.GetExtension(sourcePath);
+        if (string.IsNullOrWhiteSpace(extension)) return;
+
+        var destination = Path.Combine(_maidataDir, "pv" + extension);
+        var temporaryPath = Path.Combine(_maidataDir, $".pv-import-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await using (var source = File.OpenRead(sourcePath))
+            await using (var target = File.Create(temporaryPath))
+                await source.CopyToAsync(target);
+
+            foreach (var existingPath in Directory.EnumerateFiles(_maidataDir, "pv.*").ToArray())
+            {
+                var existingExtension = Path.GetExtension(existingPath);
+                var archivedPath = Path.Combine(_maidataDir, "pv-old" + existingExtension);
+                if (File.Exists(archivedPath)) File.Delete(archivedPath);
+                File.Move(existingPath, archivedPath);
+            }
+
+            File.Move(temporaryPath, destination);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
+
+        _videoPath = destination;
+        if (_player.IsConnected && _trackPath is not null)
+            await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
+    }
+
     /// <summary>
     /// 从maidata.txt所在目录推导出maidata、track、bg、pv等文件的路径。
     /// </summary>
@@ -364,7 +476,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _maidataDir = maidataDir;
         _maidataPath = null;
         _trackPath = null;
-        _imagePath = null;
+        _coverPath = null;
+        Cover = null;
         _videoPath = null;
         _recordedChartPath = null;
         _chartEditTimer.Reset();
@@ -378,12 +491,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (!File.Exists(_trackPath)) _trackPath = _maidataDir + "/track.ogg";
             if (!File.Exists(_trackPath)) return false;
 
-            _imagePath = _maidataDir + "/bg.jpg";
-            if (!File.Exists(_imagePath)) _imagePath = _maidataDir + "/bg.png";
-            if (!File.Exists(_imagePath)) _imagePath = "";
+            _coverPath = Directory.EnumerateFiles(_maidataDir, "bg.*")
+                .FirstOrDefault(path =>
+                    !Path.GetFileName(path).StartsWith("bg-old.", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(Path.GetExtension(path), ".mp4", StringComparison.OrdinalIgnoreCase));
 
-            _videoPath = _maidataDir + "/pv.mp4";
-            if (!File.Exists(_videoPath)) _videoPath = _maidataDir + "/bg.mp4";
+            _videoPath = Directory.EnumerateFiles(_maidataDir, "pv.*")
+                .FirstOrDefault(path => !Path.GetFileName(path).StartsWith("pv-old.", StringComparison.OrdinalIgnoreCase));
+            if (_videoPath is null) _videoPath = _maidataDir + "/bg.mp4";
             if (!File.Exists(_videoPath)) _videoPath = "";
 
             return true;
@@ -393,12 +508,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private string? _maidataDir;
     private string? _maidataPath;
     private string? _trackPath;
-    private string? _imagePath;
+    private string? _coverPath;
     private string? _videoPath;
     private void UpdateResources()
     {
         if (File.Exists(_trackPath)) TrackInfo = TrackReader.ReadTrack(_trackPath);
-        if (File.Exists(_imagePath)) Cover = new Bitmap(_imagePath);
+        Cover = File.Exists(_coverPath) ? new Bitmap(_coverPath) : null;
     }
     private void LoadChartEditRecord(string chartPath)
     {
@@ -425,8 +540,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial TrackInfo? TrackInfo { get; private set; }
+
     [ObservableProperty]
-    public partial Bitmap? Cover { get; set; }
+    public partial Bitmap? Cover { get; private set; }
 
     #endregion
 
@@ -502,7 +618,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public async Task NewFileAsync()
     {
-        var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Audio Files", ["track.mp3", "track.ogg"])]);
+        var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Track Files", ["track.mp3", "track.ogg"])]);
         if (file == null) return;
         var dir = Path.GetDirectoryName(file);
         if (dir == null) return;
@@ -641,7 +757,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (_viewState is ViewStatus.Playing or ViewStatus.Paused)
                 return;
 
-            await _player.LoadAsync(_trackPath, _imagePath ?? string.Empty, _videoPath);
+            await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
             await EnsureSettingAsync();
             await ParseAsync();
         }
@@ -659,7 +775,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         if (_trackPath is null) return;
         if (!await _player.ConnectAsync()) return;
-        await _player.LoadAsync(_trackPath, _imagePath ?? string.Empty, _videoPath);
+        await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
         if (_chartDirty) await ParseAsync();
     }
     private async Task ParseAsync()
@@ -913,7 +1029,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         _timelineTimer.Stop();
         SaveChartEditRecord();
+        SaveLayout();
         await _player.DisposeAsync();
         _chartEditMng.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
