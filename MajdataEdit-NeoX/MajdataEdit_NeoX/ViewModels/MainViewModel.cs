@@ -1,4 +1,5 @@
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.PropertyGrid.Services;
 using Avalonia.Threading;
@@ -268,6 +269,66 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             Settings.EditSetting.BackgroundImagePath = value;
             OnPropertyChanged(nameof(BackgroundImagePath));
+        }
+    }
+    public double BackgroundImageOpacity
+    {
+        get => Settings.EditSetting.BackgroundImageOpacity;
+        set
+        {
+            if (Settings.EditSetting.BackgroundImageOpacity.Equals(value))
+                return;
+
+            Settings.EditSetting.BackgroundImageOpacity = value;
+            OnPropertyChanged(nameof(BackgroundImageOpacity));
+        }
+    }
+    public double BackgroundBlurRadius
+    {
+        get => Settings.EditSetting.BackgroundBlurRadius;
+        set
+        {
+            if (Settings.EditSetting.BackgroundBlurRadius.Equals(value))
+                return;
+
+            Settings.EditSetting.BackgroundBlurRadius = value;
+            OnPropertyChanged(nameof(BackgroundBlurRadius));
+        }
+    }
+    public double BackgroundOffsetX
+    {
+        get => Settings.EditSetting.BackgroundOffsetX;
+        set
+        {
+            if (Settings.EditSetting.BackgroundOffsetX.Equals(value))
+                return;
+
+            Settings.EditSetting.BackgroundOffsetX = value;
+            OnPropertyChanged(nameof(BackgroundOffsetX));
+        }
+    }
+    public double BackgroundOffsetY
+    {
+        get => Settings.EditSetting.BackgroundOffsetY;
+        set
+        {
+            if (Settings.EditSetting.BackgroundOffsetY.Equals(value))
+                return;
+
+            Settings.EditSetting.BackgroundOffsetY = value;
+            OnPropertyChanged(nameof(BackgroundOffsetY));
+        }
+    }
+    public Stretch BackgroundStretch
+    {
+        get => Settings.EditSetting.BackgroundStretch;
+        set
+        {
+            if (Settings.EditSetting.BackgroundStretch.Equals(value))
+                return;
+
+            Settings.EditSetting.BackgroundStretch = value;
+            OnPropertyChanged(nameof(BackgroundStretch));
         }
     }
 

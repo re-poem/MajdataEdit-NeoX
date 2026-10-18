@@ -6,6 +6,7 @@
         xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
         xmlns:views="using:MajdataEdit_NeoX.Views"
         xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+        xmlns:c="using:MajdataEdit_NeoX.Controls"
 
         mc:Ignorable="d"
         d:DesignWidth="630" d:DesignHeight="460"
@@ -140,10 +141,21 @@
     </Window.Resources>
 
     <Grid RowDefinitions="40,*">
+        <c:BackgroundImageLayer ZIndex="-114514" Grid.ColumnSpan="114514" Grid.RowSpan="114514"
+                                ImagePath="{Binding BackgroundImagePath}"
+                                ImageOpacity="{Binding BackgroundImageOpacity}"
+                                BlurRadius="{Binding BackgroundBlurRadius}"
+                                OffsetX="{Binding BackgroundOffsetX}"
+                                OffsetY="{Binding BackgroundOffsetY}"
+                                Stretch="{Binding BackgroundStretch}"/>
+
+
         <!-- 自绘标题栏 -->
         <Border Grid.Row="0"
-                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                 WindowDecorationProperties.ElementRole="TitleBar">
+            <Border.Background>
+                <SolidColorBrush Color="{DynamicResource SystemAltHighColor}" Opacity="0.7" />
+            </Border.Background>
             <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
 
                 <StackPanel x:Name="MacControls"

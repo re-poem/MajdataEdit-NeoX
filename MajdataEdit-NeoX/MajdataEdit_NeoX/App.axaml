@@ -98,5 +98,8 @@
 		<FluentTheme />
 		<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 		<DockFluentTheme />
+		<Style Selector="ToolDockControl">
+			<Setter Property="CornerRadius" Value="4" />
+		</Style>
 	</Application.Styles>
 </Application>

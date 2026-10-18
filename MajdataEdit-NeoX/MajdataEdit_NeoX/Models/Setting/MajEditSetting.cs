@@ -1,9 +1,10 @@
-﻿using MajdataEdit_NeoX.Lang;
+﻿using Avalonia.Media;
+using MajdataEdit_NeoX.Lang;
 using PropertyModels.ComponentModel;
 using PropertyModels.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Collections.Generic;
 
 namespace MajdataEdit_NeoX.Models.Setting;
 
@@ -46,5 +47,27 @@ public class MajEditSetting
     [PathBrowsable(Filters = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All Files|*.*")]
     public string BackgroundImagePath { get; set; } = "xxlb.png";
 
+    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
+    [DisplayName(LangKeys.Set_BackgroundImageOpacity)]
+    [Range(0, 1)]
+    [Trackable(0, 1, Increment = 0.01f)]
+    public double BackgroundImageOpacity { get; set; } = 0.6;
+
+    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
+    [DisplayName(LangKeys.Set_BackgroundBlurRadius)]
+    [Range(0, 10000)]
+    public double BackgroundBlurRadius { get; set; } = 0.2;
+
+    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
+    [DisplayName(LangKeys.Set_BackgroundOffsetX)]
+    public double BackgroundOffsetX { get; set; } = 0;
+
+    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
+    [DisplayName(LangKeys.Set_BackgroundOffsetY)]
+    public double BackgroundOffsetY { get; set; } = 0;
+
+    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
+    [DisplayName(LangKeys.Set_BackgroundStretch)]
+    public Stretch BackgroundStretch { get; set; } = Stretch.UniformToFill;
 
 }

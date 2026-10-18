@@ -17,9 +17,6 @@
 		<vm:MainViewModel />
 	</Design.DataContext>
 
-	<dock:DockControl Grid.Row="1"
-					  Layout="{Binding Layout}">
-		<!--templates are moved to App.axaml for float windows-->
-	</dock:DockControl>
+	<dock:DockControl Layout="{Binding Layout}" />
 
 </UserControl>
