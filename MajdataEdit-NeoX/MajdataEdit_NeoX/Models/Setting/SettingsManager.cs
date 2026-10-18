@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Base;
-using MajdataEdit_NeoX.Models.Setting;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -10,9 +9,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 
-namespace MajdataEdit_NeoX.Services;
+namespace MajdataEdit_NeoX.Models.Setting;
 
-public class SettingsService
+public class SettingsManager
 {
     private MajSetting? _currentSettings;
     private readonly Lock _lock = new();
@@ -21,7 +20,7 @@ public class SettingsService
     public MajSetting Current => _currentSettings!;
     public event EventHandler? SettingsChanged;
 
-    public SettingsService()
+    public SettingsManager()
     {
         Load();
     }

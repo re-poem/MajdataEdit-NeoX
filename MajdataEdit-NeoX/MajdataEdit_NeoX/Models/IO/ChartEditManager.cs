@@ -3,12 +3,12 @@ using System;
 
 namespace MajdataEdit_NeoX.Models.IO;
 
-public sealed class ChartEditService : IDisposable
+public sealed class ChartEditManager : IDisposable
 {
     private readonly SqliteConnection _connection;
     private bool _disposed;
 
-    public ChartEditService(string dbPath)
+    public ChartEditManager(string dbPath)
     {
         _connection = new SqliteConnection($"Data Source={dbPath}");
         _connection.Open();

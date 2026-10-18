@@ -43,7 +43,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _fileDialog = fileDialog;
         Instance = this;
         _player = new PlayerConnection(Settings.Current.EditSetting.PlayerIps);
-        _chartEditService = new ChartEditService(MajEnv.DatabaseFile);
+        _chartEditMng = new ChartEditManager(MajEnv.DatabaseFile);
 
         Factory = new MainDockFactory(this);
         Layout = Factory.CreateLayout()!;
@@ -97,7 +97,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #region 设置
 
-    public SettingsService Settings { get; } = new();
+    public SettingsManager Settings { get; } = new();
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
         OnPropertyChanged(nameof(Language));
@@ -316,7 +316,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
     private void LoadChartEditRecord(string chartPath)
     {
-        var record = _chartEditService.GetRecord(chartPath);
+        var record = _chartEditMng.GetRecord(chartPath);
         _recordedChartPath = chartPath;
         SelectedDifficulty = record?.SelectedDifficulty ?? 0;
         PlayheadTime = record?.TrackTime ?? 0;
@@ -329,7 +329,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (_recordedChartPath is null) return;
 
         _chartEditTimer.Pause();
-        _chartEditService.UpsertRecord(new ChartEditRecord(
+        _chartEditMng.UpsertRecord(new ChartEditRecord(
             SelectedDifficulty,
             PlayheadTime,
             _chartEditTimer.Elapsed,
@@ -406,7 +406,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
 
     // 编辑记录
-    private readonly ChartEditService _chartEditService;
+    private readonly ChartEditManager _chartEditMng;
     private readonly ChartEditTimer _chartEditTimer = new();
     private string? _recordedChartPath;
 
@@ -829,6 +829,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SaveChartEditRecord();
         Settings.SettingsChanged -= OnSettingsChanged;
         await _player.DisposeAsync();
-        _chartEditService.Dispose();
+        _chartEditMng.Dispose();
     }
 }
