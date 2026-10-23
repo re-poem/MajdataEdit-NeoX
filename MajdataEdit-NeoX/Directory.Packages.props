@@ -17,10 +17,9 @@
     <PackageVersion Include="Avalonia.Android" Version="12.1.4" />
     <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
-    <PackageVersion Include="bodong.Avalonia.PropertyGrid" Version="12.1.1.2" />
-    <PackageVersion Include="Cimai" Version="0.1.6" />
+    <PackageVersion Include="Cimai" Version="1.0.0-repoem.4" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageVersion Include="Dock.Avalonia" Version="12.1.0.6" />
+    <PackageVersion Include="Dock.Avalonia" Version="12.1.0.12" />
     <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.12" />
     <PackageVersion Include="Dock.Model" Version="12.1.0.12" />
     <PackageVersion Include="Dock.Model.Mvvm" Version="12.1.0.12" />

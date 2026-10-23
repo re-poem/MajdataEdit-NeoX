@@ -7,6 +7,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Avalonia.Threading;
 using Cimai;
+using MajdataEdit_NeoX.Extensions;
 using MajdataEdit_NeoX.Models.Track;
 using PropertyGenerator.Avalonia;
 using SkiaSharp;
@@ -283,7 +284,7 @@ internal partial class SimaiVisualizerControl : Control
 
             Paint.IsAntialias = true;
 
-            if (Timings.IsEmpty) return;
+            if (chart is null || Timings.IsEmpty) return;
 
             // Recompute BPM changes and beats from scratch each frame.
             var bpmChangeTimes = new List<double>(32);
@@ -379,7 +380,7 @@ internal partial class SimaiVisualizerControl : Control
                 var timing = Timings[noteIndex];
                 var t = timing.Time + offset;
                 if (t > visibleEndTime) break;
-                var notes = timing.Notes;
+                var notes = chart.Notes.Slice((int)timing.NotesFirst, (int)timing.NotesCount);
 
                 Paint.Color = TimingTickColor;
                 var xTick = (float)((t / step - virtualStartIndex) * linewidth);
@@ -390,7 +391,7 @@ internal partial class SimaiVisualizerControl : Control
 
                 foreach (var note in notes)
                 {
-                    var y = (float)(note.StartPos * separate + 10f);
+                    var y = (float)(note.StartPos.GetPosNum() * separate + 10f);
 
                     if (note.IsHanabi)
                     {

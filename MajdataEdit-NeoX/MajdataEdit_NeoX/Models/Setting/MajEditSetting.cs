@@ -42,32 +42,32 @@ public class MajEditSetting
 
 
 
-    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
-    [DisplayName(LangKeys.Set_BackgroundImagePath)]
+    [Category(LangKeys.Cat_Edit_EditorBackgroundSetting)]
+    [DisplayName(LangKeys.Set_EditorBackgroundImagePath)]
     [PathBrowsable(Filters = "Image Files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All Files|*.*")]
     public string BackgroundImagePath { get; set; } = "xxlb.png";
 
-    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
-    [DisplayName(LangKeys.Set_BackgroundImageOpacity)]
+    [Category(LangKeys.Cat_Edit_EditorBackgroundSetting)]
+    [DisplayName(LangKeys.Set_EditorBackgroundImageOpacity)]
     [Range(0, 1)]
     [Trackable(0, 1, Increment = 0.01f)]
-    public double BackgroundImageOpacity { get; set; } = 0.6;
+    public double BackgroundImageOpacity { get; set; } = 0.5;
 
-    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
-    [DisplayName(LangKeys.Set_BackgroundBlurRadius)]
+    [Category(LangKeys.Cat_Edit_EditorBackgroundSetting)]
+    [DisplayName(LangKeys.Set_EditorBackgroundBlurRadius)]
     [Range(0, 10000)]
-    public double BackgroundBlurRadius { get; set; } = 0.2;
+    public double BackgroundBlurRadius { get; set; } = 4;
 
-    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
-    [DisplayName(LangKeys.Set_BackgroundOffsetX)]
-    public double BackgroundOffsetX { get; set; } = 0;
+    [Category(LangKeys.Cat_Edit_EditorBackgroundSetting)]
+    [DisplayName(LangKeys.Set_EditorBackgroundOffsetX)]
+    public double BackgroundOffsetX { get; set; } = 200;
 
-    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
-    [DisplayName(LangKeys.Set_BackgroundOffsetY)]
+    [Category(LangKeys.Cat_Edit_EditorBackgroundSetting)]
+    [DisplayName(LangKeys.Set_EditorBackgroundOffsetY)]
     public double BackgroundOffsetY { get; set; } = 0;
 
-    [Category(LangKeys.Cat_Edit_AppearanceSetting)]
-    [DisplayName(LangKeys.Set_BackgroundStretch)]
-    public Stretch BackgroundStretch { get; set; } = Stretch.UniformToFill;
+    [Category(LangKeys.Cat_Edit_EditorBackgroundSetting)]
+    [DisplayName(LangKeys.Set_EditorBackgroundStretch)]
+    public Stretch BackgroundStretch { get; set; } = Stretch.Uniform;
 
 }

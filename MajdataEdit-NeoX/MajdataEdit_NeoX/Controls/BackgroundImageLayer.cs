@@ -1,12 +1,12 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using PropertyGenerator.Avalonia;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace MajdataEdit_NeoX.Controls;
 
@@ -163,7 +163,7 @@ public partial class BackgroundImageLayer : Panel
 
     private static Bitmap LoadBitmap(string path, int decodeWidth)
     {
-        using Stream stream =
+        using var stream =
             Uri.TryCreate(path, UriKind.Absolute, out var uri) && uri.Scheme == "avares"
                 ? AssetLoader.Open(uri)
                 : File.OpenRead(path);

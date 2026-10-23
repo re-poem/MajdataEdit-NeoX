@@ -1,3 +1,6 @@
+using Cimai;
+using CommunityToolkit.Mvvm.ComponentModel;
+using MajdataEdit_NeoX.Types;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,9 +11,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using Cimai;
-using CommunityToolkit.Mvvm.ComponentModel;
-using MajdataEdit_NeoX.Types;
 
 namespace MajdataEdit_NeoX.Models.Fumen;
 
@@ -41,7 +41,16 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
             // 解析失败时保留旧 chart（silent），不让脏数据毁掉一个仍能用的 chart。
             // _charts 写入触发 onChanged → OnPropertyChanged(nameof(Charts))，无需手动 fire。
             var old = Charts[i];
-            Charts[i] = SimaiChart.Parse(Fumens[i] ?? string.Empty);
+
+            unsafe
+            {
+                var data = Encoding.UTF8.GetBytes(Fumens[i] ?? string.Empty);
+                fixed (byte* p = data)
+                {
+                    Charts[i] = SimaiChart.Parse(p, data.Length);
+                }
+            }
+
             old?.Dispose();
         }
         catch
@@ -143,32 +152,36 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
         return file;
     }
 
-    public static MaidataFile Parse(string text)
+    public static unsafe MaidataFile Parse(string text)
     {
-        using var simai = SimaiFile.Parse(text);
-
-        var file = new MaidataFile
+        var data = Encoding.UTF8.GetBytes(text);
+        fixed (byte* p = data)
         {
-            _title = Encoding.UTF8.GetString(simai.Title),
-            _artist = Encoding.UTF8.GetString(simai.Artist),
-            _designer = Encoding.UTF8.GetString(simai.Des),
-            _offset = simai.Offset
-        };
-        foreach (var cmd in simai.Commands)
-            file.Commands.Add(new MutSimaiCommand(Encoding.UTF8.GetString(cmd.Key), Encoding.UTF8.GetString(cmd.Value)));
+            using var simai = SimaiFile.Parse(p, data.Length);
 
-        for (int i = 0; i < (int)SimaiDifficulty.DIFFICULTY_COUNT; i++)
-        {
-            var chart = simai.Charts[i];
-            if (chart == null) continue;
-            file.Levels[i] = Encoding.UTF8.GetString(chart.Level);
-            file.Designers[i] = Encoding.UTF8.GetString(chart.Des);
-            // File Parse包含timings数据，但是为了代码统一，这里通过OnFumenChanged来写入chart数据
-            file.Fumens[i] = Encoding.UTF8.GetString(chart.Fumen);
+            var file = new MaidataFile
+            {
+                _title = Encoding.UTF8.GetString(simai.Title),
+                _artist = Encoding.UTF8.GetString(simai.Artist),
+                _designer = Encoding.UTF8.GetString(simai.Des),
+                _offset = simai.Offset
+            };
+            foreach (var cmd in simai.Commands)
+                file.Commands.Add(new MutSimaiCommand(Encoding.UTF8.GetString(cmd.Key), Encoding.UTF8.GetString(cmd.Value)));
+
+            for (int i = 0; i < (int)SimaiDifficulty.DIFFICULTY_COUNT; i++)
+            {
+                var chart = simai.Charts[i];
+                if (chart == null) continue;
+                file.Levels[i] = Encoding.UTF8.GetString(chart.Level);
+                file.Designers[i] = Encoding.UTF8.GetString(chart.Des);
+                // File Parse包含timings数据，但是为了代码统一，这里通过OnFumenChanged来写入chart数据
+                file.Fumens[i] = Encoding.UTF8.GetString(chart.Fumen);
+            }
+
+            file.MarkAsSaved();
+            return file;
         }
-
-        file.MarkAsSaved();
-        return file;
     }
 
     public static string Deparse(MaidataFile file)

@@ -666,7 +666,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private double _timelineOrigin;
     private float _timelineSpeed = 1f;
     // 常驻 UI 时钟：非播放状态的 tick 直接跳过，因此不需要启停控制和跨线程取消那套机器。
-    private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+    private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(16.666667f) };
 
     // 编辑记录
     private readonly ChartEditManager _chartEditMng;
@@ -1032,7 +1032,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             else
             {
-                foreach (var note in t.Notes)
+                foreach (var note in Chart.Notes.Slice((int)t.NotesFirst, (int)t.NotesCount));
                     combo += 1;
             }
         }

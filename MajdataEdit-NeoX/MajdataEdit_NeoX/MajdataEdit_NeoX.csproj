@@ -28,7 +28,6 @@
 			<IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
 			<PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="bodong.Avalonia.PropertyGrid" />
 		<PackageReference Include="Cimai" />
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Dock.Avalonia.Themes.Fluent" />
@@ -43,6 +42,10 @@
 		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
 		<PackageReference Include="PropertyGenerator.Avalonia" />
 		<PackageReference Include="SkiaSharp" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="../../ThirdParty/Avalonia.PropertyGrid/Sources/Avalonia.PropertyGrid/Avalonia.PropertyGrid.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
