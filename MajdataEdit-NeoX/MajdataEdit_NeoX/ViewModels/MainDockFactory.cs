@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
@@ -7,8 +9,11 @@ using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
 using Dock.Settings;
 using FluentAvalonia.UI.Controls;
+using MajdataEdit_NeoX.Controls;
+using MajdataEdit_NeoX.Views;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection.Metadata;
 
 namespace MajdataEdit_NeoX.ViewModels;
@@ -65,11 +70,147 @@ public class SettingsTool : Tool
     }
 }
 
-
-public class MainDockFactory
-    (MainViewModel mainVm) : Factory
+public class ShortcutTool : Tool
 {
-    private IRootDock _rootDock => mainVm.Layout;
+    public ShortcutTool()
+    {
+        Id = "Shortcut";
+        Title = "Shortcut";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
+
+
+public class MainDockFactory : Factory
+{
+    private readonly MainViewModel mainVm;
+
+    public MainDockFactory(MainViewModel mainVm)
+    {
+        this.mainVm = mainVm;
+        RegisterToolDataTemplates();
+    }
+
+    private IRootDock RootDock => mainVm.Layout;
+
+    #region 工具视图模板（原 App.axaml 的 DataTemplate DataType="vm:XxxTool"）
+
+    private static bool _toolDataTemplatesRegistered;
+
+    /// <summary>
+    /// 以纯代码方式注册各 Tool 的视图模板，取代 App.axaml 里的
+    /// <c>&lt;DataTemplate DataType="vm:XxxTool"&gt;</c>。模板里手动把视图的
+    /// Avalonia 属性绑到 MainViewModel（即 <see cref="IDockable.Context"/>）上，
+    /// 绑定模式沿用各属性自身的 DefaultBindingMode（与 XAML 省略 Mode 时一致）。
+    /// </summary>
+    private void RegisterToolDataTemplates()
+    {
+        if (_toolDataTemplatesRegistered) return;
+        if (Application.Current is not { } app) return;
+        _toolDataTemplatesRegistered = true;
+        if (app.DataTemplates.Any(t => t is FuncDataTemplate<InspectorTool>)) return;
+        app.DataTemplates.Add(new FuncDataTemplate<InspectorTool>((tool, _) => CreateInspectorView(tool)));
+        app.DataTemplates.Add(new FuncDataTemplate<VisualizerTool>((tool, _) => CreateVisualizerView(tool)));
+        app.DataTemplates.Add(new FuncDataTemplate<EditorTool>((tool, _) => CreateEditorView(tool)));
+        app.DataTemplates.Add(new FuncDataTemplate<ChartInfoTool>((tool, _) => CreateChartInfoView(tool)));
+        app.DataTemplates.Add(new FuncDataTemplate<SettingsTool>((tool, _) => CreateSettingsView(tool)));
+        app.DataTemplates.Add(new FuncDataTemplate<ShortcutTool>((tool, _) => new ShortcutView()));
+    }
+
+    /// <summary>
+    /// 原 XAML 的 <c>DataContext="{Binding Context}"</c>：视图的数据上下文是
+    /// InitLayout 里 DefaultContextLocator 给出的 MainViewModel。
+    /// </summary>
+    private static void BindToolContext(Control view, Tool tool)
+    {
+        view.Bind(StyledElement.DataContextProperty,
+            new Binding(nameof(Tool.Context)) { Source = tool });
+    }
+
+    private static InspectorView CreateInspectorView(InspectorTool tool)
+    {
+        var view = new InspectorView();
+        BindToolContext(view, tool);
+
+        view.Bind(InspectorView.DisplayTimeProperty, new Binding(nameof(MainViewModel.PlayheadTime)));
+        view.Bind(InspectorView.DisplayComboProperty, new Binding(nameof(MainViewModel.CaretCombo)));
+        view.Bind(InspectorView.IsConnectedProperty, new Binding(nameof(MainViewModel.IsConnected)));
+        view.Bind(InspectorView.ActiveConnectionCountProperty, new Binding(nameof(MainViewModel.ActiveConnectionCount)));
+        view.Bind(InspectorView.SelectedDifficultyProperty, new Binding(nameof(MainViewModel.SelectedDifficulty)));
+        view.Bind(InspectorView.LevelProperty, new Binding(nameof(MainViewModel.Level)));
+        view.Bind(InspectorView.DesignerProperty, new Binding(nameof(MainViewModel.Designer)));
+        view.Bind(InspectorView.OffsetProperty, new Binding(nameof(MainViewModel.Offset)));
+        view.Bind(InspectorView.PlaybackSpeedProperty, new Binding(nameof(MainViewModel.PlaybackSpeed)));
+        view.Bind(InspectorView.IsFollowCursorProperty, new Binding(nameof(MainViewModel.IsFollowCursor)));
+
+        return view;
+    }
+
+    private static SimaiVisualizerControl CreateVisualizerView(VisualizerTool tool)
+    {
+        var view = new SimaiVisualizerControl();
+        BindToolContext(view, tool);
+
+        view.Bind(SimaiVisualizerControl.TimeProperty, new Binding(nameof(MainViewModel.PlayheadTime)));
+        view.Bind(SimaiVisualizerControl.ZoomLevelProperty, new Binding(nameof(MainViewModel.ZoomLevel)));
+        view.Bind(SimaiVisualizerControl.TrackInfoProperty, new Binding(nameof(MainViewModel.TrackInfo)));
+        view.Bind(SimaiVisualizerControl.ChartProperty, new Binding(nameof(MainViewModel.Chart)));
+        view.Bind(SimaiVisualizerControl.OffsetProperty, new Binding(nameof(MainViewModel.Offset)));
+        view.Bind(SimaiVisualizerControl.CaretTimeProperty, new Binding(nameof(MainViewModel.CaretTime)));
+        view.Bind(SimaiVisualizerControl.IsAnimatedProperty, new Binding(nameof(MainViewModel.WaveAnimated)));
+        view.Bind(SimaiVisualizerControl.SeekProperty, new Binding(nameof(MainViewModel.SeekPlayheadTimeCommand)));
+
+        return view;
+    }
+
+    private static FumenEditorView CreateEditorView(EditorTool tool)
+    {
+        var view = new FumenEditorView();
+        BindToolContext(view, tool);
+
+        view.Bind(FumenEditorView.FumenProperty, new Binding(nameof(MainViewModel.Fumen)));
+        view.Bind(FumenEditorView.EditorFontSizeProperty, new Binding(nameof(MainViewModel.FontSize)));
+        view.Bind(FumenEditorView.WordWrapProperty, new Binding(nameof(MainViewModel.WordWrap)));
+        view.Bind(FumenEditorView.CaretOffsetProperty, new Binding(nameof(MainViewModel.CaretOffset)));
+        // 依赖注入
+        if (tool?.Context is MainViewModel vm)
+        {
+            view.AttachedToVisualTree += (s, e) => vm.Editor = view;
+            view.DetachedFromVisualTree += (s, e) =>
+            {
+                if (ReferenceEquals(vm.Editor, view)) vm.Editor = null;
+            };
+        }
+
+        return view;
+    }
+
+    private static ChartInfoView CreateChartInfoView(ChartInfoTool tool)
+    {
+        var view = new ChartInfoView();
+        BindToolContext(view, tool);
+
+        view.Bind(ChartInfoView.MaidataProperty, new Binding(nameof(MainViewModel.Maidata)));
+        view.Bind(ChartInfoView.CoverProperty, new Binding(nameof(MainViewModel.Cover)));
+        view.Bind(ChartInfoView.ImportBgCoverProperty, new Binding(nameof(MainViewModel.ImportBgCoverCommand)));
+        view.Bind(ChartInfoView.ImportBgVideoProperty, new Binding(nameof(MainViewModel.ImportBgVideoCommand)));
+
+        return view;
+    }
+
+    private static SettingsView CreateSettingsView(SettingsTool tool)
+    {
+        var view = new SettingsView();
+        BindToolContext(view, tool);
+
+        view.Bind(SettingsView.SettingsProperty, new Binding(nameof(MainViewModel.Settings)));
+        view.Bind(SettingsView.SettingsChangedProperty, new Binding(nameof(MainViewModel.NotifySettingsChangedCommand)));
+
+        return view;
+    }
+
+    #endregion
     // 默认Dock写在这里
     public override IRootDock CreateLayout()
     {
@@ -286,7 +427,7 @@ public class MainDockFactory
 
         var tool = new T();
         InitDockable(tool, null);
-        AddFloat(_rootDock, tool);
+        AddFloat(RootDock, tool);
     }
 
     private IDockable? FindToolAnywhere<T>() where T : Tool

@@ -12,6 +12,7 @@ public class MajEditSetting
 {
     [Category(LangKeys.Cat_Edit_BaseSetting)]
     [DisplayName(LangKeys.Set_Language)]
+    [Description(LangKeys.Des_Language)]
     public string Language { get; set; } = "en-US";
 
     [Category(LangKeys.Cat_Edit_BaseSetting)]

@@ -17,6 +17,7 @@ using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.Connection;
 using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.IO;
+using MajdataEdit_NeoX.Models.Plugin;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
@@ -24,6 +25,7 @@ using MajdataEdit_NeoX.Views;
 using MajProtocol.Types.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PropertyModels.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -33,6 +35,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
@@ -43,11 +46,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
 
     private readonly IFileDialogService _fileDialog;
+    public IEditorService? Editor { get; set; }
     public MainViewModel(IFileDialogService fileDialog)
     {
         _fileDialog = fileDialog;
 
         LoadSettings();
+        LocalizationService.Default.SelectCulture(Language);
 
         _player = new PlayerConnection(Settings.EditSetting.PlayerIps);
         _player.OnViewStateChanged += OnPlayerStateChanged;
@@ -60,7 +65,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _ = SynchronizeConnectedPlayersAsync();
         };
 
-        _chartEditMng = new ChartEditManager(MajEnv.DatabaseFile);
+        _chartEditMng = new(MajEnv.DatabaseFile);
+
+        _pluginsMng = new();
+        _pluginsMng.OnPluginsChanged += () =>
+        {
+            OnPropertyChanged(nameof(Plugins));
+            RebuildPluginShortcuts();
+        };
+
+        RegisterShortcuts();
 
         _timelineTimer.Tick += (_, _) =>
         {
@@ -659,7 +673,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private bool _chartDirty; // 谱面解析被跳过（断连/播放中），待连接且空闲后补推
     private bool _pushedSetting; // 在任一连接完成之后，有至少一次settings提交
     private readonly SemaphoreSlim _syncGate = new(1, 1);
-    private double? _lastPlayTime; // 供Stop进行回退
 
     // 播放期间的时间线跟踪：本地 Stopwatch 推算（origin + elapsed × speed），
     private readonly Stopwatch _timelineClock = new();
@@ -667,12 +680,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private float _timelineSpeed = 1f;
     // 常驻 UI 时钟：非播放状态的 tick 直接跳过，因此不需要启停控制和跨线程取消那套机器。
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(16.666667f) };
+    private double? _lastPlayTime; // 供Stop进行回退
 
     // 编辑记录
     private readonly ChartEditManager _chartEditMng;
     private readonly ChartEditTimer _chartEditTimer = new();
     private string? _recordedChartPath;
 
+
+    // Plugins
+    private readonly PluginManager _pluginsMng;
+    public IReadOnlyList<LuaPlugin> Plugins => _pluginsMng.Plugins;
 
     #region Commands - 窗口
 
@@ -754,7 +772,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public void OpenShortcut()
     {
-
+        Factory.FloatOrActivateTool<ShortcutTool>();
     }
     [RelayCommand]
     public void OpenAbout(AboutPages page)
@@ -776,15 +794,119 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
 
     [RelayCommand]
-    public void ShowFindReplace()
+    public void ExecutePluginAction(PluginAction? action)
     {
-
+        var input = Editor?.GetSelectedText();
+        if (input == null) return;
+        var result = action?.Transform.Invoke(input);
+        if (result == null) return;
+        Editor?.SetSelectedText(result);
     }
+
+    [RelayCommand]
+    public void IncreaseFontSize() => StepFontSize(+1);
+    [RelayCommand]
+    public void DecreaseFontSize() => StepFontSize(-1);
+    private void StepFontSize(float delta)
+    {
+        FontSize = Math.Clamp(FontSize + delta, 6f, 72f);
+        SaveSettings();
+    }
+
+    [RelayCommand]
+    public void IncreasePlaybackSpeed() => StepPlaybackSpeed(+0.1f);
+    [RelayCommand]
+    public void DecreasePlaybackSpeed() => StepPlaybackSpeed(-0.1f);
+    private void StepPlaybackSpeed(float delta)
+    {
+        var speed = MathF.Round((PlaybackSpeed + delta) * 10f) / 10f;
+        PlaybackSpeed = Math.Clamp(speed, 0.1f, 4f);
+    }
+
+
+    #region 快捷键
+
+    // 插件动作的快捷键挂在独立 owner 下,插件重载时整批换掉,不影响内置快捷键。
+    private readonly object _pluginShortcutOwner = new();
+
+    /// <summary>
+    /// 把 <see cref="ShortcutDefinitions"/> 里的内置快捷键注册进
+    /// <see cref="InputManager"/>,由此获得与窗口/焦点无关的全局派发
+    /// (主窗口、浮动窗口、焦点落在任意面板里都生效)。
+    /// 撤销/重做是编辑器自身的局部快捷键,不在这里注册。
+    /// </summary>
+    private void RegisterShortcuts()
+    {
+        // 设计时/重建时可能重复进构造函数,先清掉本 vm 名下的旧注册。
+        InputManager.Instance.Unregister(this);
+
+        foreach (var def in ShortcutDefinitions.All)
+        {
+            // 带图标键的条目属于插件动作,由 RebuildPluginShortcuts 按实际插件注册。
+            if (def.PluginIconKey is not null) continue;
+            if (ResolveCommand(def.FunctionKey) is not { } command) continue;
+
+            InputManager.Instance.Register(def.Gesture, command, owner: this);
+        }
+
+        RebuildPluginShortcuts();
+    }
+
+    /// <summary>快捷键键名 -> 命令。新增全局快捷键时在这里挂上命令即可。</summary>
+    private ICommand? ResolveCommand(string functionKey) => functionKey switch
+    {
+        nameof(LangKeys.Gui_Save) => SaveFileCommand,
+
+        nameof(LangKeys.Shortcut_PlayStop) => PlayStopCommand,
+        nameof(LangKeys.Shortcut_PlayPause) => PlayPauseCommand,
+        nameof(LangKeys.Shortcut_PlayIncludeOp) => PlayIncludeOpCommand,
+
+        nameof(LangKeys.Shortcut_IncreaseFontSize) => IncreaseFontSizeCommand,
+        nameof(LangKeys.Shortcut_DecreaseFontSize) => DecreaseFontSizeCommand,
+
+        nameof(LangKeys.Shortcut_IncreasePlaybackSpeed) => IncreasePlaybackSpeedCommand,
+        nameof(LangKeys.Shortcut_DecreasePlaybackSpeed) => DecreasePlaybackSpeedCommand,
+
+        _ => null,
+    };
+
+    /// <summary>按当前插件列表重建插件动作快捷键(图标键 -> 快捷键)。</summary>
+    private void RebuildPluginShortcuts()
+    {
+        InputManager.Instance.Unregister(_pluginShortcutOwner);
+
+        foreach (var plugin in _pluginsMng.Plugins)
+        {
+            foreach (var action in plugin.Actions)
+            {
+                if (ShortcutDefinitions.ForPluginIcon(action.IconKey) is not { } def) continue;
+
+                InputManager.Instance.Register(
+                    def.Gesture,
+                    ExecutePluginActionCommand,
+                    action,
+                    _pluginShortcutOwner);
+            }
+        }
+    }
+
+    #endregion
 
     [RelayCommand]
     public void CheckUpdateAsync()
     {
 
+    }
+
+
+    [RelayCommand]
+    public void SeekPlayheadTime(double time)
+    {
+        PlayheadTime = time;
+        MoveCaretToPlayhead(time);
+
+        if (_player.State is ViewStatus.Playing or ViewStatus.Paused)
+            _ = StopAsync(true);
     }
 
     #endregion
@@ -892,16 +1014,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
     /// <summary>Inspector 的停止键。</summary>
     [RelayCommand]
-    public async Task StopAsync()
+    public async Task StopAsync(bool? keepCurrentPlayhead)
     {
         if (!await _player.ConnectAsync()) return;
         await _player.StopAsync();
 
         await Task.Delay(33); // 这里等一下Tick结束
-        if (_lastPlayTime.HasValue)
-        {
+        if (_lastPlayTime.HasValue && keepCurrentPlayhead != true)
             PlayheadTime = _lastPlayTime.Value;
-        }
         _lastPlayTime = null;
     }
 
@@ -929,6 +1049,29 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 break;
         }
     }
+    /// <summary>快捷键的播放/停止切换。</summary>
+    [RelayCommand]
+    public async Task PlayStop()
+    {
+        if (Maidata is null) return;
+        if (!await _player.ConnectAsync()) return;
+
+        switch (_viewState)
+        {
+            case ViewStatus.Playing:
+                await StopAsync(false);
+                break;
+            case ViewStatus.Paused:
+                await ResumeAsync();
+                break;
+            case ViewStatus.Busy:
+                await WaitNotBusyAsync();
+                break;
+            default:
+                await PlayAsync(PlaybackMode.Normal);
+                break;
+        }
+    }
     /// <summary>Inspector 的录制模式按键。</summary>
     [RelayCommand]
     public async Task PlayIncludeOp()
@@ -943,6 +1086,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 break;
             default:
                 await PlayAsync(PlaybackMode.IncludeOp);
+                PlayheadTime -= 5;
                 break;
         }
     }
@@ -1017,7 +1161,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private bool _isSlidingPlayhead;
     partial void OnCaretOffsetChanged(int value)
     {
-        if (Chart is null) return;
+        if (_isSlidingPlayhead || Chart is null) return;
         var timings = Chart.Timings;
         var caretTime = 0d;
         var combo = 0;
@@ -1032,26 +1176,27 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             else
             {
-                foreach (var note in Chart.Notes.Slice((int)t.NotesFirst, (int)t.NotesCount));
-                    combo += 1;
+                combo += 1;
             }
         }
 
         CaretTime = caretTime;
         CaretCombo = combo;
 
-        if (InputManager.Instance.IsControl && !_isSlidingPlayhead)
+        if (InputManager.Instance.IsControl)
         {
             PlayheadTime = caretTime;
         }
     }
     partial void OnPlayheadTimeChanged(double value)
     {
-        if (Chart is null) return;
-        // 播放时间线写入 PlayheadTime 只推进时钟/播放头；跟随开启时才带动编辑器 caret。
-        if (!IsFollowCursor) return;
-        _isSlidingPlayhead = true;
+        // Ordinary time updates move the caret only when following is enabled; explicit seeks do so directly.
+        if (IsFollowCursor) MoveCaretToPlayhead(value);
+    }
 
+    private void MoveCaretToPlayhead(double time)
+    {
+        if (Chart is null) return;
         var timings = Chart.Timings;
         if (timings.Length == 0) return;
 
@@ -1059,29 +1204,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         while (lo < hi)
         {
             int mid = lo + ((hi - lo) >> 1);
-
-            if (timings[mid].Time < value)
+            if (timings[mid].Time <= time)
                 lo = mid + 1;
             else
                 hi = mid;
         }
 
-        if (lo == 0)
-            CaretOffset = (int)timings[0].FumenPos;
-        else
+        var index = lo == 0 ? 0 : lo - 1;
+        _isSlidingPlayhead = true;
+        try
         {
-            if (lo == timings.Length)
-                lo = timings.Length - 1;
-            var a = timings[lo - 1].Time;
-            var b = timings[lo].Time;
-            lo = value - a <= b - value
-                ? lo - 1
-                : lo;
-
-            CaretOffset = (int)timings[lo].FumenPos;
+            CaretTime = timings[index].Time;
+            CaretCombo = index;
+            CaretOffset = (int)timings[index].FumenPos - 1;
         }
-
-        _isSlidingPlayhead = false;
+        finally
+        {
+            _isSlidingPlayhead = false;
+        }
     }
 
     #endregion
@@ -1089,10 +1229,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _timelineTimer.Stop();
+
+        // 全局快捷键按 vm 归属注销,避免重开窗口后重复注册。
+        InputManager.Instance.Unregister(this);
+        InputManager.Instance.Unregister(_pluginShortcutOwner);
+
         SaveChartEditRecord();
         SaveLayout();
+
         await _player.DisposeAsync();
         _chartEditMng.Dispose();
+        _pluginsMng.Dispose();
+
         GC.SuppressFinalize(this);
     }
 }

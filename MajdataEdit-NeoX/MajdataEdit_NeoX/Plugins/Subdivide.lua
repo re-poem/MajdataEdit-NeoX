@@ -1,51 +1,70 @@
--- Subdivide: 把 {N}... 区块里的逗号数 × multiplier，得到新的细分。
--- 跟原 SubdividePlugin.cs 行为完全对齐；非整数细分直接原样返回。
-
+-- 分音：将 {N} 的时间格映射到更细的网格，保持已有音符的时刻不变。
+-- 若细分后音符落在非整数格，保留该区块，避免悄悄改变谱面时序。
 local function subdivide_internal(phrase, multiplier)
-    if multiplier <= 1 then return phrase end
+    local close = string.find(phrase, '}', 2, true)
+    if not close then return phrase end
 
-    local s = string.find(phrase, '{', 1, true)
-    if s == nil then return phrase end
-    s = s + 1
-    local e = string.find(phrase, '}', s, true)
-    if e == nil or e <= s then return phrase end
-
-    local original_sub = tonumber(string.sub(phrase, s, e - 1))
-    if original_sub == nil then return phrase end
-    local content = string.sub(phrase, e + 1)
-
+    local original_sub = tonumber(string.sub(phrase, 2, close - 1))
+    if not original_sub or original_sub <= 0 or original_sub % 1 ~= 0 then return phrase end
     local new_sub = original_sub * multiplier
-    local diff = math.abs(math.floor(new_sub) - new_sub)
-    if not (diff < 1e-7 or diff > 1 - 1e-7) then return phrase end
+    if new_sub % 1 ~= 0 then return phrase end
 
-    local comma_count = 0
-    for _ in string.gmatch(content, ',') do comma_count = comma_count + 1 end
-    local new_comma = comma_count * multiplier
-    local diff1 = math.abs(math.floor(new_comma) - new_comma)
-    if not (diff1 < 1e-7 or diff1 > 1 - 1e-7) then return phrase end
+    local content = string.sub(phrase, close + 1)
+    local slots = {}
+    local start = 1
+    while true do
+        local comma = string.find(content, ',', start, true)
+        if not comma then
+            slots[#slots + 1] = string.sub(content, start)
+            break
+        end
+        slots[#slots + 1] = string.sub(content, start, comma - 1)
+        start = comma + 1
+    end
 
-    local out, fractional = {}, 0.0
-    for c in string.gmatch(content, '.') do
-        if c == ',' then
-            fractional = fractional + multiplier
-            local repeat_count = math.floor(fractional)
-            fractional = fractional - repeat_count
-            out[#out + 1] = string.rep(',', repeat_count)
-        else
-            out[#out + 1] = c
+    local commas = #slots - 1
+    local new_commas = commas * multiplier
+    -- 保留完整时间格跨度；选区若在半格结束，则不改变它。
+    if new_commas % 1 ~= 0 then return phrase end
+
+    local mapped = {}
+    for index, text in ipairs(slots) do
+        if text ~= '' then
+            local position = (index - 1) * multiplier
+            if position % 1 ~= 0 then return phrase end
+            mapped[position + 1] = text
         end
     end
 
-    return '{' .. tostring(new_sub) .. '}' .. table.concat(out)
+    local out = {}
+    for position = 0, new_commas do
+        out[#out + 1] = mapped[position + 1] or ''
+    end
+    return '{' .. string.format('%d', new_sub) .. '}' .. table.concat(out, ',')
 end
 
--- 按 '{...}' 区块逐个处理（保留分隔；空段丢弃，对应 C# Split + RemoveEmptyEntries）
 local function subdivide(phrase, multiplier)
-    local result = ''
-    for piece in string.gmatch(phrase, '({[^{]-})') do
-        result = result .. subdivide_internal(piece, multiplier)
+    if multiplier <= 1 then return phrase end
+    local out = {}
+    local cursor = 1
+    while true do
+        local open = string.find(phrase, '{', cursor, true)
+        if not open then
+            out[#out + 1] = string.sub(phrase, cursor)
+            break
+        end
+        local close = string.find(phrase, '}', open + 1, true)
+        if not close then
+            out[#out + 1] = string.sub(phrase, cursor)
+            break
+        end
+        out[#out + 1] = string.sub(phrase, cursor, open - 1)
+        local next_open = string.find(phrase, '{', close + 1, true)
+        out[#out + 1] = subdivide_internal(string.sub(phrase, open, next_open and next_open - 1 or nil), multiplier)
+        if not next_open then break end
+        cursor = next_open
     end
-    return result
+    return table.concat(out)
 end
 
 -- process functions (顶层 key；LuaPlugin 通过 GetFunction("subdivide_1p5x") 拿到)

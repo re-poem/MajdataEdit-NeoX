@@ -39,6 +39,7 @@
 		<PackageReference Include="MajProtocol" />
 		<PackageReference Include="Microsoft.Data.Sqlite" />
 		<PackageReference Include="NuGet.Versioning" />
+		<PackageReference Include="NLua" />
 		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
 		<PackageReference Include="PropertyGenerator.Avalonia" />
 		<PackageReference Include="SkiaSharp" />
@@ -46,6 +47,11 @@
 
 	<ItemGroup>
 		<ProjectReference Include="../../ThirdParty/Avalonia.PropertyGrid/Sources/Avalonia.PropertyGrid/Avalonia.PropertyGrid.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Assets\Localizations\" />
+		<Folder Include="Docs\" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -81,9 +87,6 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
-	<ItemGroup>
-		<Folder Include="Assets\Localizations\" />
-		<Folder Include="Docs\" />
-	</ItemGroup>
+
 
 </Project>

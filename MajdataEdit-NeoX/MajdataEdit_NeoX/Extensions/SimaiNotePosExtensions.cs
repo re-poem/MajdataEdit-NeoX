@@ -13,11 +13,11 @@ public static class SimaiNotePosExtensions
         {
             SimaiNotePos.NONE => 0,
             >= SimaiNotePos.BTN1 and <= SimaiNotePos.BTN8 => (int)pos,
-            >= SimaiNotePos.A1 and <= SimaiNotePos.A8 => (int)pos - 8,
-            >= SimaiNotePos.B1 and <= SimaiNotePos.B8 => (int)pos - 16,
+            >= SimaiNotePos.A1 and <= SimaiNotePos.A8 => (int)(pos - SimaiNotePos.A1 + 1),
+            >= SimaiNotePos.B1 and <= SimaiNotePos.B8 => (int)(pos - SimaiNotePos.B1 + 1),
             SimaiNotePos.C1 or SimaiNotePos.C2 => 1,
-            >= SimaiNotePos.D1 and <= SimaiNotePos.D8 => (int)pos - 26,
-            >= SimaiNotePos.E1 and <= SimaiNotePos.E8 => (int)pos - 34,
+            >= SimaiNotePos.D1 and <= SimaiNotePos.D8 => (int)(pos - SimaiNotePos.D1 + 1),
+            >= SimaiNotePos.E1 and <= SimaiNotePos.E8 => (int)(pos - SimaiNotePos.E1 + 1),
             _ => -1,
         };
     }

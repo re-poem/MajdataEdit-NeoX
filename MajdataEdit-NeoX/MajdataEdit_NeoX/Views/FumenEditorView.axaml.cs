@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Models.Fumen;
+using MajdataEdit_NeoX.Services;
 using PropertyGenerator.Avalonia;
 using System;
 using System.IO;
@@ -20,7 +21,7 @@ using TextMateSharp.Grammars;
 
 namespace MajdataEdit_NeoX.Views;
 
-public partial class FumenEditorView : UserControl
+public partial class FumenEditorView : UserControl, IEditorService
 {
     public FumenEditorView()
     {
@@ -37,17 +38,18 @@ public partial class FumenEditorView : UserControl
         Editor.TextArea.AddHandler(KeyDownEvent, TextArea_PreviewKeyDown, RoutingStrategies.Tunnel);
 
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretOffset = Editor.TextArea.Caret.Offset;
-    }
 
+        Editor.TextArea.AddHandler(PointerWheelChangedEvent, TextArea_PointerWheelChanged, RoutingStrategies.Tunnel);
+    }
 
     [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
     public partial string? Fumen { get; set; }
 
 
     [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
-#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
-    public partial double FontSize { get; set; }
-#pragma warning restore CS0108
+    public partial double EditorFontSize { get; set; }
+    partial void OnEditorFontSizePropertyChanged(double newValue) =>
+        Editor.FontSize = newValue;
 
     [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
     public partial bool WordWrap { get; set; }
@@ -61,6 +63,8 @@ public partial class FumenEditorView : UserControl
         {
             Editor.TextArea.Caret.Offset = Math.Clamp(newValue,
                 0, Editor.Document.TextLength);
+            Editor.TextArea.Caret.BringCaretToView();
+            Editor.TextArea.Caret.Show();
         }
     }
 
@@ -182,4 +186,17 @@ public partial class FumenEditorView : UserControl
                 e.Handled = true; break;
         }
     }
+
+    private void TextArea_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            return;
+
+        EditorFontSize = Math.Clamp(EditorFontSize + Math.Sign(e.Delta.Y), 1, 100);
+        e.Handled = true;
+    }
+
+
+    public string GetSelectedText() => Editor.SelectedText;
+    public void SetSelectedText(string value) => Editor.SelectedText = value;
 }

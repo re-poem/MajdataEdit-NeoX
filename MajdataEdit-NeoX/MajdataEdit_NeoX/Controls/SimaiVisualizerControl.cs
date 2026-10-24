@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using System.Windows.Input;
 
 namespace MajdataEdit_NeoX.Controls;
 
@@ -79,8 +80,11 @@ internal partial class SimaiVisualizerControl : Control
 
 
 
-    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial double Time { get; set; }
+
+    [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
+    public partial double CaretTime { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]
     public partial float ZoomLevel { get; set; }
@@ -98,10 +102,10 @@ internal partial class SimaiVisualizerControl : Control
     public partial float Offset { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial double CaretTime { get; set; }
+    public partial bool IsAnimated { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial bool IsAnimated { get; set; }
+    public partial ICommand? Seek { get; set; }
 
     public SimaiVisualizerControl()
     {
@@ -284,7 +288,11 @@ internal partial class SimaiVisualizerControl : Control
 
             Paint.IsAntialias = true;
 
-            if (chart is null || Timings.IsEmpty) return;
+            if (chart is null || Timings.IsEmpty)
+            {
+                canvas.Restore();
+                return;
+            }
 
             // Recompute BPM changes and beats from scratch each frame.
             var bpmChangeTimes = new List<double>(32);
@@ -514,7 +522,7 @@ internal partial class SimaiVisualizerControl : Control
             var visibleTimeRange = ZoomLevel * 2.0;
             var dragScale = visibleTimeRange / Bounds.Width;
             var time = _dragStartTime - deltaX * dragScale;
-            Time = Math.Clamp(time, 0, TrackInfo.Length);
+            Seek?.Execute(Math.Clamp(time, 0, TrackInfo.Length));
         }
     }
 
@@ -530,7 +538,7 @@ internal partial class SimaiVisualizerControl : Control
         else
         {
             var time = Time - e.Delta.Y;
-            Time = Math.Clamp(time, 0, TrackInfo?.Length ?? 0);
+            Seek?.Execute(Math.Clamp(time, 0, TrackInfo?.Length ?? 0));
         }
     }
 }

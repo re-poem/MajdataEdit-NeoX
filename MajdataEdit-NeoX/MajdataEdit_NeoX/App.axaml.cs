@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.PropertyGrid.Localization;
 using Avalonia.PropertyGrid.Services;
 using Dock.Settings;
 using MajdataEdit_NeoX.Base;
@@ -42,7 +43,7 @@ public partial class App : Application
         MajEnv.InitializeUserFiles();
         LaunchViewIfNotRunning();
 
-        LocalizationService.Default.AddExtraService(new MajLocalizationService());
+        LocalizationService.Default.AddExtraService(new AssemblyJsonAssetLocalizationService(typeof(App).Assembly));
 
         // 组合根：IFileDialogService 注入 MainViewModel。
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

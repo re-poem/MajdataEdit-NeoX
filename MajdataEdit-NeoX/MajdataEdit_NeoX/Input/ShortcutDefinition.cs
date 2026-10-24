@@ -1,26 +1,26 @@
 ﻿using Avalonia.Input;
-using MajdataEdit_NeoX.Types;
-using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace MajdataEdit_NeoX.Input;
 
+/// <summary>
+/// 一条快捷键的静态描述。<see cref="FunctionKey"/> 既是本地化键,也是
+/// MainViewModel 里"键 -> 命令"映射表的键;带 <see cref="PluginIconKey"/> 的条目
+/// 由插件动作按图标键认领(插件热重载后依然生效)。
+/// 这里只是目录,真正的全局注册由 <see cref="InputManager"/> 完成。
+/// </summary>
 public sealed record ShortcutDefinition(
     string FunctionKey,
     string GestureText,
     KeyGesture Gesture,
     string? PluginIconKey = null);
+
 internal static class ShortcutDefinitions
 {
     public static IReadOnlyList<ShortcutDefinition> All { get; } =
     [
         new("Gui_Save", "Ctrl + S", new(Key.S, KeyModifiers.Control)),
-
-        new("Shortcut_FindAndReplace", "Ctrl + F", new(Key.F, KeyModifiers.Control)),
-        new("Shortcut_Undo", "Ctrl + Z", new(Key.Z, KeyModifiers.Control)),
-        new("Shortcut_Redo", "Ctrl + Y", new(Key.Y, KeyModifiers.Control)),
-        new("Shortcut_Redo", "Ctrl + Shift + Z", new(Key.Z, KeyModifiers.Control | KeyModifiers.Shift)),
 
         new("Shortcut_PlayStop", "Ctrl + Shift + C", new(Key.C, KeyModifiers.Control | KeyModifiers.Shift)),
         new("Shortcut_PlayPause", "Ctrl + Shift + X", new(Key.X, KeyModifiers.Control | KeyModifiers.Shift)),
@@ -38,4 +38,10 @@ internal static class ShortcutDefinitions
         new("Gui_Rotate45", "Ctrl + ;", new(Key.OemSemicolon, KeyModifiers.Control), "rotate_r"),
         new("Gui_RotateNeg45", "Ctrl + '", new(Key.OemQuotes, KeyModifiers.Control), "rotate_l"),
     ];
+
+    /// <summary>按插件动作的图标键找快捷键(菜单显示/注册用)。</summary>
+    public static ShortcutDefinition? ForPluginIcon(string? iconKey)
+        => iconKey is null
+            ? null
+            : All.FirstOrDefault(s => s.PluginIconKey == iconKey);
 }

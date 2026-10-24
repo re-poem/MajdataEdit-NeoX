@@ -2,10 +2,6 @@
 			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 
 			 xmlns:local="using:MajdataEdit_NeoX"
-			 xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
-			 xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
-			 xmlns:v="using:MajdataEdit_NeoX.Views"
-			 xmlns:c="using:MajdataEdit_NeoX.Controls"
 
 			 x:Class="MajdataEdit_NeoX.App"
 			 RequestedThemeVariant="Default">
@@ -13,66 +9,6 @@
 
 	<Application.DataTemplates>
 		<local:ViewLocator />
-
-
-		<DataTemplate DataType="vm:InspectorTool">
-			<v:InspectorView
-				x:DataType="vm:MainViewModel"
-				DataContext="{Binding Context}"
-				DisplayTime="{Binding PlayheadTime}"
-				DisplayCombo="{Binding CaretCombo}"
-				IsConnected="{Binding IsConnected}"
-				ActiveConnectionCount="{Binding ActiveConnectionCount}"
-				SelectedDifficulty="{Binding SelectedDifficulty}"
-				Level="{Binding Level}"
-				Designer="{Binding Designer}"
-				Offset="{Binding Offset}"
-				PlaybackSpeed="{Binding PlaybackSpeed}"
-				IsFollowCursor="{Binding IsFollowCursor}" />
-		</DataTemplate>
-		<DataTemplate DataType="vm:VisualizerTool">
-			<!-- TODO: Signature -->
-			<c:SimaiVisualizerControl
-				x:DataType="vm:MainViewModel"
-				DataContext="{Binding Context}"
-				Time="{Binding PlayheadTime}"
-				ZoomLevel="{Binding ZoomLevel}"
-				TrackInfo="{Binding TrackInfo}"
-				Chart="{Binding Chart}"
-				Offset="{Binding Offset}"
-				CaretTime="{Binding CaretTime}"
-				IsAnimated="{Binding WaveAnimated}"
-				/>
-		</DataTemplate>
-		<DataTemplate DataType="vm:EditorTool">
-			<v:FumenEditorView
-				x:DataType="vm:MainViewModel"
-				DataContext="{Binding Context}"
-				Fumen="{Binding Fumen}"
-				FontSize="{Binding FontSize}"
-				WordWrap="{Binding WordWrap}"
-				CaretOffset="{Binding CaretOffset}"
-				/>
-		</DataTemplate>
-		<!-- TODO: Cover -->
-		<DataTemplate DataType="vm:ChartInfoTool">
-			<v:ChartInfoView
-				x:DataType="vm:MainViewModel"
-				DataContext="{Binding Context}"
-				Maidata="{Binding Maidata}"
-				Cover="{Binding Cover}"
-				ImportBgCover="{Binding ImportBgCoverCommand}"
-				ImportBgVideo="{Binding ImportBgVideoCommand}"
-				/>
-		</DataTemplate>
-		<DataTemplate DataType="vm:SettingsTool">
-			<v:SettingsView
-				x:DataType="vm:MainViewModel"
-				DataContext="{Binding Context}"
-				Settings="{Binding Settings}"
-				SettingsChanged="{Binding NotifySettingsChanged}"
-				/>
-		</DataTemplate>
 	</Application.DataTemplates>
 
 

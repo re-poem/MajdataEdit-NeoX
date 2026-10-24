@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+             xmlns:input="using:MajdataEdit_NeoX.Input"
+             xmlns:v="using:MajdataEdit_NeoX.Views"
+
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+
+             x:Class="MajdataEdit_NeoX.Views.ShortcutView">
+
+
+
+    <Grid Margin="20" RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,10">
+            <TextBlock Text="{ll:Localize Gui_Function}" FontSize="16" FontWeight="Bold" />
+            <TextBlock Grid.Column="1" Text="{ll:Localize Gui_ShortcutKey}" FontSize="16" FontWeight="Bold" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{x:Static input:ShortcutDefinitions.All}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="input:ShortcutDefinition">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,7">
+                            <v:LocalizedShortcutTextBlock TextWrapping="Wrap" />
+                            <TextBlock Grid.Column="1" Text="{Binding GestureText}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+
+</UserControl>

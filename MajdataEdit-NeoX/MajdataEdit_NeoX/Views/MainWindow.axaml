@@ -13,6 +13,7 @@
         Width="680" Height="540"
 
         Title="{Binding WindowTitle}"
+        Plugins ="{Binding Plugins}"
 
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40"
@@ -204,9 +205,6 @@
                     </MenuItem>
                     <MenuItem x:Name="EditMenu" Header="{ll:Localize Gui_Edit}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_ChartInfo}" Command="{Binding OpenChartInfo}"/>
-                        <Separator/>
-                        <MenuItem Header="{ll:Localize Gui_FindAndReplace}" Command="{Binding ShowFindReplace}"/>
-                        <Separator/>
                     </MenuItem>
                     <MenuItem Header="{ll:Localize Gui_Setting}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_Setting}" Command="{Binding OpenSettings}"/>
