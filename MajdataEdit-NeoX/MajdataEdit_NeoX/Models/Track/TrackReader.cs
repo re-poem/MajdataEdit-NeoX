@@ -9,6 +9,9 @@ namespace MajdataEdit_NeoX.Models.Track;
 internal static class TrackReader
 {
     public static TrackInfo ReadTrack(string path) => new(path);
+
+    /// <summary>从内存中的完整音频文件内容读取（拿不到本地路径的存储项）。</summary>
+    public static TrackInfo ReadTrack(byte[] data) => new(data);
 }
 
 public sealed class TrackInfo
@@ -25,8 +28,19 @@ public sealed class TrackInfo
     private readonly short[][] _waveThumbnails = new short[3][];
 
     public TrackInfo(string path)
+        : this(MiniAudio.Decoder.FromFile(path))
     {
-        using var decoder = MiniAudio.Decoder.FromFile(path);
+    }
+
+    /// <summary>从内存中的完整音频文件内容构建（拿不到本地路径的存储项）。</summary>
+    public TrackInfo(byte[] data)
+        : this(MiniAudio.Decoder.FromMemory(data))
+    {
+    }
+
+    private TrackInfo(MiniAudio.Decoder decoder)
+    {
+        using var owned = decoder;
         var totalFrames = decoder.GetLengthInPcmFrames();
 
         if (totalFrames == 0 || decoder.SampleRate == 0)

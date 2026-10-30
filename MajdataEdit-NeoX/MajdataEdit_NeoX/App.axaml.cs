@@ -67,18 +67,22 @@ public partial class App : Application
         }
         else if (ApplicationLifetime is IActivityApplicationLifetime singleViewFactoryApplicationLifetime)
         {
-            // 其他生命周期里没有 MainWindow.StorageProvider，注入恒返回 null 的 lambda。
-            // 调用方拿到 null 会安全地跳过对话框。
-            var fileDialog = new AvaloniaFileDialogService(() => null);
-            singleViewFactoryApplicationLifetime.MainViewFactory = () => new MainView { DataContext = new MainViewModel(fileDialog) };
+            // 单视图没有 MainWindow，StorageProvider 只能从已挂到 visual tree 的
+            // TopLevel 上取；view 变量在工厂被调用时才赋值，lambda 是惰性的，
+            // 所以首次弹对话框时一定能拿到正确的 provider。
+            MainView? view = null;
+            var fileDialog = new AvaloniaFileDialogService(() => TopLevel.GetTopLevel(view)?.StorageProvider);
+            singleViewFactoryApplicationLifetime.MainViewFactory = () => view = new MainView { DataContext = new MainViewModel(fileDialog) };
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
-            var fileDialog = new AvaloniaFileDialogService(() => null);
-            singleViewPlatform.MainView = new MainView
+            MainView? view = null;
+            var fileDialog = new AvaloniaFileDialogService(() => TopLevel.GetTopLevel(view)?.StorageProvider);
+            view = new MainView
             {
                 DataContext = new MainViewModel(fileDialog)
             };
+            singleViewPlatform.MainView = view;
         }
 
         base.OnFrameworkInitializationCompleted();

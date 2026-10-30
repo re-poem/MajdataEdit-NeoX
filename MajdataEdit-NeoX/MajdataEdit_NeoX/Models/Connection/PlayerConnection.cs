@@ -1,33 +1,64 @@
+using MajdataEdit_NeoX.Base;
+using MajdataEdit_NeoX.Models.Setting;
+using MajProtocol.Generated;
+using MajProtocol.Standard;
+using MajProtocol.Standard.Packets;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using MajProtocol;
-using MajProtocol.Serialization;
-using MajProtocol.Types;
-using MajProtocol.Types.Enums;
-using MajProtocol.Types.Request;
-using MajProtocol.Types.Response;
-using MajdataEdit_NeoX.Base;
-using MajdataEdit_NeoX.Models.Setting;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using WebSocketSharp;
 
 namespace MajdataEdit_NeoX.Models.Connection;
 
+/// <summary>
+/// 编辑器侧的 MajProtocol 客户端，把播放控制指令发给播放器（MajdataViewX）。
+///
+/// 与 MajProtocol 示例实现的差别：示例的 <c>MajWebSocketClient</c> 是静态单例、单连接
+/// （协议本身也假设一条连接）；编辑器需要同时驱动多个播放器（<see cref="MajEditSetting.PlayerIps"/>），
+/// 因此这里为每个 IP 建一个 <see cref="Endpoint"/>，各自持有 WebSocket 与发送队列，
+/// 协议层仍然只用 <c>MajProtocol.Standard</c> 的 packet 与 generated 路由接口。
+///
+/// 线上是二进制帧：每个包第一个字节是 <see cref="OpCode"/>，其后按 packet 结构体字段顺序排列。
+/// </summary>
 internal sealed class PlayerConnection : IAsyncDisposable
 {
-    private sealed class Endpoint : IAsyncDisposable
+    /// <summary>
+    /// 一个播放器连接。实现 <see cref="IMajProtocolClient"/> 来复用协议生成的按 OpCode 路由，
+    /// 自己只管连接生命周期与请求排队。
+    /// </summary>
+    private sealed class Endpoint : IMajProtocolClient, IAsyncDisposable
     {
-        public Endpoint(string ip)
+        /// <summary>
+        /// 一个请求最多等多久响应。播放器加载资源/解析谱面可能比较慢，给足余量；
+        /// 超时后放行下一条，避免一条没回应的请求把队列堵死。
+        /// </summary>
+        private static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(15);
+
+        private readonly PlayerConnection _owner;
+        private readonly Channel<byte[]> _outgoing;
+        private readonly SemaphoreSlim _connectGate = new(1, 1);
+        private readonly SemaphoreSlim _requestGate = new(1, 1);
+        private readonly CancellationTokenSource _lifetime = new();
+        private readonly Lock _pendingLock = new();
+
+        private WebSocket? _socket;
+        private Task? _sendLoop;
+        private bool _disposed;
+
+        // 一次只有一个请求在途：_pending 是它的等待槽，_pendingResponseType 用来认领响应。
+        // 串行化是协议自带的约束（响应里没有请求 id，类型也唯一的只有同一时刻的一条请求）。
+        private TaskCompletionSource<bool>? _pending;
+        private Type? _pendingResponseType;
+
+        public Endpoint(PlayerConnection owner, string ip)
         {
+            _owner = owner;
             Ip = ip;
-            Outgoing = Channel.CreateUnbounded<RequestEnvelope>(new UnboundedChannelOptions
+            _outgoing = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions
             {
                 SingleReader = true,
                 SingleWriter = false,
@@ -35,88 +66,205 @@ internal sealed class PlayerConnection : IAsyncDisposable
         }
 
         public string Ip { get; }
-        public ClientWebSocket? Client;
-        public readonly Channel<RequestEnvelope> Outgoing;
-        public readonly SemaphoreSlim ConnectGate = new(1, 1);
-        public readonly CancellationTokenSource LifetimeCts = new();
-        public readonly Lock StateLock = new();
-        public ViewSummary Summary = new();
-        public Task? SendLoop;
-        public Task? ReceiveLoop;
-        public bool Disposed;
 
-        public bool IsConnected => Client?.State == WebSocketState.Open;
+        public bool IsConnected => _socket?.ReadyState == WebSocketState.Open;
 
-        public async Task<bool> ConnectAsync(PlayerConnection owner)
+        public async Task<bool> ConnectAsync()
         {
             if (IsConnected) return true;
 
-            await ConnectGate.WaitAsync(LifetimeCts.Token);
+            await _connectGate.WaitAsync(_lifetime.Token);
             try
             {
                 if (IsConnected) return true;
 
-                var client = new ClientWebSocket();
-                client.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
-                await client.ConnectAsync(new Uri(MajWsProtocol.CreateServerUrl(Ip)), LifetimeCts.Token);
+                var socket = new WebSocket(MajWsProtocol.CreateServerUrl(Ip));
+                socket.OnMessage += OnMessage;
+                socket.OnClose += OnClose;
 
-                var previous = Interlocked.Exchange(ref Client, client);
-                if (previous is not null)
+                // WebSocketSharp 的 Connect 是同步阻塞的，挪到线程池避免卡住 UI 线程。
+                await Task.Run(socket.Connect, _lifetime.Token);
+                if (socket.ReadyState != WebSocketState.Open)
                 {
-                    try { await previous.CloseAsync(WebSocketCloseStatus.NormalClosure, "rotate", CancellationToken.None); }
-                    catch { /* swallow */ }
-                    previous.Dispose();
+                    socket.Close();
+                    return false;
                 }
 
-                SendLoop = Task.Run(() => owner.SendLoopAsync(this, LifetimeCts.Token));
-                ReceiveLoop = Task.Run(() => owner.ReceiveLoopAsync(this, LifetimeCts.Token));
-                owner.OnConnectedChanged?.Invoke(true);
+                var previous = Interlocked.Exchange(ref _socket, socket);
+                previous?.Close();
+
+                // 协议要求连接建立后立刻握手。示例服务端在版本一致时不回包，
+                // 因此这里不等待 HandshakeResponse：只有收到 accepted=false 才断开。
+                Enqueue(new HandshakeRequest { protocolVersion = Properties.ProtocolVersion }.ToBytes());
+
+                // 发送循环每次取 _socket 的当前值，可以跨重连复用；
+                // 若重连时再起一个，两个 reader 会竞争同一个 SingleReader channel，
+                // 包顺序就乱了。所以只在第一次连接时启动。
+                _sendLoop ??= Task.Run(() => SendLoopAsync(_lifetime.Token));
+                _owner.NotifyConnectionCountChanged();
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[PlayerConnection] connect {Ip}: {ex.Message}");
                 return false;
             }
             finally
             {
-                ConnectGate.Release();
+                _connectGate.Release();
             }
         }
 
+        /// <summary>把一个已序列化的 packet 排进发送队列。</summary>
+        public void Enqueue(byte[] packet) => _outgoing.Writer.TryWrite(packet);
+
+        /// <summary>
+        /// 发一个请求并等它对应的响应，返回播放器是否 accepted。
+        /// 请求在 endpoint 内部串行：后来者等前一条响应回来才发出去，调用方因此不需要自己等空闲。
+        /// 断开、超时或取消都按未接受处理。
+        /// </summary>
+        public async Task<bool> RequestAsync<TResponse>(byte[] packet)
+        {
+            if (!IsConnected) return false;
+
+            try
+            {
+                await _requestGate.WaitAsync(_lifetime.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+
+            try
+            {
+                if (!IsConnected) return false;
+
+                var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (_pendingLock)
+                {
+                    _pending = pending;
+                    _pendingResponseType = typeof(TResponse);
+                }
+
+                Enqueue(packet);
+                return await pending.Task.WaitAsync(ResponseTimeout, _lifetime.Token);
+            }
+            catch (TimeoutException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PlayerConnection] {typeof(TResponse).Name} timeout {Ip}");
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PlayerConnection] {typeof(TResponse).Name} {Ip}: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                lock (_pendingLock)
+                {
+                    _pending = null;
+                    _pendingResponseType = null;
+                }
+                _requestGate.Release();
+            }
+        }
+
+        private async Task SendLoopAsync(CancellationToken ct)
+        {
+            try
+            {
+                await foreach (var packet in _outgoing.Reader.ReadAllAsync(ct))
+                {
+                    var socket = _socket;
+                    if (socket is null || socket.ReadyState != WebSocketState.Open) continue;
+                    socket.Send(packet);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PlayerConnection] send {Ip}: {ex.Message}");
+            }
+        }
+
+        private void OnMessage(object? sender, MessageEventArgs e)
+        {
+            // RawData 是完整的二进制帧；按 OpCode 分派给下面各个 On*ResponseReceived。
+            ((IMajProtocolClient)this).Handle(e.RawData);
+        }
+
+        /// <summary>结算在途请求；响应对不上当前请求（例如迟到的握手回包）时忽略。</summary>
+        private void CompleteResponse<TResponse>(bool accepted)
+        {
+            lock (_pendingLock)
+            {
+                if (_pendingResponseType != typeof(TResponse)) return;
+                _pending?.TrySetResult(accepted);
+            }
+        }
+
+        private void OnClose(object? sender, CloseEventArgs e)
+        {
+            // 连接断了就没人会再回响应：放掉在途请求，别让命令一直等到超时。
+            lock (_pendingLock) _pending?.TrySetResult(false);
+            _owner.NotifyConnectionCountChanged();
+        }
+
+        public void OnHandshakeResponseReceived(HandshakeResponse req)
+        {
+            // 版本不匹配：服务端会主动断开，这里同步收尾。
+            if (!req.accepted) Close();
+        }
+
+        public void OnFilesResponseReceived(FilesResponse req) => CompleteResponse<FilesResponse>(req.accepted);
+
+        public void OnSimaiResponseReceived(SimaiResponse req) => CompleteResponse<SimaiResponse>(req.accepted);
+
+        public void OnPlayResponseReceived(PlayResponse req) => CompleteResponse<PlayResponse>(req.accepted);
+
+        public void OnPauseResponseReceived(PauseResponse req) => CompleteResponse<PauseResponse>(req.accepted);
+
+        public void OnOptionsResponseReceived(OptionsResponse req) => CompleteResponse<OptionsResponse>(req.accepted);
+
+        public void OnUnloadResponseReceived(UnloadResponse req) => CompleteResponse<UnloadResponse>(req.accepted);
+
+        // 目前编辑器不主动查询状态（状态只由自己的命令驱动），有等待者时仍按 accepted 语义结算。
+        public void OnStateResponseReceived(StateResponse req) => CompleteResponse<StateResponse>(req.isPlaying);
+
+        private void Close() => _socket?.Close();
+
         public async ValueTask DisposeAsync()
         {
-            if (Disposed) return;
-            Disposed = true;
-            LifetimeCts.Cancel();
-            Outgoing.Writer.TryComplete();
+            if (_disposed) return;
+            _disposed = true;
 
-            var client = Interlocked.Exchange(ref Client, null);
-            if (client is not null)
+            _lifetime.Cancel();
+            _outgoing.Writer.TryComplete();
+            lock (_pendingLock) _pending?.TrySetResult(false);
+
+            var socket = Interlocked.Exchange(ref _socket, null);
+            if (socket is not null)
             {
-                try
-                {
-                    if (client.State == WebSocketState.Open)
-                        await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", CancellationToken.None);
-                }
-                catch { /* swallow */ }
-                client.Dispose();
+                try { socket.Close(); }
+                catch { /* 关不掉不影响释放 */ }
             }
 
-            if (SendLoop is not null)
+            if (_sendLoop is not null)
             {
-                try { await SendLoop; }
+                try { await _sendLoop; }
                 catch (OperationCanceledException) { }
-                catch { /* swallow */ }
-            }
-            if (ReceiveLoop is not null)
-            {
-                try { await ReceiveLoop; }
-                catch (OperationCanceledException) { }
-                catch { /* swallow */ }
+                catch { /* 发送循环自身的异常已在内部记录 */ }
             }
 
-            LifetimeCts.Dispose();
-            ConnectGate.Dispose();
+            _lifetime.Dispose();
+            _connectGate.Dispose();
+            _requestGate.Dispose();
         }
     }
 
@@ -127,7 +275,8 @@ internal sealed class PlayerConnection : IAsyncDisposable
 
     public PlayerConnection(IEnumerable<string> ips)
     {
-        SetEndpoints(ips);
+        lock (_endpointsLock)
+            _endpoints.AddRange(NormalizeIps(ips).Select(ip => new Endpoint(this, ip)));
     }
 
     public bool IsConnected => ActiveConnectionCount > 0;
@@ -140,40 +289,7 @@ internal sealed class PlayerConnection : IAsyncDisposable
         }
     }
 
-    public ViewSummary ViewSummary
-    {
-        get
-        {
-            var endpoint = PrimaryEndpoint;
-            if (endpoint is null) return new();
-            lock (endpoint.StateLock) return endpoint.Summary;
-        }
-    }
-
-    public ViewStatus State => ViewSummary.State;
-
-    /// <summary>所有状态变化（含 Idle↔Loaded、Loaded↔Playing、Playing↔Paused 等）会触发。</summary>
-    public event Action<ViewStatus, ViewStatus>? OnViewStateChanged;
-
-    /// <summary>服务端响应 Load 后推送的 LoadOk 事件。</summary>
-    public event Action? OnLoadFinished;
-
-    /// <summary>服务端响应 PlayAsync（首启）后推送的 PlayStarted 事件。</summary>
-    public event Action? OnPlayStarted;
-
-    /// <summary>服务端响应 Resume 或 PlayAsync（从 Paused）后推送的 PlayResumed 事件。</summary>
-    public event Action? OnPlayResumed;
-
-    /// <summary>服务端响应 Pause 后推送的 PlayPaused 事件。</summary>
-    public event Action? OnPlayPaused;
-
-    /// <summary>服务端响应 Stop 或 Reset 后推送的 PlayStopped 事件。</summary>
-    public event Action? OnPlayStopped;
-
-    /// <summary>ViewSummary.State 进入 Error 时触发。</summary>
-    public event Action<string?>? OnViewError;
-
-    /// <summary>连接状态变化：连上 true / 断开 false（对端关闭 / 接收循环退出）。</summary>
+    /// <summary>连接状态变化：有播放器连上 true / 全部断开 false。</summary>
     public event Action<bool>? OnConnectedChanged;
 
     public async Task<bool> ConnectAsync()
@@ -182,7 +298,7 @@ internal sealed class PlayerConnection : IAsyncDisposable
         var endpoints = SnapshotEndpoints();
         if (endpoints.Count == 0) return false;
 
-        var results = await Task.WhenAll(endpoints.Select(endpoint => endpoint.ConnectAsync(this)));
+        var results = await Task.WhenAll(endpoints.Select(endpoint => endpoint.ConnectAsync()));
         UpdateActiveConnectionCount();
         return results.Any(result => result);
     }
@@ -196,7 +312,7 @@ internal sealed class PlayerConnection : IAsyncDisposable
         lock (_endpointsLock)
         {
             _endpoints.Clear();
-            _endpoints.AddRange(normalized.Select(ip => new Endpoint(ip)));
+            _endpoints.AddRange(normalized.Select(ip => new Endpoint(this, ip)));
             _activeConnectionCount = 0;
         }
 
@@ -205,54 +321,74 @@ internal sealed class PlayerConnection : IAsyncDisposable
         if (!_disposed) await ConnectAsync();
     }
 
-    public Task LoadAsync(string trackPath, string imagePath, string? videoPath)
-        => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Load, new LoadRequest
+    /// <summary>
+    /// 让播放器装载曲目资源。三个参数都是播放器侧可达的路径；
+    /// 拿不到本地路径（Android 的 <c>content://</c>、Browser 沙箱）时传 <see cref="string.Empty"/>，
+    /// 这是协议规定的「无法提供该字段」的表达方式。
+    /// </summary>
+    public Task<bool> FilesAsync(string trackPath, string jacketPath, string moviePath)
+        => BroadcastAsync<FilesResponse>(new FilesRequest
         {
-            TrackPath = trackPath,
-            ImagePath = imagePath,
-            VideoPath = videoPath,
-        }));
+            trackPath = trackPath,
+            jacketPath = jacketPath,
+            moviePath = moviePath,
+        }.ToBytes());
 
-    public Task SettingAsync(MajViewSetting viewSetting, MajVolumeSetting volumeSetting)
-    {
-        var payload = new JObject
+    /// <summary>
+    /// 推送视图与音量设置。协议只给常用项留了独立字段，其余 ViewSetting 项
+    /// 打包成 JSON 放进 <c>extra</c>。
+    /// </summary>
+    public Task<bool> OptionsAsync(MajViewSetting viewSetting, MajVolumeSetting volumeSetting)
+        => BroadcastAsync<OptionsResponse>(new OptionsRequest
         {
-            ["viewSetting"] = JToken.FromObject(viewSetting,
-                JsonSerializer.Create(MajProtocolSerializer.DefaultSettings)),
-            ["volumeSetting"] = JToken.FromObject(volumeSetting,
-                JsonSerializer.Create(MajProtocolSerializer.DefaultSettings)),
-        };
-        return BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Setting, payload));
-    }
+            tapSpeed = viewSetting.TapSpeed,
+            touchSpeed = viewSetting.TouchSpeed,
 
-    public Task ParseAsync(string simaiFumen, int clockCount, float offset, string title,
-        string artist, string level, string designer, int difficulty)
-        => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Parse, new ParseRequest
+            trackVolume = volumeSetting.Track,
+            answerVolume = volumeSetting.Answer,
+            tapVolume = volumeSetting.Tap,
+            slideVolume = volumeSetting.Slide,
+            breakVolume = volumeSetting.Break,
+            breakSlideVolume = volumeSetting.BreakSlide,
+            exVolume = volumeSetting.Ex,
+            touchVolume = volumeSetting.Touch,
+            hanabiVolume = volumeSetting.Hanabi,
+
+            extra = BuildExtraOptionsJson(viewSetting),
+        }.ToBytes());
+
+    public Task<bool> SimaiAsync(string content, float offset, string title, string artist,
+        string designer, string difficultyValue, int difficultyIndex)
+        => BroadcastAsync<SimaiResponse>(new SimaiRequest
         {
-            SimaiFumen = simaiFumen,
-            ClockCount = clockCount,
-            Offset = offset,
-            Title = title,
-            Artist = artist,
-            Level = level,
-            Designer = designer,
-            Difficulty = difficulty,
-        }));
+            offset = offset,
+            title = title,
+            artist = artist,
+            designer = designer,
+            difficultyValue = difficultyValue,
+            difficultyIndex = difficultyIndex,
+            content = content,
+        }.ToBytes());
 
-    public Task PlayAsync(PlaybackMode mode, double startAt, float speed, string? maidataPath)
-        => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Play, new PlayRequest
+    /// <summary>
+    /// 开始播放。协议用 <c>showIntroAnimation</c> / <c>record</c> 两个布尔量表达播放模式，
+    /// 取代了旧版的 <c>PlaybackMode</c> 枚举；录制路径由播放器自己决定。
+    /// </summary>
+    /// <param name="speed">播放倍速，编辑器播放头与播放器按同一倍速推算。</param>
+    public Task<bool> PlayAsync(PlaybackMode mode, double position, float speed)
+        => BroadcastAsync<PlayResponse>(new PlayRequest
         {
-            PlayMode = mode,
-            StartAt = startAt,
-            Speed = speed,
-            MaidataPath = maidataPath,
-        }));
+            position = position,
+            speed = speed,
+            showIntroAnimation = mode is PlaybackMode.IncludeOp or PlaybackMode.Record,
+            record = mode is PlaybackMode.Record,
+        }.ToBytes());
 
-    public Task PauseAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Pause, null));
-    public Task ResumeAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Resume, null));
-    public Task StopAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Stop, null));
-    public Task ResetAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.Reset, null));
-    public Task StateAsync() => BroadcastAsync(endpoint => EnqueueAsync(endpoint, RequestType.State, null));
+    public Task<bool> PauseAsync() => BroadcastAsync<PauseResponse>(new PauseRequest().ToBytes());
+
+    public Task<bool> UnloadAsync() => BroadcastAsync<UnloadResponse>(new UnloadRequest().ToBytes());
+
+    public Task<bool> StateAsync() => BroadcastAsync<StateResponse>(new StateRequest().ToBytes());
 
     private static string[] NormalizeIps(IEnumerable<string> ips)
         => ips
@@ -261,174 +397,46 @@ internal sealed class PlayerConnection : IAsyncDisposable
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private void SetEndpoints(IEnumerable<string> ips)
-    {
-        lock (_endpointsLock)
-            _endpoints.AddRange(NormalizeIps(ips).Select(ip => new Endpoint(ip)));
-    }
-
     private List<Endpoint> SnapshotEndpoints()
     {
         lock (_endpointsLock) return _endpoints.ToList();
     }
 
-    private Endpoint? PrimaryEndpoint
+    /// <summary>
+    /// 把 ViewSetting 里没有独立协议字段的项打包成 JSON 塞进 <c>extra</c>。
+    /// 键名与设置文件里的 <c>[JsonPropertyName]</c> 一致（camelCase）。
+    /// </summary>
+    private static string BuildExtraOptionsJson(MajViewSetting view) => new JsonObject
     {
-        get
-        {
-            lock (_endpointsLock)
-                return _endpoints.FirstOrDefault(endpoint => endpoint.IsConnected);
-        }
-    }
+        ["smoothSlideAnime"] = view.SmoothSlideAnime,
+        ["backgroundDim"] = view.BackgroundDim,
+        ["backgroundOutsideDim"] = view.BackgroundOutsideDim,
+        ["comboStatusType"] = (int)view.ComboStatusType,
+        ["autoMode"] = (int)view.AutoMode,
+        ["showHand"] = view.ShowHand,
+        ["uiType"] = (int)view.UIType,
+        ["globalAudioOffset"] = view.GlobalAudioOffset,
+        ["legacySlideLayer"] = view.LegacySlideLayer,
+        ["mineAutoSlide"] = view.MineAutoSlide,
+        ["outputFps"] = view.OutputFps,
+        ["exportQuality"] = (int)view.ExportQuality,
+        ["resizeBg"] = view.ResizeBg,
+    }.ToJsonString();
 
-    private async Task BroadcastAsync(Func<Endpoint, Task> operation)
+    /// <summary>
+    /// 把一条请求发给所有已连接播放器并等各自的响应。任一播放器接受即算成功，
+    /// 没有播放器在线时按失败处理。
+    /// </summary>
+    private async Task<bool> BroadcastAsync<TResponse>(byte[] payload)
     {
         var endpoints = SnapshotEndpoints().Where(endpoint => endpoint.IsConnected).ToArray();
-        await Task.WhenAll(endpoints.Select(async endpoint =>
-        {
-            try { await operation(endpoint); }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[PlayerConnection] broadcast {endpoint.Ip}: {ex.Message}");
-            }
-        }));
+        if (endpoints.Length == 0) return false;
+
+        var results = await Task.WhenAll(endpoints.Select(endpoint => endpoint.RequestAsync<TResponse>(payload)));
+        return results.Any(accepted => accepted);
     }
 
-    private async Task EnqueueAsync(Endpoint endpoint, RequestType type, object? payload)
-    {
-        if (endpoint.LifetimeCts.IsCancellationRequested)
-            throw new ObjectDisposedException(nameof(PlayerConnection));
-
-        JToken? requestData = payload switch
-        {
-            null => null,
-            JToken jt => jt,
-            _ => JToken.FromObject(payload,
-                JsonSerializer.Create(MajProtocolSerializer.DefaultSettings)),
-        };
-
-        await endpoint.Outgoing.Writer.WriteAsync(new RequestEnvelope
-        {
-            ProtocolVersion = ProtocolVersion.Current,
-            RequestType = type,
-            RequestData = requestData,
-        }, endpoint.LifetimeCts.Token);
-    }
-
-    private async Task SendLoopAsync(Endpoint endpoint, CancellationToken ct)
-    {
-        var client = endpoint.Client;
-        if (client is null) return;
-        try
-        {
-            await foreach (var envelope in endpoint.Outgoing.Reader.ReadAllAsync(ct))
-            {
-                var bytes = Encoding.UTF8.GetBytes(MajProtocolSerializer.Serialize(envelope));
-                await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text,
-                    endOfMessage: true, ct);
-            }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] send {endpoint.Ip}: {ex.Message}");
-        }
-    }
-
-    private async Task ReceiveLoopAsync(Endpoint endpoint, CancellationToken ct)
-    {
-        var client = endpoint.Client;
-        if (client is null) return;
-        var buffer = new byte[16 * 1024];
-        try
-        {
-            while (!ct.IsCancellationRequested && client.State == WebSocketState.Open)
-            {
-                using var ms = new MemoryStream();
-                WebSocketReceiveResult result;
-                do
-                {
-                    result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
-                    if (result.MessageType == WebSocketMessageType.Close) return;
-                    ms.Write(buffer, 0, result.Count);
-                } while (!result.EndOfMessage);
-
-                ProcessIncoming(endpoint, Encoding.UTF8.GetString(ms.ToArray()));
-            }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] receive {endpoint.Ip}: {ex.Message}");
-        }
-        finally
-        {
-            UpdateActiveConnectionCount();
-        }
-    }
-
-    private void ProcessIncoming(Endpoint endpoint, string json)
-    {
-        try
-        {
-            var envelope = MajProtocolSerializer.Deserialize<ResponseEnvelope>(json);
-            if (envelope is null) return;
-            var env = envelope.Value;
-
-            if (env.ResponseType == ResponseType.Event)
-            {
-                var evt = MajProtocolSerializer.DeserializeResponsePayload<EventResponse>(env);
-                if (evt is not null) DispatchEvent(endpoint, evt.Value);
-                return;
-            }
-
-            if (env.ResponseType == ResponseType.Error)
-            {
-                if (env.ResponseData is JObject jobj)
-                    OnViewError?.Invoke(jobj["errMsg"]?.Value<string>());
-                return;
-            }
-
-            if (env.ResponseData is not null)
-            {
-                var summary = MajProtocolSerializer.DeserializeResponsePayload<ViewSummary>(env);
-                if (summary is not null) UpdateSummary(endpoint, summary.Value);
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[PlayerConnection] parse {endpoint.Ip}: {ex.Message}");
-        }
-    }
-
-    private void DispatchEvent(Endpoint endpoint, EventResponse evt)
-    {
-        if (evt.Summary is not null) UpdateSummary(endpoint, evt.Summary.Value);
-
-        switch (evt.EventType)
-        {
-            case EventType.LoadOk: OnLoadFinished?.Invoke(); break;
-            case EventType.PlayStarted: OnPlayStarted?.Invoke(); break;
-            case EventType.PlayResumed: OnPlayResumed?.Invoke(); break;
-            case EventType.PlayPaused: OnPlayPaused?.Invoke(); break;
-            case EventType.PlayStopped: OnPlayStopped?.Invoke(); break;
-        }
-    }
-
-    private void UpdateSummary(Endpoint endpoint, ViewSummary newSummary)
-    {
-        ViewStatus oldState;
-        lock (endpoint.StateLock)
-        {
-            oldState = endpoint.Summary.State;
-            endpoint.Summary = newSummary;
-        }
-
-        if (ReferenceEquals(PrimaryEndpoint, endpoint) && oldState != newSummary.State)
-            OnViewStateChanged?.Invoke(oldState, newSummary.State);
-        if (newSummary.State == ViewStatus.Error)
-            OnViewError?.Invoke(newSummary.ErrMsg);
-    }
+    private void NotifyConnectionCountChanged() => UpdateActiveConnectionCount();
 
     private void UpdateActiveConnectionCount()
     {
@@ -446,12 +454,14 @@ internal sealed class PlayerConnection : IAsyncDisposable
     {
         if (_disposed) return;
         _disposed = true;
+
         var endpoints = SnapshotEndpoints();
         lock (_endpointsLock)
         {
             _endpoints.Clear();
             _activeConnectionCount = 0;
         }
+
         await Task.WhenAll(endpoints.Select(endpoint => endpoint.DisposeAsync().AsTask()));
         OnConnectedChanged?.Invoke(false);
     }

@@ -1,9 +1,12 @@
 ﻿using MajdataEdit_NeoX.Lang;
 using PropertyModels.ComponentModel;
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace MajdataEdit_NeoX.Models.Setting;
 
+// 反序列化时把 List<string> 之类的集合整体替换掉，而不是往默认实例里追加
+[JsonObjectCreationHandling(JsonObjectCreationHandling.Replace)]
 public class MajSetting
 {
     [Category(LangKeys.Cat_EditSetting)]

@@ -18,7 +18,6 @@ using System.Reflection.Metadata;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
-
 public class InspectorTool : Tool
 {
     public InspectorTool()
@@ -94,7 +93,7 @@ public class MainDockFactory : Factory
 
     private IRootDock RootDock => mainVm.Layout;
 
-    #region 工具视图模板（原 App.axaml 的 DataTemplate DataType="vm:XxxTool"）
+    #region 工具视图模板
 
     private static bool _toolDataTemplatesRegistered;
 
@@ -211,6 +210,7 @@ public class MainDockFactory : Factory
     }
 
     #endregion
+
     // 默认Dock写在这里
     public override IRootDock CreateLayout()
     {
@@ -268,37 +268,30 @@ public class MainDockFactory : Factory
             mainLayout = new ProportionalDock
             {
                 Id = "MainLayout",
-                Orientation = Orientation.Horizontal,
+                Orientation = Orientation.Vertical,
                 VisibleDockables = CreateList<IDockable>(
                     new ToolDock
                     {
+                        Id = "EditorDock",
+                        Proportion = 0.6,
+                        VisibleDockables = CreateList<IDockable>(editor),
+                        ActiveDockable = editor,
+                    },
+                    new ProportionalDockSplitter(),
+                    new ToolDock
+                    {
                         Id = "InspectorDock",
-                        Proportion = 0.2,
+                        Proportion = 0.25,
                         VisibleDockables = CreateList<IDockable>(inspector),
                         ActiveDockable = inspector,
                     },
                     new ProportionalDockSplitter(),
-                    new ProportionalDock
+                    new ToolDock
                     {
-                        Id = "RightLayout",
-                        Orientation = Orientation.Vertical,
-                        VisibleDockables = CreateList<IDockable>(
-                            new ToolDock
-                            {
-                                Id = "EditorDock",
-                                Proportion = 0.75,
-                                VisibleDockables = CreateList<IDockable>(editor),
-                                ActiveDockable = editor,
-                            },
-                            new ProportionalDockSplitter(),
-                            new ToolDock
-                            {
-                                Id = "VisualizerDock",
-                                Proportion = 0.25,
-                                VisibleDockables = CreateList<IDockable>(visualizer),
-                                ActiveDockable = visualizer,
-                            }
-                        )
+                        Id = "VisualizerDock",
+                        Proportion = 0.15,
+                        VisibleDockables = CreateList<IDockable>(visualizer),
+                        ActiveDockable = visualizer,
                     }
                 )
             };

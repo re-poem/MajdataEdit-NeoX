@@ -1,6 +1,7 @@
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using Avalonia.PropertyGrid.Services;
 using Avalonia.Threading;
 using Cimai;
@@ -22,9 +23,6 @@ using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
 using MajdataEdit_NeoX.Views;
-using MajProtocol.Types.Enums;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using PropertyModels.ComponentModel;
 using System;
 using System.Collections.Generic;
@@ -33,6 +31,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -55,7 +56,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         LocalizationService.Default.SelectCulture(Language);
 
         _player = new PlayerConnection(Settings.EditSetting.PlayerIps);
-        _player.OnViewStateChanged += OnPlayerStateChanged;
         _player.OnConnectedChanged += connected =>
         {
             _pushedSetting = false;
@@ -79,7 +79,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _timelineTimer.Tick += (_, _) =>
         {
             if (!_player.IsConnected) return;
-            if (_viewState is not (ViewStatus.Playing or ViewStatus.Paused)) return;
+            if (_viewState is not ViewStatus.Playing) return;
             PlayheadTime = _timelineOrigin + _timelineClock.Elapsed.TotalSeconds * _timelineSpeed;
         };
         _timelineTimer.Start();
@@ -151,6 +151,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [NotifyPropertyChangedFor(nameof(BackgroundImagePath))]
     public partial MajSetting Settings { get; set; } = new();
 
+    /// <summary>
+    /// 设置文件的序列化选项：缩进排版，枚举写成数字（与既有 Settings.json 保持一致）。
+    /// </summary>
+    private static readonly JsonSerializerOptions SettingsJsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     public void LoadSettings()
     {
         try
@@ -158,12 +166,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             if (File.Exists(MajEnv.SettingsFile))
             {
                 var json = File.ReadAllText(MajEnv.SettingsFile);
-                var root = JObject.Parse(json);
-                var serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings
-                {
-                    ObjectCreationHandling = ObjectCreationHandling.Replace
-                });
-                Settings = root.ToObject<MajSetting>(serializer) ?? new();
+                // 集合属性（List<string>）要整体替换而不是往默认实例里追加，
+                // 这里靠 MajSetting 上的 [JsonObjectCreationHandling(Replace)] 保证。
+                Settings = JsonSerializer.Deserialize<MajSetting>(json, SettingsJsonOptions) ?? new();
             }
             else
             {
@@ -192,7 +197,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 Directory.CreateDirectory(directory);
             }
 
-            var json = JsonConvert.SerializeObject(Settings, Formatting.Indented);
+            var json = JsonSerializer.Serialize(Settings, SettingsJsonOptions);
             File.WriteAllText(MajEnv.SettingsFile, json);
         }
         catch (Exception ex)
@@ -202,6 +207,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    private static readonly HashSet<string> ViewSettingPropertyNames = typeof(MajViewSetting).GetProperties().Select(o => o.Name).ToHashSet();
+    private static readonly HashSet<string> VolumeSettingPropertyNames = typeof(MajVolumeSetting).GetProperties().Select(o => o.Name).ToHashSet();
     // PropertyGrid 修改设置时，通过此入口提醒设置变更。
     [RelayCommand]
     public void NotifySettingsChanged(string settingName)
@@ -215,6 +222,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 LocalizationService.Default.SelectCulture(Language);
                 break;
         }
+        if (ViewSettingPropertyNames.Contains(settingName) ||
+            VolumeSettingPropertyNames.Contains(settingName))
+        {
+            _pushedSetting = false;
+            _ = EnsureSettingAsync();
+        }
+
         OnPropertyChanged(settingName);
         SaveSettings();
     }
@@ -366,8 +380,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         oldValue?.PropertyChanged -= Maidata_PropertyChanged;
         newValue?.PropertyChanged += Maidata_PropertyChanged;
-        if (newValue is not null && _maidataPath is not null)
-            LoadChartEditRecord(_maidataPath);
+        if (newValue is not null && _chartFolder is not null)
+            LoadChartEditRecord(_chartFolder.SessionKey);
         _ = ParseAsync();
     }
     private void Maidata_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -465,135 +479,106 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // ======外围（一般来说跟着Maidata一起变化）
 
     [RelayCommand]
-    private async Task ImportBgCoverAsync(string sourcePath)
+    private async Task ImportBgCoverAsync(IStorageFile? source)
     {
-        if (string.IsNullOrWhiteSpace(_maidataDir) || !File.Exists(sourcePath)) return;
+        if (_chartFolder is null || source is null) return;
 
-        var extension = Path.GetExtension(sourcePath);
-        if (string.IsNullOrWhiteSpace(extension)) return;
-
-        var destination = Path.Combine(_maidataDir, "bg" + extension);
-        var temporaryPath = Path.Combine(_maidataDir, $".bg-import-{Guid.NewGuid():N}.tmp");
-        try
-        {
-            await using (var source = File.OpenRead(sourcePath))
-            await using (var target = File.Create(temporaryPath))
-                await source.CopyToAsync(target);
-
-            foreach (var existingPath in Directory.EnumerateFiles(_maidataDir, "bg.*").ToArray())
-            {
-                if (Path.GetFileName(existingPath).StartsWith("bg-old.", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(Path.GetExtension(existingPath), ".mp4", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                var existingExtension = Path.GetExtension(existingPath);
-                var archivedPath = Path.Combine(_maidataDir, "bg-old" + existingExtension);
-                if (File.Exists(archivedPath)) File.Delete(archivedPath);
-                File.Move(existingPath, archivedPath);
-            }
-
-            File.Move(temporaryPath, destination);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
-
-        _coverPath = destination;
-        UpdateResources();
-        if (_player.IsConnected && _trackPath is not null)
-            await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
+        await _chartFolder.ImportAsync(source, ChartMediaKind.Cover);
+        await UpdateResourcesAsync();
+        await PushResourcesToPlayerAsync();
     }
 
     [RelayCommand]
-    private async Task ImportBgVideoAsync(string sourcePath)
+    private async Task ImportBgVideoAsync(IStorageFile? source)
     {
-        if (string.IsNullOrWhiteSpace(_maidataDir) || !File.Exists(sourcePath)) return;
+        if (_chartFolder is null || source is null) return;
 
-        var extension = Path.GetExtension(sourcePath);
-        if (string.IsNullOrWhiteSpace(extension)) return;
-
-        var destination = Path.Combine(_maidataDir, "pv" + extension);
-        var temporaryPath = Path.Combine(_maidataDir, $".pv-import-{Guid.NewGuid():N}.tmp");
-        try
-        {
-            await using (var source = File.OpenRead(sourcePath))
-            await using (var target = File.Create(temporaryPath))
-                await source.CopyToAsync(target);
-
-            foreach (var existingPath in Directory.EnumerateFiles(_maidataDir, "pv.*").ToArray())
-            {
-                var existingExtension = Path.GetExtension(existingPath);
-                var archivedPath = Path.Combine(_maidataDir, "pv-old" + existingExtension);
-                if (File.Exists(archivedPath)) File.Delete(archivedPath);
-                File.Move(existingPath, archivedPath);
-            }
-
-            File.Move(temporaryPath, destination);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
-
-        _videoPath = destination;
-        if (_player.IsConnected && _trackPath is not null)
-            await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
+        await _chartFolder.ImportAsync(source, ChartMediaKind.Video);
+        await UpdateResourcesAsync();
+        await PushResourcesToPlayerAsync();
     }
 
     /// <summary>
-    /// 从maidata.txt所在目录推导出maidata、track、bg、pv等文件的路径。
+    /// 打开一个谱面目录（<c>maidata.txt</c> + <c>track</c> + <c>bg</c>/<c>pv</c>）。
     /// </summary>
-    /// <returns>是否扫描到最基本的maidata和track文件</returns>
-    private bool UpdatePath(string maidataDir)
+    /// <param name="createMaidata">新建谱面时允许就地创建空的 <c>maidata.txt</c>。</param>
+    /// <returns>目录里没有 track 时返回 <c>null</c>，且不改动当前已打开的谱面。</returns>
+    private async Task<ChartFolder?> OpenChartFolderAsync(IStorageFolder folder, bool createMaidata = false)
     {
+        var chart = await ChartFolder.OpenAsync(folder, createMaidata);
+        if (chart is null) return null;
+
         SaveChartEditRecord();
-        _maidataDir = maidataDir;
-        _maidataPath = null;
-        _trackPath = null;
-        _coverPath = null;
-        Cover = null;
-        _videoPath = null;
+        _chartFolder = chart;
         _recordedChartPath = null;
         _chartEditTimer.Reset();
-        // scan
-        if (_maidataDir is not null)
-        {
-            _maidataPath = Path.GetFullPath(Path.Combine(_maidataDir, "maidata.txt"));
-            if (!File.Exists(_maidataPath)) return false;
-
-            _trackPath = _maidataDir + "/track.mp3";
-            if (!File.Exists(_trackPath)) _trackPath = _maidataDir + "/track.ogg";
-            if (!File.Exists(_trackPath)) return false;
-
-            _coverPath = Directory.EnumerateFiles(_maidataDir, "bg.*")
-                .FirstOrDefault(path =>
-                    !Path.GetFileName(path).StartsWith("bg-old.", StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(Path.GetExtension(path), ".mp4", StringComparison.OrdinalIgnoreCase));
-
-            _videoPath = Directory.EnumerateFiles(_maidataDir, "pv.*")
-                .FirstOrDefault(path => !Path.GetFileName(path).StartsWith("pv-old.", StringComparison.OrdinalIgnoreCase));
-            if (_videoPath is null) _videoPath = _maidataDir + "/bg.mp4";
-            if (!File.Exists(_videoPath)) _videoPath = "";
-
-            return true;
-        }
-        return false;
+        return chart;
     }
-    private string? _maidataDir;
-    private string? _maidataPath;
-    private string? _trackPath;
-    private string? _coverPath;
-    private string? _videoPath;
-    private void UpdateResources()
+
+    private ChartFolder? _chartFolder;
+
+    private async Task UpdateResourcesAsync()
     {
-        if (File.Exists(_trackPath)) TrackInfo = TrackReader.ReadTrack(_trackPath);
-        Cover = File.Exists(_coverPath) ? new Bitmap(_coverPath) : null;
+        TrackInfo = await ReadTrackInfoAsync(_chartFolder?.Track);
+        Cover = await ReadCoverAsync(_chartFolder?.Cover);
     }
-    private void LoadChartEditRecord(string chartPath)
+
+    /// <summary>
+    /// 读取音频波形信息。存储项一律读进内存再交给 miniaudio 解码：
+    /// <see cref="MiniAudio.Decoder"/> 的 file 入口内部也是先读全量再走内存解码，
+    /// 因此这里统一走流，桌面端与 Android / Browser 行为一致。
+    /// </summary>
+    private static async Task<TrackInfo?> ReadTrackInfoAsync(IStorageFile? file)
     {
-        var record = _chartEditMng.GetRecord(chartPath);
-        _recordedChartPath = chartPath;
+        if (file is null) return null;
+
+        var data = await ReadAllBytesAsync(file);
+        return await Task.Run(() => TrackReader.ReadTrack(data));
+    }
+
+    /// <summary>
+    /// 读取封面位图。同样统一从流解码，不依赖存储项是否落在本地文件系统上。
+    /// </summary>
+    private static async Task<Bitmap?> ReadCoverAsync(IStorageFile? file)
+    {
+        if (file is null) return null;
+
+        await using var stream = await file.OpenReadAsync();
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+        buffer.Position = 0;
+        return new Bitmap(buffer);
+    }
+
+    private static async Task<byte[]> ReadAllBytesAsync(IStorageFile file)
+    {
+        await using var stream = await file.OpenReadAsync();
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer);
+        return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// 把当前的 track/bg/pv 推给播放器。播放器侧要的是它自己能打开的路径，
+    /// 因此这里取存储项的 <see cref="IStorageItem.Path"/> 的本地路径；
+    /// 拿不到（Android 的 <c>content://</c>、Browser 沙箱）时传空串，
+    /// 这是协议约定的「该字段无法提供」的表达方式。
+    /// </summary>
+    private async Task PushResourcesToPlayerAsync()
+    {
+        if (!_player.IsConnected) return;
+        if (_chartFolder is not { Track: not null } folder) return;
+
+        await _player.FilesAsync(
+            folder.TrackLocalPath ?? string.Empty,
+            folder.CoverLocalPath ?? string.Empty,
+            folder.VideoLocalPath ?? string.Empty);
+    }
+
+    private void LoadChartEditRecord(string chartKey)
+    {
+        var record = _chartEditMng.GetRecord(chartKey);
+        _recordedChartPath = chartKey;
         SelectedDifficulty = record?.SelectedDifficulty ?? 0;
         PlayheadTime = record?.TrackTime ?? 0;
         _chartEditTimer.LoadAccumulated(record?.TotalEditDuration ?? TimeSpan.Zero);
@@ -667,8 +652,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public int ActiveConnectionCount => _player.ActiveConnectionCount;
 
     private readonly PlayerConnection _player;
+    // 播放态由编辑器自己的命令结果驱动（命令会等到播放器响应），不再从连接层回调。
     private ViewStatus _viewState = ViewStatus.Idle;
-    private TaskCompletionSource? _busyTcs; // 等待非Busy状态
 
     private bool _chartDirty; // 谱面解析被跳过（断连/播放中），待连接且空闲后补推
     private bool _pushedSetting; // 在任一连接完成之后，有至少一次settings提交
@@ -698,51 +683,58 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async Task NewFileAsync()
     {
         var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Track Files", ["track.mp3", "track.ogg"])]);
-        if (file == null) return;
-        var dir = Path.GetDirectoryName(file);
-        if (dir == null) return;
+        if (file is null) return;
 
-        File.Create(dir + "/maidata.txt");
-        // TODO: 这里应该弹窗提示
-        if (!UpdatePath(dir)) return;
+        // 谱面 = track 所在的目录。目录里没有 maidata.txt 时就地建一个空文件。
+        var folder = await file.GetParentAsync();
+        if (folder is null) return;
+
+        // TODO: 这里应该弹窗提示，目录里没有 track 文件，无法打开。
+        var chart = await OpenChartFolderAsync(folder, createMaidata: true);
+        if (chart is null) return;
         Maidata = MaidataFile.New();
 
-        UpdateResources();
+        await UpdateResourcesAsync();
         await LoadAsync();
     }
     [RelayCommand]
     public async Task OpenFileAsync()
     {
         var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Majdata Files", ["maidata.txt"])]);
-        if (file == null) return;
-        var dir = Path.GetDirectoryName(file);
-        if (dir == null) return;
+        if (file is null) return;
+
+        var folder = await file.GetParentAsync();
+        if (folder is null) return;
 
         // TODO: 这里应该弹窗提示，maidata.txt所在目录没有track文件，无法打开。
-        if (!UpdatePath(dir)) return;
-        Maidata = MaidataFile.Parse(File.ReadAllText(file));
-        UpdateResources();
+        var chart = await OpenChartFolderAsync(folder);
+        if (chart is null) return;
+        Maidata = MaidataFile.Parse(await chart.ReadMaidataAsync());
+        await UpdateResourcesAsync();
 
         await LoadAsync();
     }
     [RelayCommand]
     public async Task SaveFileAsync()
     {
-        if (!File.Exists(_maidataPath)) return;
+        if (_chartFolder is null) return;
         if (Maidata is null) return;
 
         var text = MaidataFile.Deparse(Maidata);
-        await File.WriteAllTextAsync(_maidataPath, text);
+        await _chartFolder.WriteMaidataAsync(text);
         Maidata.MarkAsSaved();
     }
     [RelayCommand]
     public async Task ReloadFileAsync()
     {
-        if (!Directory.Exists(_maidataDir)) return;
+        if (_chartFolder is null) return;
 
-        if (!UpdatePath(_maidataDir)) return;
-        Maidata = MaidataFile.Parse(_maidataPath!);
-        UpdateResources();
+        // OpenChartFolderAsync 内部会重新扫描目录，无需先 Refresh。
+        var chart = await OpenChartFolderAsync(_chartFolder.Folder);
+        if (chart is null) return;
+
+        Maidata = MaidataFile.Parse(await chart.ReadMaidataAsync());
+        await UpdateResourcesAsync();
         await LoadAsync();
     }
 
@@ -905,8 +897,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         PlayheadTime = time;
         MoveCaretToPlayhead(time);
 
-        if (_player.State is ViewStatus.Playing or ViewStatus.Paused)
-            _ = StopAsync(true);
+        if (_viewState is ViewStatus.Playing or ViewStatus.Paused)
+            _ = PauseAsync(true);
     }
 
     #endregion
@@ -915,19 +907,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #region Commands - 连接
 
-    public async Task WaitNotBusyAsync()
-    {
-        if (_viewState != ViewStatus.Busy)
-            return;
-
-        _busyTcs ??= new();
-        await _busyTcs.Task;
-    }
     private async Task EnsureSettingAsync()
     {
         if (_pushedSetting) return;
-        await _player.SettingAsync(Settings.ViewSetting, Settings.VolumeSetting);
-        _pushedSetting = true;
+        // 播放器拒绝（或没回应）时不算推过，下次再试。
+        _pushedSetting = await _player.OptionsAsync(Settings.ViewSetting, Settings.VolumeSetting);
     }
 
     private async Task SynchronizeConnectedPlayersAsync()
@@ -935,12 +919,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         await _syncGate.WaitAsync();
         try
         {
-            if (!_player.IsConnected || Maidata is null || _trackPath is null)
+            // 没有 track 就没有可推的资源；路径拿不到不再是阻断条件，
+            // FilesAsync 会用空串表达「该字段无法提供」。
+            if (!_player.IsConnected || Maidata is null || _chartFolder?.Track is null)
                 return;
             if (_viewState is ViewStatus.Playing or ViewStatus.Paused)
                 return;
 
-            await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
+            await PushResourcesToPlayerAsync();
             await EnsureSettingAsync();
             await ParseAsync();
         }
@@ -956,9 +942,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private async Task LoadAsync()
     {
-        if (_trackPath is null) return;
+        if (_chartFolder?.Track is null) return;
         if (!await _player.ConnectAsync()) return;
-        await _player.LoadAsync(_trackPath, _coverPath ?? string.Empty, _videoPath);
+        await PushResourcesToPlayerAsync();
         if (_chartDirty) await ParseAsync();
     }
     private async Task ParseAsync()
@@ -971,19 +957,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         _chartDirty = false;
         await EnsureSettingAsync();
-        await _player.ParseAsync(
+        await _player.SimaiAsync(
             Maidata.Fumens[SelectedDifficulty] ?? string.Empty,
-            ExtractClockCount(Maidata),
             Maidata.Offset,
             Maidata.Title,
             Maidata.Artist,
-            Maidata.Levels[SelectedDifficulty] ?? string.Empty,
             Maidata.Designer,
+            Maidata.Levels[SelectedDifficulty] ?? string.Empty,
             SelectedDifficulty);
     }
     public async Task PlayAsync(PlaybackMode mode)
     {
-        if (Maidata is null || _maidataDir is null) return;
+        if (Maidata is null) return;
         if (!await _player.ConnectAsync()) return;
 
         // 谱面在断连/播放期间改过的话，这里补推一次解析。
@@ -992,35 +977,32 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _lastPlayTime = PlayheadTime;
 
         await EnsureSettingAsync();
-        await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed, _maidataDir);
+        if (await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed))
+            EnterPlaying();
+        else
+            _viewState = ViewStatus.Error;
     }
-    public async Task PauseAsync()
-    {
-        // 能Pause了这些检查都可以撇了
-        //if (Maidata is null || _maidataDir is null) return;
-        //if (!await _player.ConnectAsync()) return;
-
-        await _player.PauseAsync();
-    }
-    public async Task ResumeAsync()
-    {
-        // 能Resume了这些检查都可以撇了
-        //if (Maidata is null || _maidataDir is null) return;
-        //if (!await _player.ConnectAsync()) return;
-
-        _lastPlayTime = PlayheadTime;
-
-        await _player.ResumeAsync();
-    }
-    /// <summary>Inspector 的停止键。</summary>
+    /// <summary>
+    /// 暂停/停止播放，两者在线格式上是同一个 Pause：停下后播放头回退到本段起点，
+    /// 除非 <paramref name="keepCurrentPlayhead"/>（拖动播放头后的停顿要停在原地）。
+    /// </summary>
     [RelayCommand]
-    public async Task StopAsync(bool? keepCurrentPlayhead)
+    public async Task PauseAsync(bool? keepCurrentPlayhead = false)
     {
         if (!await _player.ConnectAsync()) return;
-        await _player.StopAsync();
+
+        if (!await _player.PauseAsync())
+        {
+            _viewState = ViewStatus.Error;
+            return;
+        }
+
+        EnterPaused();
 
         await Task.Delay(33); // 这里等一下Tick结束
-        if (_lastPlayTime.HasValue && keepCurrentPlayhead != true)
+        // 纯暂停保留本段起点，交给之后的停止键回退；停止则用完即清。
+        if (keepCurrentPlayhead == true) return;
+        if (_lastPlayTime.HasValue)
             PlayheadTime = _lastPlayTime.Value;
         _lastPlayTime = null;
     }
@@ -1036,14 +1018,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         switch (_viewState)
         {
             case ViewStatus.Playing:
-                await PauseAsync();
+                await PauseAsync(true);
                 break;
-            case ViewStatus.Paused:
-                await ResumeAsync();
-                break;
-            case ViewStatus.Busy:
-                await WaitNotBusyAsync();
-                break;
+            // 协议没有独立的 Resume：从当前播放头重新发一次 Play 即为继续播放。
             default:
                 await PlayAsync(PlaybackMode.Normal);
                 break;
@@ -1059,13 +1036,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         switch (_viewState)
         {
             case ViewStatus.Playing:
-                await StopAsync(false);
-                break;
-            case ViewStatus.Paused:
-                await ResumeAsync();
-                break;
-            case ViewStatus.Busy:
-                await WaitNotBusyAsync();
+                await PauseAsync(false);
                 break;
             default:
                 await PlayAsync(PlaybackMode.Normal);
@@ -1079,16 +1050,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (Maidata is null) return;
         if (!IsConnected) return;
 
-        switch (_viewState)
-        {
-            case ViewStatus.Busy:
-                await WaitNotBusyAsync();
-                break;
-            default:
-                await PlayAsync(PlaybackMode.IncludeOp);
-                PlayheadTime -= 5;
-                break;
-        }
+        await PlayAsync(PlaybackMode.IncludeOp);
+        PlayheadTime -= 5;
     }
     /// <summary>Menu 的导出视频按键。</summary>
     [RelayCommand]
@@ -1097,15 +1060,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (Maidata is null) return;
         if (!IsConnected) return;
 
-        switch (_viewState)
-        {
-            case ViewStatus.Busy:
-                await WaitNotBusyAsync();
-                break;
-            default:
-                await PlayAsync(PlaybackMode.Record);
-                break;
-        }
+        await PlayAsync(PlaybackMode.Record);
     }
 
     //TODO: IncludeOp五秒延迟
@@ -1116,38 +1071,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
 
 
-    private void OnPlayerStateChanged(ViewStatus oldState, ViewStatus newState)
+    /// <summary>进入播放态：以当前播放头为基准，按当前倍速开始推进。</summary>
+    private void EnterPlaying()
     {
-        _viewState = newState;
-        if (newState == ViewStatus.Playing && oldState != ViewStatus.Playing)
-        {
-            // 对齐基准：进入 Playing 前（PlayStarted/PlayResumed）的事件已把镜像刷成本段起点。
-            _timelineClock.Reset();
-            _timelineOrigin = PlayheadTime;
-            _timelineSpeed = PlaybackSpeed;
-            _timelineClock.Restart();
-        }
-        if (newState == ViewStatus.Paused && oldState != ViewStatus.Paused)
-        {
-            _timelineClock.Stop();
-        }
-        // 让当前卡在等Busy的发送
-        if (newState != ViewStatus.Busy)
-        {
-            _busyTcs?.TrySetResult();
-            _busyTcs = null;
-        }
+        _viewState = ViewStatus.Playing;
+        _timelineClock.Reset();
+        _timelineOrigin = PlayheadTime;
+        _timelineSpeed = PlaybackSpeed;
+        _timelineClock.Restart();
     }
 
-    private static int ExtractClockCount(MaidataFile file)
+    /// <summary>进入暂停态：停住播放头。</summary>
+    private void EnterPaused()
     {
-        foreach (var cmd in file.Commands)
-        {
-            if (cmd.Key == "clock_count" && int.TryParse(cmd.Value, out var n))
-                return n;
-        }
-        return 0;
+        _viewState = ViewStatus.Paused;
+        _timelineClock.Stop();
     }
+
+
 
 
 

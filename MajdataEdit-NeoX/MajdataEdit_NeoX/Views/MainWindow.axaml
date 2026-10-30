@@ -12,6 +12,8 @@
         d:DesignWidth="630" d:DesignHeight="460"
         Width="680" Height="540"
 
+        Icon="/Assets/favicon.ico"
+
         Title="{Binding WindowTitle}"
         Plugins ="{Binding Plugins}"
 

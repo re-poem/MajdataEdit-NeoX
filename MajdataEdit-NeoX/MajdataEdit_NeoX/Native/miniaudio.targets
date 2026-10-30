@@ -19,10 +19,18 @@
 	<PropertyGroup Label="Miniaudio settings">
 		<MiniaudioRoot Condition="'$(MiniaudioRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\ThirdParty\miniaudio\</MiniaudioRoot>
 		<MiniaudioRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(MiniaudioRoot)'))</MiniaudioRoot>
-		<MiniaudioSourceFile>$(MiniaudioRoot)miniaudio.c</MiniaudioSourceFile>
+		<!--
+      Compile our own translation unit instead of the submodule's miniaudio.c:
+      it additionally pulls in extras/stb_vorbis.c so that Ogg/Vorbis decoding
+      exists at all. See miniaudio_vorbis.c for why.
+    -->
+		<MiniaudioSourceFile>$(MSBuildThisFileDirectory)miniaudio_vorbis.c</MiniaudioSourceFile>
 		<MiniaudioHeaderFile>$(MiniaudioRoot)miniaudio.h</MiniaudioHeaderFile>
+		<MiniaudioVorbisFile>$(MiniaudioRoot)extras\stb_vorbis.c</MiniaudioVorbisFile>
+		<!-- Include path for the submodule; trailing separator stripped so it survives quoting. -->
+		<MiniaudioIncludePath>$(MiniaudioRoot.TrimEnd('\').TrimEnd('/'))</MiniaudioIncludePath>
 
-		<!-- miniaudio.c already does #define MINIAUDIO_IMPLEMENTATION + #include "miniaudio.h" -->
+		<!-- miniaudio_vorbis.c does #define MINIAUDIO_IMPLEMENTATION + #include "miniaudio.h" (+ stb_vorbis) -->
 		<MiniaudioDefines Condition="'$(MiniaudioDefines)' == ''">MA_ENABLE_ONLY_SPECIFIC_BACKENDS;MA_NO_ENCODING;MA_NO_DEVICE_IO;MA_NO_RESOURCE_MANAGER;MA_NO_NODE_GRAPH;MA_NO_ENGINE</MiniaudioDefines>
 		<_MiniaClDefines>/D $(MiniaudioDefines.Replace(';', ' /D '))</_MiniaClDefines>
 		<_MiniaCcDefines>-D$(MiniaudioDefines.Replace(';', ' -D'))</_MiniaCcDefines>
@@ -68,6 +76,10 @@
 	<Target Name="_MiniaCheckSource">
 		<Error Condition="!Exists('$(MiniaudioSourceFile)')"
 			   Text="miniaudio source not found at '$(MiniaudioSourceFile)'. Run 'git submodule update --init --recursive', or set MiniaudioRoot." />
+		<Error Condition="!Exists('$(MiniaudioHeaderFile)')"
+			   Text="miniaudio header not found at '$(MiniaudioHeaderFile)'. Run 'git submodule update --init --recursive', or set MiniaudioRoot." />
+		<Error Condition="!Exists('$(MiniaudioVorbisFile)')"
+			   Text="stb_vorbis not found at '$(MiniaudioVorbisFile)'. Run 'git submodule update --init --recursive', or set MiniaudioRoot." />
 	</Target>
 
 	<!-- ===================== Desktop ===================== -->
@@ -97,7 +109,7 @@
 	<Target Name="_MiniaBuildDesktop"
 			Condition="'$(MiniaOutputTarget)' == 'desktop'"
 			DependsOnTargets="_MiniaCheckSource;_MiniaFindMsvc"
-			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
+			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MiniaudioVorbisFile);$(MSBuildThisFileFullPath)"
 			Outputs="$(_MiniaOutDir)$(_MiniaLibName)">
 
 		<Error Condition="'$(_MiniaLibName)' == ''" Text="miniaudio: unsupported desktop host OS." />
@@ -105,17 +117,17 @@
 
 		<!-- Windows: /MT so users don't need the VC++ redistributable; MA_DLL makes MA_API dllexport. -->
 		<Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-			  Command='call "$(_MiniaVcVars)" x64 &gt;NUL &amp;&amp; cl /nologo /LD /MT /O2 /W0 /D MA_DLL $(_MiniaClDefines) /Fo"$(_MiniaObjDir)miniaudio.obj" /Fe"$(_MiniaOutDir)miniaudio.dll" "$(MiniaudioSourceFile)"'
+			  Command='call "$(_MiniaVcVars)" x64 &gt;NUL &amp;&amp; cl /nologo /LD /MT /O2 /W0 /D MA_DLL /I "$(MiniaudioIncludePath)" $(_MiniaClDefines) /Fo"$(_MiniaObjDir)miniaudio.obj" /Fe"$(_MiniaOutDir)miniaudio.dll" "$(MiniaudioSourceFile)"'
 			  WorkingDirectory="$(_MiniaObjDir)" />
 		<Delete Condition="$([MSBuild]::IsOSPlatform('Windows'))"
 				Files="$(_MiniaOutDir)miniaudio.lib;$(_MiniaOutDir)miniaudio.exp" />
 
 		<!-- macOS: universal (arm64 + x86_64) dylib. -->
 		<Exec Condition="$([MSBuild]::IsOSPlatform('OSX'))"
-			  Command='$(MiniaCC) -dynamiclib -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=11.0 -install_name @rpath/libminiaudio.dylib $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.dylib" "$(MiniaudioSourceFile)"' />
+			  Command='$(MiniaCC) -dynamiclib -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=11.0 -install_name @rpath/libminiaudio.dylib -I "$(MiniaudioIncludePath)" $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.dylib" "$(MiniaudioSourceFile)"' />
 
 		<Exec Condition="$([MSBuild]::IsOSPlatform('Linux'))"
-			  Command='$(MiniaCC) -shared -fPIC -O2 $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.so" "$(MiniaudioSourceFile)" -lm -lpthread -ldl' />
+			  Command='$(MiniaCC) -shared -fPIC -O2 -I "$(MiniaudioIncludePath)" $(_MiniaCcDefines) -o "$(_MiniaOutDir)libminiaudio.so" "$(MiniaudioSourceFile)" -lm -lpthread -ldl' />
 	</Target>
 
 	<!-- ===================== iOS ===================== -->
@@ -143,10 +155,10 @@
 	<Target Name="_MiniaBuildIos"
 			Condition="'$(MiniaOutputTarget)' == 'ios' and $([MSBuild]::IsOSPlatform('OSX'))"
 			DependsOnTargets="_MiniaCheckSource;_MiniaPrepareIos"
-			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
+			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MiniaudioVorbisFile);$(MSBuildThisFileFullPath)"
 			Outputs="$(_MiniaIosOutDir)libminiaudio.a">
 		<MakeDir Directories="$(_MiniaIosOutDir);$(_MiniaObjDir)" />
-		<Exec Command='xcrun --sdk $(_MiniaIosSdk) clang -arch $(_MiniaIosArch) $(_MiniaIosMinFlag) -O2 -c $(_MiniaCcDefines) -o "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o" "$(MiniaudioSourceFile)"' />
+		<Exec Command='xcrun --sdk $(_MiniaIosSdk) clang -arch $(_MiniaIosArch) $(_MiniaIosMinFlag) -O2 -I "$(MiniaudioIncludePath)" -c $(_MiniaCcDefines) -o "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o" "$(MiniaudioSourceFile)"' />
 		<Delete Files="$(_MiniaIosOutDir)libminiaudio.a" />
 		<Exec Command='xcrun libtool -static -o "$(_MiniaIosOutDir)libminiaudio.a" "$(_MiniaObjDir)miniaudio-$(_MiniaIosRid).o"' />
 	</Target>
@@ -161,10 +173,10 @@
 	<Target Name="_MiniaBuildAndroid"
 			Condition="'$(MiniaOutputTarget)' == 'android' and '$(MiniaAndroidClang)' != ''"
 			DependsOnTargets="_MiniaCheckSource"
-			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MSBuildThisFileFullPath)"
+			Inputs="$(MiniaudioSourceFile);$(MiniaudioHeaderFile);$(MiniaudioVorbisFile);$(MSBuildThisFileFullPath)"
 			Outputs="@(_MiniaAbi->'$(_MiniaOutDir)%(Identity)/native/libminiaudio.so')">
 		<MakeDir Directories="$(_MiniaOutDir)%(_MiniaAbi.Identity)/native" />
-		<Exec Command='"$(MiniaAndroidClang)" --target=%(_MiniaAbi.Triple) -shared -fPIC -O2 -Wl,-z,max-page-size=16384 $(_MiniaCcDefines) -o "$(_MiniaOutDir)%(_MiniaAbi.Identity)/native/libminiaudio.so" "$(MiniaudioSourceFile)" -lm' />
+		<Exec Command='"$(MiniaAndroidClang)" --target=%(_MiniaAbi.Triple) -shared -fPIC -O2 -I "$(MiniaudioIncludePath)" -Wl,-z,max-page-size=16384 $(_MiniaCcDefines) -o "$(_MiniaOutDir)%(_MiniaAbi.Identity)/native/libminiaudio.so" "$(MiniaudioSourceFile)" -lm' />
 	</Target>
 
 </Project>

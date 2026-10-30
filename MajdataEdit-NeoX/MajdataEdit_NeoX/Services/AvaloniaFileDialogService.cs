@@ -16,7 +16,7 @@ namespace MajdataEdit_NeoX.Services;
 /// </summary>
 public sealed class AvaloniaFileDialogService(Func<IStorageProvider?> storageProviderAccessor) : IFileDialogService
 {
-    public async Task<string?> OpenFileAsync(string title, IReadOnlyList<FileDialogFilter> filters)
+    public async Task<IStorageFile?> OpenFileAsync(string title, IReadOnlyList<FileDialogFilter> filters)
     {
         var provider = storageProviderAccessor();
         if (provider is null) return null;
@@ -31,10 +31,10 @@ public sealed class AvaloniaFileDialogService(Func<IStorageProvider?> storagePro
         };
 
         var files = await provider.OpenFilePickerAsync(pickerOptions);
-        return files.Count >= 1 ? files[0].TryGetLocalPath() : null;
+        return files.Count >= 1 ? files[0] : null;
     }
 
-    public async Task<string?> SaveFileAsync(
+    public async Task<IStorageFile?> SaveFileAsync(
         string title,
         string? defaultFileName = null,
         IReadOnlyList<FileDialogFilter>? filters = null)
@@ -51,7 +51,6 @@ public sealed class AvaloniaFileDialogService(Func<IStorageProvider?> storagePro
                 .ToList(),
         };
 
-        var file = await provider.SaveFilePickerAsync(pickerOptions);
-        return file?.TryGetLocalPath();
+        return await provider.SaveFilePickerAsync(pickerOptions);
     }
 }

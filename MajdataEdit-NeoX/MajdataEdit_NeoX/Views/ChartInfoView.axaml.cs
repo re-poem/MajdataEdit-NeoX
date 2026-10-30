@@ -64,8 +64,8 @@ namespace MajdataEdit_NeoX.Views
             });
 
             if (files.Count == 0) return;
-            if (files[0].TryGetLocalPath() is { } path && ImportBgCover?.CanExecute(path) == true)
-                ImportBgCover.Execute(path);
+            if (ImportBgCover?.CanExecute(files[0]) == true)
+                ImportBgCover.Execute(files[0]);
         }
 
         [RelayCommand]
@@ -82,8 +82,8 @@ namespace MajdataEdit_NeoX.Views
             });
 
             if (files.Count == 0) return;
-            if (files[0].TryGetLocalPath() is { } path && ImportBgVideo?.CanExecute(path) == true)
-                ImportBgVideo.Execute(path);
+            if (ImportBgVideo?.CanExecute(files[0]) == true)
+                ImportBgVideo.Execute(files[0]);
         }
     }
 }

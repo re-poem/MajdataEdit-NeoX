@@ -17,6 +17,9 @@
 		<vm:MainViewModel />
 	</Design.DataContext>
 
-	<dock:DockControl Layout="{Binding Layout}" />
+	<Grid>
+		<dock:DockControl Layout="{Binding Layout}" />
+		<v:MobileMenuView x:Name="MobileMenu" IsVisible="False" />
+	</Grid>
 
 </UserControl>

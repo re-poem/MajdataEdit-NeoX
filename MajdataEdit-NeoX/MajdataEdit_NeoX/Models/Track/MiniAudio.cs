@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace MajdataEdit_NeoX.Models.Track;
@@ -33,6 +34,8 @@ internal static partial class MiniAudio
     {
         private IntPtr _decoder;
         private bool _disposed;
+        // FromMemory 时固定住托管缓冲区：ma_decoder 会长期持有这个指针，不能用 fixed 块。
+        private GCHandle _pinnedData;
 
         public MaFormat Format { get; }
         public uint Channels { get; }
@@ -50,43 +53,85 @@ internal static partial class MiniAudio
             BytesPerFrame = bytesPerFrame;
         }
 
+        /// <summary>
+        /// 从文件路径解码。实现上先读进内存再走 <see cref="FromMemory"/>，原因有两个：
+        ///
+        /// 1. Windows 上 ma_decoder_init_file 走 ANSI 代码页，中日文路径会失败。原本改用
+        ///    宽字符版本 ma_decoder_init_file_w，但 _w 变体没有 vorbis 的 file-specific
+        ///    backend 分支，会退回通用 VFS 回调，使 stb_vorbis 走 push 模式；而
+        ///    ma_stbvorbis_get_length_in_pcm_frames 在 push 模式下固定返回 0，
+        ///    结果就是 ogg 的时长和波形全空。
+        /// 2. 统一成内存路径后，桌面端与 Android/Browser（本来就没有本地路径）行为一致。
+        /// </summary>
         public static Decoder FromFile(string filePath)
         {
             ArgumentNullException.ThrowIfNull(filePath);
+            return FromMemory(File.ReadAllBytes(filePath));
+        }
 
+        /// <summary>
+        /// 直接从内存里的完整文件内容解码。用于拿不到本地路径的存储项
+        /// （Android 的 <c>content://</c>、Browser 沙箱），免去把音频落到临时文件。
+        /// </summary>
+        public static Decoder FromMemory(byte[] data)
+        {
+            ArgumentNullException.ThrowIfNull(data);
+            if (data.Length == 0)
+                throw new ArgumentException("Empty audio buffer.", nameof(data));
+
+            var decoder = AllocateDecoder();
+            // 先 pin 住：init 之后 ma_decoder 会一直用这个地址读
+            var pinned = GCHandle.Alloc(data, GCHandleType.Pinned);
+
+            int result;
+            unsafe
+            {
+                result = Native.ma_decoder_init_memory(
+                    (byte*)pinned.AddrOfPinnedObject(), (nuint)data.Length, IntPtr.Zero, decoder);
+            }
+
+            if (result != MA_SUCCESS)
+            {
+                pinned.Free();
+                Marshal.FreeHGlobal(decoder);
+                throw new InvalidOperationException($"ma_decoder_init_memory failed: {result}");
+            }
+
+            return CompleteInit(decoder, pinned);
+        }
+
+        private static IntPtr AllocateDecoder()
+        {
             var decoder = Marshal.AllocHGlobal(DecoderStructSize);
             unsafe
             {
                 new Span<byte>((void*)decoder, DecoderStructSize).Clear();
             }
+            return decoder;
+        }
 
-            // Windows 上 ma_decoder_init_file 走 ANSI 代码页，中日文路径会失败，改用宽字符版本
-            var result = OperatingSystem.IsWindows()
-                ? Native.ma_decoder_init_file_w(filePath, IntPtr.Zero, decoder)
-                : Native.ma_decoder_init_file(filePath, IntPtr.Zero, decoder);
-
-            if (result != MA_SUCCESS)
-            {
-                Marshal.FreeHGlobal(decoder);
-                throw new InvalidOperationException($"ma_decoder_init_file failed: {result} for '{filePath}'");
-            }
-
-            // init 成功之后，任何失败都必须先 uninit 再释放内存
+        /// <summary>init 成功之后，任何失败都必须先 uninit 再释放内存。</summary>
+        private static Decoder CompleteInit(IntPtr decoder, GCHandle pinnedData)
+        {
             try
             {
-                result = Native.ma_decoder_get_data_format(decoder, out var format, out var channels, out var sampleRate, IntPtr.Zero, 0);
+                var result = Native.ma_decoder_get_data_format(decoder, out var format, out var channels, out var sampleRate, IntPtr.Zero, 0);
                 if (result != MA_SUCCESS)
                     throw new InvalidOperationException($"ma_decoder_get_data_format failed: {result}");
                 if (channels == 0)
                     throw new InvalidOperationException("Decoder reported 0 channels.");
 
                 var bytesPerFrame = GetBytesPerSample(format) * (int)channels;
-                return new Decoder(decoder, format, channels, sampleRate, bytesPerFrame);
+                return new Decoder(decoder, format, channels, sampleRate, bytesPerFrame)
+                {
+                    _pinnedData = pinnedData,
+                };
             }
             catch
             {
                 Native.ma_decoder_uninit(decoder);
                 Marshal.FreeHGlobal(decoder);
+                if (pinnedData.IsAllocated) pinnedData.Free();
                 throw;
             }
         }
@@ -152,6 +197,8 @@ internal static partial class MiniAudio
                 Marshal.FreeHGlobal(_decoder);
                 _decoder = IntPtr.Zero;
             }
+
+            if (_pinnedData.IsAllocated) _pinnedData.Free();
         }
 
         private void ThrowIfDisposed()
@@ -172,12 +219,8 @@ internal static partial class MiniAudio
 
     private static partial class Native
     {
-        [LibraryImport(LibraryName, EntryPoint = "ma_decoder_init_file", StringMarshalling = StringMarshalling.Utf8)]
-        public static partial int ma_decoder_init_file(string pFilePath, IntPtr pConfig, IntPtr pDecoder);
-
-        // wchar_t 在 Windows 上是 UTF-16，所以只在 Windows 调用这个
-        [LibraryImport(LibraryName, EntryPoint = "ma_decoder_init_file_w", StringMarshalling = StringMarshalling.Utf16)]
-        public static partial int ma_decoder_init_file_w(string pFilePath, IntPtr pConfig, IntPtr pDecoder);
+        [LibraryImport(LibraryName, EntryPoint = "ma_decoder_init_memory")]
+        public static unsafe partial int ma_decoder_init_memory(byte* pData, nuint dataSize, IntPtr pConfig, IntPtr pDecoder);
 
         [LibraryImport(LibraryName, EntryPoint = "ma_decoder_uninit")]
         public static partial int ma_decoder_uninit(IntPtr pDecoder);

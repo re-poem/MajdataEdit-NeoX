@@ -36,13 +36,14 @@
 		<PackageReference Include="Dock.Serializer.SystemTextJson" />
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
-		<PackageReference Include="MajProtocol" />
+		<PackageReference Include="MajProtocol.Standard" />
 		<PackageReference Include="Microsoft.Data.Sqlite" />
 		<PackageReference Include="NuGet.Versioning" />
 		<PackageReference Include="NLua" />
 		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
 		<PackageReference Include="PropertyGenerator.Avalonia" />
 		<PackageReference Include="SkiaSharp" />
+		<PackageReference Include="WebSocketSharp-netstandard" />
 	</ItemGroup>
 
 	<ItemGroup>

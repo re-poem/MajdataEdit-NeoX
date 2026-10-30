@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+             x:Class="MajdataEdit_NeoX.Views.MobileMenuView"
+             x:DataType="vm:MainViewModel">
+    <UserControl.Styles>
+        <Style Selector="Button.drawerItem">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="MinHeight" Value="48"/>
+            <Setter Property="Padding" Value="28,8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Expander.drawerGroup">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- 遮罩在抽屉关闭时不拦截编辑器的触摸。 -->
+        <Border x:Name="Scrim" Background="#99000000" IsVisible="False" PointerPressed="CloseOnScrim"/>
+        <Border x:Name="Drawer" Width="200" HorizontalAlignment="Left"
+                Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                BoxShadow="2 0 12 0 #55000000" IsHitTestVisible="False">
+            <Border.RenderTransform>
+                <TranslateTransform X="-200">
+                    <TranslateTransform.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="X" Duration="0:0:0.2"/>
+                        </Transitions>
+                    </TranslateTransform.Transitions>
+                </TranslateTransform>
+            </Border.RenderTransform>
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" Height="64" ColumnDefinitions="*,Auto" Margin="16,0,8,0">
+                    <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Text="{Binding WindowTitle}"/>
+                    <Button Grid.Column="1" Width="48" Height="48" VerticalAlignment="Center"
+                            Content="✕" Click="CloseDrawer"/>
+                </Grid>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8,0,8,24">
+                        <Expander Classes="drawerGroup" Header="{ll:Localize Gui_File}">
+                            <StackPanel>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_New}" Command="{Binding NewFileCommand}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_Open}" Command="{Binding OpenFileCommand}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_Save}" Command="{Binding SaveFileCommand}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_Reload}" Command="{Binding ReloadFileCommand}" Click="CloseDrawer"/>
+                                <Separator/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Win_Recover}" Command="{Binding OpenRecoverCommand}" Click="CloseDrawer"/>
+                                <Separator/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_ExportVideo}" Command="{Binding PlayRecordCommand}" Click="CloseDrawer"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Classes="drawerGroup" Header="{ll:Localize Gui_Edit}">
+                            <StackPanel>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_ChartInfo}" Command="{Binding OpenChartInfoCommand}" Click="CloseDrawer"/>
+                                <StackPanel x:Name="PluginItems"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Classes="drawerGroup" Header="{ll:Localize Gui_Setting}">
+                            <StackPanel>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_Setting}" Command="{Binding OpenSettingsCommand}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateAsyncCommand}" CommandParameter="False" Click="CloseDrawer"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Classes="drawerGroup" Header="{ll:Localize Gui_Tools}">
+                            <StackPanel>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_BpmTap}" Command="{Binding OpenBpmTapCommand}" Click="CloseDrawer"/>
+                                <Separator/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Classes="drawerGroup" Header="{ll:Localize Gui_About}">
+                            <StackPanel>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_ShortcutOverview}" Command="{Binding OpenShortcutCommand}" Click="CloseDrawer"/>
+                                <Separator/>
+                                <Button Classes="drawerItem" Content="Discord" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.Discord}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="QQ" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.QQ}" Click="CloseDrawer"/>
+                                <Separator/>
+                                <Button Classes="drawerItem" Content="Github" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="Github (ViewX)" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub_ViewX}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="Majnet" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.MajNet}" Click="CloseDrawer"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+        <Button x:Name="MenuButton" Width="56" Height="56" CornerRadius="28"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16"
+                Background="#FF0078D4" Foreground="White"
+                Click="ToggleDrawer" ToolTip.Tip="Menu">
+            <PathIcon Width="24" Height="24" Data="M3,5 H21 V7 H3 Z M3,11 H21 V13 H3 Z M3,17 H21 V19 H3 Z"/>
+        </Button>
+    </Grid>
+</UserControl>
