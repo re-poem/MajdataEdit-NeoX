@@ -60,6 +60,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _player.OnConnectedChanged += connected =>
         {
             _pushedSetting = false;
+            _pushedLoaded = false;
             _chartDirty = true;
             OnPropertyChanged(nameof(IsConnected));
             OnPropertyChanged(nameof(ActiveConnectionCount));
@@ -573,7 +574,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (!_player.IsConnected) return;
         if (_chartFolder is not { Track: not null } folder) return;
 
-        await _player.FilesAsync(
+        _pushedLoaded = await _player.FilesAsync(
             folder.TrackLocalPath ?? string.Empty,
             folder.CoverLocalPath ?? string.Empty,
             folder.VideoLocalPath ?? string.Empty);
@@ -661,6 +662,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private bool _chartDirty; // 谱面解析被跳过（断连/播放中），待连接且空闲后补推
     private bool _pushedSetting; // 在任一连接完成之后，有至少一次settings提交
+    private bool _pushedLoaded; // 在任一连接完成之后，有至少一次Files请求
     private readonly SemaphoreSlim _syncGate = new(1, 1);
 
     // 播放期间的时间线跟踪：本地 Stopwatch 推算（origin + elapsed × speed），
@@ -955,7 +957,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             // 播放器拒绝（或没回应）时不算推过，下次再试。
             _pushedSetting = await _player.OptionsAsync(Settings.ViewSetting, Settings.VolumeSetting);
         }
-        if (_viewState is not (ViewStatus.Loaded or ViewStatus.Paused))
+        if (!_pushedLoaded)
         {
             await PushResourcesToPlayerAsync();
         }
@@ -1017,12 +1019,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (Maidata is null) return;
         if (!await _player.ConnectAsync()) return;
 
-        // 谱面在断连/播放期间改过的话，这里补推一次解析。
-        if (_chartDirty)
-            await ParseAsync();
         _lastPlayTime = PlayheadTime;
 
         await EnsurePlayableAsync();
+        // 谱面在断连/播放期间改过的话，这里补推一次解析。要在options之后
+        if (_chartDirty)
+            await ParseAsync();
+
         if (await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed))
             EnterPlaying();
         else
