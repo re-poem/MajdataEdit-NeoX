@@ -16,31 +16,23 @@
   </ItemGroup>
 
   <!--
-    miniaudio native build for iOS: the targets file compiles miniaudio.c
-    (per iOS SDK arch) and lipo-combines the .o files into a single
-    libminiaudio.a under runtimes/ios/native/. The .a is then statically
-    linked into the final IPA via <NativeReference Kind="Static"
-    ForceLoad="true"/> (force-load ensures miniaudio's symbols are
-    retained even if the linker considers them unreferenced).
-
-    The wrapper uses LibraryImport("__Internal") on iOS to bind the
-    symbols from the main executable (where the .a was statically
-    linked into).
-
-    Only runs on macOS hosts (uses xcrun + Xcode toolchain).
+    ffmpeg 原生库（波形解码用）来自同级的 MajdataViewX 仓库，以静态库形式链接进主可执行文件
+    （ForceLoad 保证不被链接器裁掉）。libFFmpegUnityBridge 依赖 Unity，这里不带。
   -->
   <PropertyGroup>
-    <MiniaOutputTarget>ios</MiniaOutputTarget>
-    <MiniaOutputDir>$(MSBuildThisFileDirectory)..\MajdataEdit_NeoX\runtimes\ios</MiniaOutputDir>
+    <FFmpegNativeRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\MajdataViewX\Assets\Plugins\MajdataPlay\FFmpeg\Native'))</FFmpegNativeRoot>
+    <FFmpegIosDir>$(FFmpegNativeRoot)\iOS</FFmpegIosDir>
   </PropertyGroup>
 
-  <Import Project="..\MajdataEdit_NeoX\Native\miniaudio.targets" />
+  <Target Name="CheckFFmpegIosNative" BeforeTargets="PrepareForBuild" Condition="!Exists('$(FFmpegIosDir)')">
+    <Error Text="找不到 ffmpeg 原生库：$(FFmpegIosDir)。请把 MajdataViewX clone 到与本仓库同级的目录（$(FFmpegNativeRoot)）后再编译。" />
+  </Target>
 
-  <ItemGroup Condition="Exists('..\MajdataEdit_NeoX\runtimes\ios\$(RuntimeIdentifier)\libminiaudio.a')">
-    <NativeReference Include="..\MajdataEdit_NeoX\runtimes\ios\$(RuntimeIdentifier)\libminiaudio.a">
+  <ItemGroup>
+    <NativeReference Include="$(FFmpegIosDir)\libav*.a;$(FFmpegIosDir)\libsw*.a">
       <Kind>Static</Kind>
       <ForceLoad>true</ForceLoad>
-      <Link>libminiaudio.a</Link>
+      <Link>%(Filename)%(Extension)</Link>
     </NativeReference>
   </ItemGroup>
 </Project>

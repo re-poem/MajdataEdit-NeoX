@@ -44,13 +44,15 @@ public enum AboutPages { Discord, QQ, GitHub, GitHub_ViewX, MajNet }
 public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     // Design
-    public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
+    public MainViewModel() : this(new AvaloniaFileDialogService(() => null), new AvaloniaMessageService(() => null)) { }
 
     private readonly IFileDialogService _fileDialog;
+    private readonly IMessageService _message;
     public IEditorService? Editor { get; set; }
-    public MainViewModel(IFileDialogService fileDialog)
+    public MainViewModel(IFileDialogService fileDialog, IMessageService message)
     {
         _fileDialog = fileDialog;
+        _message = message;
 
         LoadSettings();
         LocalizationService.Default.SelectCulture(Language);
@@ -226,7 +228,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             VolumeSettingPropertyNames.Contains(settingName))
         {
             _pushedSetting = false;
-            _ = EnsureSettingAsync();
+            _ = EnsurePlayableAsync();
         }
 
         OnPropertyChanged(settingName);
@@ -524,16 +526,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
     /// <summary>
-    /// 读取音频波形信息。存储项一律读进内存再交给 miniaudio 解码：
-    /// <see cref="MiniAudio.Decoder"/> 的 file 入口内部也是先读全量再走内存解码，
-    /// 因此这里统一走流，桌面端与 Android / Browser 行为一致。
+    /// 读取音频波形信息。存储项一律读进内存再交给 ffmpeg 解码：
+    /// 内存解码对拿不到本地路径的存储项同样适用，桌面端与 Android / Browser 行为一致。
     /// </summary>
     private static async Task<TrackInfo?> ReadTrackInfoAsync(IStorageFile? file)
     {
         if (file is null) return null;
 
         var data = await ReadAllBytesAsync(file);
-        return await Task.Run(() => TrackReader.ReadTrack(data));
+        try
+        {
+            return await Task.Run(() => TrackReader.ReadTrack(data));
+        }
+        catch { return null; /* 吞了 */ }
     }
 
     /// <summary>
@@ -679,19 +684,56 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #region Commands - 窗口
 
+    // 选择谱面用的过滤器。Android 的选择器只认 MIME，见 FileDialogFilter。
+    private static readonly FileDialogFilter[] TrackFileFilter =
+        [new FileDialogFilter("Track Files", ["track.mp3", "track.ogg"], ["audio/mpeg", "audio/ogg"])];
+    private static readonly FileDialogFilter[] MaidataFileFilter =
+        [new FileDialogFilter("Majdata Files", ["maidata.txt"], ["text/plain"])];
+
+    /// <summary>
+    /// 平台是否可靠支持"选中文件 → 取它的父目录"。
+    ///
+    /// Android 的 <c>content://</c> 上 <c>GetParentAsync</c> 会返回
+    /// <c>file:///document/…</c> 这种文件系统里不存在的目录（枚举时
+    /// <c>DocumentsContract.GetTreeDocumentId</c> 直接抛异常），Browser 的实现恒返回
+    /// <c>null</c>，两者都改成让用户直接选目录。桌面与 iOS 保持选文件。
+    /// 可写，方便测试/诊断强制走某一条分支。
+    /// </summary>
+    public static bool PreferFolderPicker { get; set; } =
+        OperatingSystem.IsAndroid() || OperatingSystem.IsBrowser();
+
+    /// <summary>
+    /// 选一个谱面目录：支持父目录的平台由所选文件换算，其余平台直接选目录。
+    /// 用户取消返回 <c>null</c>；换算不出目录时提示后返回 <c>null</c>。
+    /// </summary>
+    private async Task<IStorageFolder?> PickChartFolderAsync(string title, IReadOnlyList<FileDialogFilter> filters)
+    {
+        if (PreferFolderPicker)
+            return await _fileDialog.OpenFolderAsync(title);
+
+        var file = await _fileDialog.OpenFileAsync(title, filters);
+        if (file is null) return null;
+
+        var folder = await file.GetParentAsync();
+        if (folder is null)
+            await MessageErrorAsync(LangKeys.Gui_NoParentFolder);
+        return folder;
+    }
+
     [RelayCommand]
     public async Task NewFileAsync()
     {
-        var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Track Files", ["track.mp3", "track.ogg"])]);
-        if (file is null) return;
-
         // 谱面 = track 所在的目录。目录里没有 maidata.txt 时就地建一个空文件。
-        var folder = await file.GetParentAsync();
+        var folder = await PickChartFolderAsync(LocalizationService.Default[LangKeys.Gui_Open], TrackFileFilter);
         if (folder is null) return;
 
-        // TODO: 这里应该弹窗提示，目录里没有 track 文件，无法打开。
         var chart = await OpenChartFolderAsync(folder, createMaidata: true);
-        if (chart is null) return;
+        if (chart is null)
+        {
+            await MessageErrorAsync(LangKeys.Gui_NoTrackFile);
+            return;
+        }
+
         Maidata = MaidataFile.New();
 
         await UpdateResourcesAsync();
@@ -700,15 +742,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public async Task OpenFileAsync()
     {
-        var file = await _fileDialog.OpenFileAsync(LocalizationService.Default[LangKeys.Gui_Open], [new FileDialogFilter("Majdata Files", ["maidata.txt"])]);
-        if (file is null) return;
-
-        var folder = await file.GetParentAsync();
+        var folder = await PickChartFolderAsync(LocalizationService.Default[LangKeys.Gui_Open], MaidataFileFilter);
         if (folder is null) return;
 
-        // TODO: 这里应该弹窗提示，maidata.txt所在目录没有track文件，无法打开。
         var chart = await OpenChartFolderAsync(folder);
-        if (chart is null) return;
+        if (chart is null)
+        {
+            await MessageErrorAsync(LangKeys.Gui_NoTrackFile);
+            return;
+        }
+
         Maidata = MaidataFile.Parse(await chart.ReadMaidataAsync());
         await UpdateResourcesAsync();
 
@@ -816,6 +859,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
 
+    private Task MessageErrorAsync(string messageKey) =>
+    _message.ShowAsync(LocalizationService.Default[LangKeys.Gui_Error], LocalizationService.Default[messageKey]);
+
+
     #region 快捷键
 
     // 插件动作的快捷键挂在独立 owner 下,插件重载时整批换掉,不影响内置快捷键。
@@ -891,14 +938,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
 
+    // 手动滑动时调用
     [RelayCommand]
-    public void SeekPlayheadTime(double time)
+    public async Task SeekPlayheadTime(double time)
     {
         PlayheadTime = time;
         MoveCaretToPlayhead(time);
 
-        if (_viewState is ViewStatus.Playing or ViewStatus.Paused)
-            _ = PauseAsync(true);
+        if (_viewState is ViewStatus.Playing)
+        {
+            await PauseAsync(true);
+        }
     }
 
     #endregion
@@ -907,11 +957,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #region Commands - 连接
 
-    private async Task EnsureSettingAsync()
+    private async Task EnsurePlayableAsync()
     {
-        if (_pushedSetting) return;
-        // 播放器拒绝（或没回应）时不算推过，下次再试。
-        _pushedSetting = await _player.OptionsAsync(Settings.ViewSetting, Settings.VolumeSetting);
+        if (!_pushedSetting)
+        {
+            // 播放器拒绝（或没回应）时不算推过，下次再试。
+            _pushedSetting = await _player.OptionsAsync(Settings.ViewSetting, Settings.VolumeSetting);
+        }
+        if (_viewState is not (ViewStatus.Loaded or ViewStatus.Paused))
+        {
+            await PushResourcesToPlayerAsync();
+        }
     }
 
     private async Task SynchronizeConnectedPlayersAsync()
@@ -927,12 +983,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 return;
 
             await PushResourcesToPlayerAsync();
-            await EnsureSettingAsync();
+            await EnsurePlayableAsync();
             await ParseAsync();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[MainViewModel] player sync: {ex.Message}");
+            Debug.WriteLine($"[MainViewModel] player sync: {ex.Message}");
         }
         finally
         {
@@ -950,13 +1006,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task ParseAsync()
     {
         if (Maidata is null) return;
-        if (!_player.IsConnected || _viewState is ViewStatus.Playing or ViewStatus.Paused)
+        if (!_player.IsConnected || _viewState is ViewStatus.Playing)
         {
             _chartDirty = true;
             return;
         }
         _chartDirty = false;
-        await EnsureSettingAsync();
+        await EnsurePlayableAsync();
         await _player.SimaiAsync(
             Maidata.Fumens[SelectedDifficulty] ?? string.Empty,
             Maidata.Offset,
@@ -976,7 +1032,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await ParseAsync();
         _lastPlayTime = PlayheadTime;
 
-        await EnsureSettingAsync();
+        await EnsurePlayableAsync();
         if (await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed))
             EnterPlaying();
         else

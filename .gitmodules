@@ -1,6 +1,3 @@
-[submodule "miniaudio"]
-	path = ThirdParty/miniaudio
-	url = https://github.com/mackron/miniaudio
 [submodule "Avalonia.PropertyGrid"]
 	path = ThirdParty/Avalonia.PropertyGrid
 	url = https://github.com/re-poem/Avalonia.PropertyGrid

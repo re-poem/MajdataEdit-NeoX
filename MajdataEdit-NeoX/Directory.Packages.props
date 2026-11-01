@@ -25,6 +25,8 @@
     <PackageVersion Include="Dock.Model.Mvvm" Version="12.1.0.12" />
     <PackageVersion Include="Dock.Serializer.Newtonsoft" Version="12.1.0.12" />
     <PackageVersion Include="Dock.Serializer.SystemTextJson" Version="12.1.0.12" />
+    <!-- 波形解码用 ffmpeg，原生库：桌面随同目录部署的 MajdataViewX 分发（运行期 MajEnv.FFmpegLibraryPath 引用），
+         移动端由 Android/iOS csproj 打进包体。见 Models/Track/FfmpegAudio.cs -->
     <PackageVersion Include="FFmpeg.AutoGen" Version="9.0.1.1" />
     <PackageVersion Include="FluentAvaloniaUI" Version="3.1.0" />
     <PackageVersion Include="MajProtocol.Standard" Version="2.0.1" />

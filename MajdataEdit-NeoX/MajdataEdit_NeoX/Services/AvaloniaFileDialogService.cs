@@ -25,13 +25,24 @@ public sealed class AvaloniaFileDialogService(Func<IStorageProvider?> storagePro
         {
             Title = title,
             AllowMultiple = false,
-            FileTypeFilter = filters
-                .Select(f => new FilePickerFileType(f.Name) { Patterns = f.Patterns.ToList() })
-                .ToList(),
+            FileTypeFilter = ToFileTypes(filters),
         };
 
         var files = await provider.OpenFilePickerAsync(pickerOptions);
         return files.Count >= 1 ? files[0] : null;
+    }
+
+    public async Task<IStorageFolder?> OpenFolderAsync(string title)
+    {
+        var provider = storageProviderAccessor();
+        if (provider is null) return null;
+
+        var folders = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+        });
+        return folders.Count >= 1 ? folders[0] : null;
     }
 
     public async Task<IStorageFile?> SaveFileAsync(
@@ -46,11 +57,23 @@ public sealed class AvaloniaFileDialogService(Func<IStorageProvider?> storagePro
         {
             Title = title,
             SuggestedFileName = defaultFileName,
-            FileTypeChoices = filters?
-                .Select(f => new FilePickerFileType(f.Name) { Patterns = f.Patterns.ToList() })
-                .ToList(),
+            FileTypeChoices = filters is null ? null : ToFileTypes(filters),
         };
 
         return await provider.SaveFilePickerAsync(pickerOptions);
     }
+
+    /// <summary>
+    /// 过滤器同时带 <see cref="FilePickerFileType.Patterns"/> 与
+    /// <see cref="FilePickerFileType.MimeTypes"/>：桌面/iOS 按扩展名筛，
+    /// Android 只认 MIME（只给扩展名时筛选会被忽略成 <c>*/*</c>）。
+    /// </summary>
+    private static List<FilePickerFileType> ToFileTypes(IReadOnlyList<FileDialogFilter> filters) =>
+        filters
+            .Select(f => new FilePickerFileType(f.Name)
+            {
+                Patterns = f.Patterns.ToList(),
+                MimeTypes = f.MimeTypes?.ToList(),
+            })
+            .ToList();
 }

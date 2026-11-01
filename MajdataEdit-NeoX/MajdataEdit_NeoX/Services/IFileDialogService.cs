@@ -17,6 +17,17 @@ public interface IFileDialogService
     Task<IStorageFile?> OpenFileAsync(string title, IReadOnlyList<FileDialogFilter> filters);
 
     /// <summary>
+    /// 弹出"打开文件夹"对话框。返回用户选择的存储项；用户取消返回 <c>null</c>。
+    ///
+    /// 谱面本身就是一个目录（<c>maidata.txt</c> + <c>track</c> + <c>bg</c>/<c>pv</c>），而
+    /// Android 的 <c>content://</c> 与 Browser 沙箱拿不到"选中文件的父目录"
+    /// （前者 <c>GetParentAsync</c> 返回一个 <c>file://</c> 假目录，后者直接返回 <c>null</c>），
+    /// 所以这些平台改为让用户直接选目录。
+    /// </summary>
+    /// <param name="title">对话框标题。</param>
+    Task<IStorageFolder?> OpenFolderAsync(string title);
+
+    /// <summary>
     /// 弹出"另存为"对话框。返回用户选择的存储项；用户取消返回 <c>null</c>。
     /// </summary>
     /// <param name="title">对话框标题。</param>
@@ -32,4 +43,13 @@ public interface IFileDialogService
 /// 一个文件类型过滤器项。Maps 到 Avalonia 的 <c>FilePickerFileType</c>。
 /// 平台无关，避免把 Avalonia 类型泄漏到接口调用方。
 /// </summary>
-public sealed record FileDialogFilter(string Name, IReadOnlyList<string> Patterns);
+/// <param name="Name">过滤器显示名。</param>
+/// <param name="Patterns">扩展名通配符，桌面与 iOS 用。</param>
+/// <param name="MimeTypes">
+/// MIME 类型，Android 用：Android 的选择器只认 <c>MimeTypes</c>，
+/// 只给 <paramref name="Patterns"/> 时筛选会被忽略（等于 <c>*/*</c>）。
+/// </param>
+public sealed record FileDialogFilter(
+    string Name,
+    IReadOnlyList<string> Patterns,
+    IReadOnlyList<string>? MimeTypes = null);

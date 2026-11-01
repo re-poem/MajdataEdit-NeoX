@@ -43,6 +43,25 @@ public static partial class MajEnv
     public static string LuaPluginsPath => GetPath("Plugins");
 
     /// <summary>
+    /// ffmpeg 原生库位置（波形解码用，见 Models/Track/FFmpegAudio.cs）。
+    /// 桌面端与 MajdataViewX 一起打包，直接引用随 View 分发的库（Plugins/x86_64）；
+    /// 移动端和 Browser 上库是打进包体的，交给 dlopen 的搜索路径，返回空串。
+    /// </summary>
+    public static string FFmpegLibraryPath
+    {
+        get
+        {
+            if (OperatingSystem.IsAndroid() || OperatingSystem.IsIOS() || OperatingSystem.IsBrowser())
+                return string.Empty;
+
+            // 与 LaunchViewIfNotRunning 一致：桌面端 MajdataViewX 与编辑器同目录部署
+            return OperatingSystem.IsMacOS()
+                ? GetPath(Path.Combine("MajdataViewX.app", "Contents", "Plugins", "x86_64"))
+                : GetPath(Path.Combine("MajdataViewX_Data", "Plugins", "x86_64"));
+        }
+    }
+
+    /// <summary>
     /// Copies editable defaults out of the package into the writable app-data directory.
     /// Existing files are deliberately preserved so user changes survive upgrades.
     /// </summary>

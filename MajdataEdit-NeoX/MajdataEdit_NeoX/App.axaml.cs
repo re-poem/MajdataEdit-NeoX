@@ -45,13 +45,14 @@ public partial class App : Application
 
         LocalizationService.Default.AddExtraService(new AssemblyJsonAssetLocalizationService(typeof(App).Assembly));
 
-        // 组合根：IFileDialogService 注入 MainViewModel。
+        // 组合根：IFileDialogService / IMessageService 注入 MainViewModel。
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var fileDialog = new AvaloniaFileDialogService(() => desktop.MainWindow?.StorageProvider);
+            var message = new AvaloniaMessageService(() => desktop.MainWindow);
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel(fileDialog),
+                DataContext = new MainViewModel(fileDialog, message),
             };
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
@@ -72,15 +73,17 @@ public partial class App : Application
             // 所以首次弹对话框时一定能拿到正确的 provider。
             MainView? view = null;
             var fileDialog = new AvaloniaFileDialogService(() => TopLevel.GetTopLevel(view)?.StorageProvider);
-            singleViewFactoryApplicationLifetime.MainViewFactory = () => view = new MainView { DataContext = new MainViewModel(fileDialog) };
+            var message = new AvaloniaMessageService(() => TopLevel.GetTopLevel(view));
+            singleViewFactoryApplicationLifetime.MainViewFactory = () => view = new MainView { DataContext = new MainViewModel(fileDialog, message) };
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
             MainView? view = null;
             var fileDialog = new AvaloniaFileDialogService(() => TopLevel.GetTopLevel(view)?.StorageProvider);
+            var message = new AvaloniaMessageService(() => TopLevel.GetTopLevel(view));
             view = new MainView
             {
-                DataContext = new MainViewModel(fileDialog)
+                DataContext = new MainViewModel(fileDialog, message)
             };
             singleViewPlatform.MainView = view;
         }
