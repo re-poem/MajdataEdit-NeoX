@@ -40,7 +40,6 @@ using System.Windows.Input;
 
 namespace MajdataEdit_NeoX.ViewModels;
 
-public enum AboutPages { Discord, QQ, GitHub, GitHub_ViewX, MajNet }
 public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     // Design
@@ -810,19 +809,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Factory.FloatOrActivateTool<ShortcutTool>();
     }
     [RelayCommand]
-    public void OpenAbout(AboutPages page)
+    public void OpenAboutPage()
     {
-        switch (page)
-        {
-            case AboutPages.Discord: OpenBrowser("https://discord.gg/AcWgZN7j6K"); break;
-            case AboutPages.QQ: OpenBrowser("https://qm.qq.com/q/GAxbFZHP6A"); break;
-            case AboutPages.GitHub: OpenBrowser("https://github.com/LingFeng-bbben/MajdataEdit-Neo"); break;
-            case AboutPages.GitHub_ViewX: OpenBrowser("https://github.com/re-poem/MajdataViewX"); break;
-            case AboutPages.MajNet: OpenBrowser("https://discord.gg/Majnet"); break;
-        }
-        static void OpenBrowser(string url) =>
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        Factory.FloatOrActivateTool<AboutTool>();
     }
+
 
 
 
@@ -1012,7 +1003,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
         _chartDirty = false;
-        await EnsurePlayableAsync();
         await _player.SimaiAsync(
             Maidata.Fumens[SelectedDifficulty] ?? string.Empty,
             Maidata.Offset,

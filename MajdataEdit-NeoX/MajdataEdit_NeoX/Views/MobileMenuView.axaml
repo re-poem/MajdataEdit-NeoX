@@ -74,13 +74,7 @@
                         <Expander Classes="drawerGroup" Header="{ll:Localize Gui_About}">
                             <StackPanel>
                                 <Button Classes="drawerItem" Content="{ll:Localize Gui_ShortcutOverview}" Command="{Binding OpenShortcutCommand}" Click="CloseDrawer"/>
-                                <Separator/>
-                                <Button Classes="drawerItem" Content="Discord" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.Discord}" Click="CloseDrawer"/>
-                                <Button Classes="drawerItem" Content="QQ" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.QQ}" Click="CloseDrawer"/>
-                                <Separator/>
-                                <Button Classes="drawerItem" Content="Github" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub}" Click="CloseDrawer"/>
-                                <Button Classes="drawerItem" Content="Github (ViewX)" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub_ViewX}" Click="CloseDrawer"/>
-                                <Button Classes="drawerItem" Content="Majnet" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.MajNet}" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_AboutPage}" Command="{Binding OpenAboutPageCommand}" Click="CloseDrawer"/>
                             </StackPanel>
                         </Expander>
                     </StackPanel>

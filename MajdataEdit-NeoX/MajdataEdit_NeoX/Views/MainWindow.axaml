@@ -218,13 +218,7 @@
                     </MenuItem>
                     <MenuItem Header="{ll:Localize Gui_About}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_ShortcutOverview}" Command="{Binding OpenShortcut}"/>
-                        <Separator/>
-                        <MenuItem Header="Discord" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.Discord}"/>
-                        <MenuItem Header="QQ" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.QQ}"/>
-                        <Separator/>
-                        <MenuItem Header="Github" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub}"/>
-                        <MenuItem Header="Github (ViewX)" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.GitHub_ViewX}"/>
-                        <MenuItem Header="Majnet" Command="{Binding OpenAboutCommand}" CommandParameter="{x:Static vm:AboutPages.MajNet}"/>
+                        <MenuItem Header="{ll:Localize Gui_AboutPage}" Command="{Binding OpenAboutPage}"/>
                     </MenuItem>
                 </Menu>
 

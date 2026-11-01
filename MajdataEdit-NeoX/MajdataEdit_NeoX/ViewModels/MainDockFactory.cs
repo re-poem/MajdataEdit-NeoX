@@ -80,6 +80,17 @@ public class ShortcutTool : Tool
     }
 }
 
+public class AboutTool : Tool
+{
+    public AboutTool()
+    {
+        Id = "About";
+        Title = "About";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
+
 
 public class MainDockFactory : Factory
 {
@@ -109,12 +120,15 @@ public class MainDockFactory : Factory
         if (Application.Current is not { } app) return;
         _toolDataTemplatesRegistered = true;
         if (app.DataTemplates.Any(t => t is FuncDataTemplate<InspectorTool>)) return;
+        // binding to mainvm
         app.DataTemplates.Add(new FuncDataTemplate<InspectorTool>((tool, _) => CreateInspectorView(tool)));
         app.DataTemplates.Add(new FuncDataTemplate<VisualizerTool>((tool, _) => CreateVisualizerView(tool)));
         app.DataTemplates.Add(new FuncDataTemplate<EditorTool>((tool, _) => CreateEditorView(tool)));
         app.DataTemplates.Add(new FuncDataTemplate<ChartInfoTool>((tool, _) => CreateChartInfoView(tool)));
         app.DataTemplates.Add(new FuncDataTemplate<SettingsTool>((tool, _) => CreateSettingsView(tool)));
+        // not binding to mainvm
         app.DataTemplates.Add(new FuncDataTemplate<ShortcutTool>((tool, _) => new ShortcutView()));
+        app.DataTemplates.Add(new FuncDataTemplate<AboutTool>((tool, _) => new AboutView()));
     }
 
     /// <summary>
@@ -208,6 +222,17 @@ public class MainDockFactory : Factory
 
         return view;
     }
+
+
+    private static (double W, double H) DefaultSizeOf(IDockable d) => d switch
+    {
+        VisualizerTool => (800, 100),
+        InspectorTool => (200, 600),
+        ShortcutTool => (250, 500),
+        AboutTool => (250, 400),
+        _ => (600, 400),
+    };
+
 
     #endregion
 
@@ -326,7 +351,6 @@ public class MainDockFactory : Factory
         base.InitLayout(layout);
     }
 
-
     private bool IsInMainLayout(IDock targetDock)
     {
         for (IDockable? node = targetDock; node is not null; node = node.Owner)
@@ -374,6 +398,20 @@ public class MainDockFactory : Factory
     {
         base.AddDockable(host, dockable);
         FloatDockable(dockable, new() { OwnerMode = DockWindowOwnerMode.RootWindow });
+
+        IRootDock? root = null;
+        for (IDockable? n = dockable; n is not null; n = n.Owner)
+        {
+            if (n is IRootDock r) { root = r; break; }
+        }
+
+        if (root?.Window is { } window)
+        {
+            var (w, h) = DefaultSizeOf(dockable);
+            window.Width = w;      // 模型：序列化时会存这个值
+            window.Height = h;
+            window.Host?.SetSize(w, h);   // 真正改变已经显示的窗口
+        }
     }
 
     public override void InsertDockable(IDock dock, IDockable dockable, int index)

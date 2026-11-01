@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
+             xmlns:v="using:MajdataEdit_NeoX.Views"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
+
+             mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="520"
+
+             x:Class="MajdataEdit_NeoX.Views.AboutView"
+             x:DataType="vm:MainViewModel"
+             x:Name="Root">
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <Grid RowDefinitions="*,Auto,*">
+            <StackPanel Grid.Row="1" MaxWidth="360" HorizontalAlignment="Center">
+
+                <!-- App 图标(圆角卡片 + 柔和投影;解码失败时露出 ♪ 占位) -->
+                <Border Width="96" Height="96" CornerRadius="24" Padding="14" HorizontalAlignment="Center"
+                        Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                        BoxShadow="0 8 24 0 #26000000">
+                    <Image Source="avares://MajdataEdit_NeoX/Assets/favicon.ico" Width="68" Height="68" Stretch="Uniform"/>
+                </Border>
+
+                <!-- 名称与版本 -->
+                <TextBlock Text="MajdataEdit NeoX" FontSize="22" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <TextBlock Text="{ll:Localize Gui_Version}" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="VersionText" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+
+
+
+                <Separator Margin="10,24,10,0" Opacity="0.5"/>
+
+
+                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center" Margin="0,14,0,0">
+                    <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.Discord}"
+                            Width="40" Height="40" CornerRadius="8">
+                        <svg:Svg Path="/Assets/Icons/discord.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
+                    </Button>
+                    <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.QQ}"
+                            Width="40" Height="40" CornerRadius="8">
+                        <svg:Svg Path="/Assets/Icons/qq.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
+                    </Button>
+                    <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.GitHub}"
+                            Width="40" Height="40" CornerRadius="8">
+                        <svg:Svg Path="/Assets/Icons/github.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
+                    </Button>
+                    <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.MajNet}"
+                            Width="40" Height="40" CornerRadius="8">
+                        <Image Source="avares://MajdataEdit_NeoX/Assets/Icons/salt.webp" />
+                    </Button>
+                </StackPanel>
+
+                <!-- 许可 -->
+                <TextBlock Text="{ll:Localize Gui_AboutLicense}" FontSize="11.5" TextAlignment="Center"
+                           HorizontalAlignment="Center" Margin="0,26,0,0"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+
+</UserControl>
