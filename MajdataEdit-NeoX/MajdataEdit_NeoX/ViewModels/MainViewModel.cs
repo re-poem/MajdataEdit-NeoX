@@ -1162,7 +1162,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             if ((long)t.FumenPos >= value)
             {
-                caretTime = t.Time;
+                caretTime = t.Time + Offset;
                 break;
             }
             else
@@ -1195,7 +1195,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         while (lo < hi)
         {
             int mid = lo + ((hi - lo) >> 1);
-            if (timings[mid].Time <= time)
+            if (timings[mid].Time + Offset <= time)
                 lo = mid + 1;
             else
                 hi = mid;
@@ -1205,7 +1205,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _isSlidingPlayhead = true;
         try
         {
-            CaretTime = timings[index].Time;
+            CaretTime = timings[index].Time + Offset;
             CaretCombo = index;
             CaretOffset = (int)timings[index].FumenPos - 1;
         }

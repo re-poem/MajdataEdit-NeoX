@@ -489,12 +489,11 @@ internal partial class SimaiVisualizerControl : Control
             }
 
             // Ghost cursor.
-            var caretNoteTime = caretTime + offset;
-            if (caretNoteTime - currentTime <= deltatime)
+            if (caretTime - currentTime <= deltatime)
             {
                 Paint.Color = GhostCursorColor;
                 Paint.Style = SKPaintStyle.Fill;
-                var x2 = (float)(caretNoteTime / step - virtualStartIndex) * linewidth;
+                var x2 = (float)(caretTime / step - virtualStartIndex) * linewidth;
                 canvas.Save();
                 canvas.Translate(x2, 0);
                 canvas.DrawPath(CursorPath, Paint);
