@@ -1027,7 +1027,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await ParseAsync();
 
         if (await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed))
-            EnterPlaying();
+            EnterPlaying(mode is PlaybackMode.Record);
         else
             _viewState = ViewStatus.Error;
     }
@@ -1121,9 +1121,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
 
     /// <summary>进入播放态：以当前播放头为基准，按当前倍速开始推进。</summary>
-    private void EnterPlaying()
+    private void EnterPlaying(bool isRecord)
     {
         _viewState = ViewStatus.Playing;
+        if (isRecord) return;
         _timelineClock.Reset();
         _timelineOrigin = PlayheadTime;
         _timelineSpeed = PlaybackSpeed;
