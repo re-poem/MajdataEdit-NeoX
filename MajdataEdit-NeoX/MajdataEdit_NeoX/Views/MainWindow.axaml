@@ -214,7 +214,6 @@
                     </MenuItem>
                     <MenuItem Header="{ll:Localize Gui_Tools}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_BpmTap}" Command="{Binding OpenBpmTap}"/>
-                        <Separator/>
                     </MenuItem>
                     <MenuItem Header="{ll:Localize Gui_About}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_ShortcutOverview}" Command="{Binding OpenShortcut}"/>

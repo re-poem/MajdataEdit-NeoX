@@ -843,7 +843,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public void OpenBpmTap()
     {
-
+        Factory.FloatOrActivateTool<BpmTapTool>();
     }
     [RelayCommand]
     public void OpenShortcut()

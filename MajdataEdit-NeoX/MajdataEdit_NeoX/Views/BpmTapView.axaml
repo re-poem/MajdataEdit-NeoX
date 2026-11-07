@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+
+             mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="195"
+
+             x:Class="MajdataEdit_NeoX.Views.BpmTapView">
+
+    <StackPanel Margin="10" Spacing="10">
+        <Button x:Name="TapButton"
+                HorizontalAlignment="Stretch"
+                Height="130"
+                Click="TapButton_Click">
+            <Label x:Name="TapText"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontSize="30"
+                   Content="{ll:Localize Gui_Tap}"/>
+        </Button>
+
+        <Button HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Click="ResetButton_Click">
+            <Label HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Content="{ll:Localize Gui_Reset}"/>
+        </Button>
+    </StackPanel>
+
+</UserControl>

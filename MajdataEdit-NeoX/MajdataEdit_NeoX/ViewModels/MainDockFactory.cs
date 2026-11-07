@@ -102,6 +102,17 @@ public class RecoverTool : Tool
     }
 }
 
+public class BpmTapTool : Tool
+{
+    public BpmTapTool()
+    {
+        Id = "BpmTap";
+        Title = "BpmTap";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
+
 
 public class MainDockFactory : Factory
 {
@@ -141,6 +152,7 @@ public class MainDockFactory : Factory
         // not binding to mainvm
         app.DataTemplates.Add(new FuncDataTemplate<ShortcutTool>((tool, _) => new ShortcutView()));
         app.DataTemplates.Add(new FuncDataTemplate<AboutTool>((tool, _) => new AboutView()));
+        app.DataTemplates.Add(new FuncDataTemplate<BpmTapTool>((tool, _) => new BpmTapView()));
     }
 
     /// <summary>
@@ -255,6 +267,7 @@ public class MainDockFactory : Factory
         ShortcutTool => (250, 500),
         AboutTool => (250, 400),
         RecoverTool => (600, 500),
+        BpmTapTool => (200, 220),
         _ => (600, 400),
     };
 
