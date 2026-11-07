@@ -23,6 +23,7 @@ using MajdataEdit_NeoX.Models.Plugin;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
+using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
 using PropertyModels.ComponentModel;
 using System;
@@ -44,15 +45,13 @@ namespace MajdataEdit_NeoX.ViewModels;
 public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     // Design
-    public MainViewModel() : this(new AvaloniaFileDialogService(() => null), new AvaloniaMessageService(() => null)) { }
+    public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
 
     private readonly IFileDialogService _fileDialog;
-    private readonly IMessageService _message;
     public IEditorService? Editor { get; set; }
-    public MainViewModel(IFileDialogService fileDialog, IMessageService message)
+    public MainViewModel(IFileDialogService fileDialog)
     {
         _fileDialog = fileDialog;
-        _message = message;
 
         LoadSettings();
         LocalizationService.Default.SelectCulture(Language);
@@ -105,7 +104,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             () => _chartFolder,
             _fileDialog.FindFolderAsync,
             async chart => await OpenChartAsync(chart.Folder),
-            _message,
             () => _autoSave.Suppress());
 
 
@@ -536,9 +534,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // 想新建但目录里已经有一份：不覆盖，提示一声后按打开处理。
         if (newChart && hasMaidata)
         {
-            await _message.ShowAsync(
-                LocalizationService.Default[LangKeys.Gui_Info],
-                LocalizationService.Default[LangKeys.Msg_MaidataAlreadyExist]);
+            await InfoAsync(LangKeys.Msg_MaidataAlreadyExist);
         }
 
         // 离开当前谱面前先把没落盘的改动存成快照。
@@ -761,7 +757,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         var folder = await file.GetParentAsync();
         if (folder is null)
-            await MessageErrorAsync(LangKeys.Gui_NoParentFolder);
+            await ErrorAsync(LangKeys.Gui_NoParentFolder);
         return folder;
     }
 
@@ -774,7 +770,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (folder is null) return;
 
         if (!await OpenChartAsync(folder, newChart: true))
-            await MessageErrorAsync(LangKeys.Gui_NoTrackFile);
+            await ErrorAsync(LangKeys.Gui_NoTrackFile);
     }
     [RelayCommand]
     public async Task OpenFileAsync()
@@ -783,7 +779,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (folder is null) return;
 
         if (!await OpenChartAsync(folder))
-            await MessageErrorAsync(LangKeys.Gui_NoTrackFile);
+            await ErrorAsync(LangKeys.Gui_NoTrackFile);
     }
     [RelayCommand]
     public async Task SaveFileAsync()
@@ -895,8 +891,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
 
 
-    private Task MessageErrorAsync(string messageKey) =>
-    _message.ShowAsync(LocalizationService.Default[LangKeys.Gui_Error], LocalizationService.Default[messageKey]);
+    private static Task ErrorAsync(string messageKey) =>
+        MessageBox.ShowAsync(
+            LocalizationService.Default[messageKey],
+            LocalizationService.Default[LangKeys.Gui_Error],
+            icon: MsBox.Avalonia.Enums.Icon.Error);
+    private static Task InfoAsync(string messageKey) =>
+        MessageBox.ShowAsync(
+            LocalizationService.Default[messageKey],
+            LocalizationService.Default[LangKeys.Gui_Info],
+            icon: MsBox.Avalonia.Enums.Icon.Info);
 
 
     #region 快捷键

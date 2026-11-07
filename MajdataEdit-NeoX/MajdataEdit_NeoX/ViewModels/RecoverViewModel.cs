@@ -4,7 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.IO;
-using MajdataEdit_NeoX.Services;
+using MajdataEdit_NeoX.Types;
+using MsBox.Avalonia.Enums;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -43,7 +44,6 @@ public sealed partial class RecoverViewModel : ViewModelBase
     private readonly Func<ChartFolder?> _currentFolder;
     private readonly Func<string, Task<IStorageFolder?>> _resolveFolder;
     private readonly Func<ChartFolder, Task<bool>> _openFolder;
-    private readonly IMessageService _message;
     private readonly Func<IDisposable> _suppress;
 
     public RecoverViewModel(
@@ -51,14 +51,12 @@ public sealed partial class RecoverViewModel : ViewModelBase
         Func<ChartFolder?> currentFolder,
         Func<string, Task<IStorageFolder?>> resolveFolder,
         Func<ChartFolder, Task<bool>> openFolder,
-        IMessageService message,
         Func<IDisposable> suppress)
     {
         _store = store;
         _currentFolder = currentFolder;
         _resolveFolder = resolveFolder;
         _openFolder = openFolder;
-        _message = message;
         _suppress = suppress;
     }
 
@@ -122,9 +120,7 @@ public sealed partial class RecoverViewModel : ViewModelBase
             var target = await ResolveTargetAsync(entry);
             if (target is null)
             {
-                await _message.ShowAsync(
-                    LocalizationService.Default[LangKeys.Gui_Error],
-                    LocalizationService.Default[LangKeys.Msg_RecoverFailed]);
+                await FailAsync();
                 return;
             }
 
@@ -135,9 +131,7 @@ public sealed partial class RecoverViewModel : ViewModelBase
             }
             catch
             {
-                await _message.ShowAsync(
-                    LocalizationService.Default[LangKeys.Gui_Error],
-                    LocalizationService.Default[LangKeys.Msg_RecoverFailed]);
+                await FailAsync();
                 return;
             }
 
@@ -145,16 +139,15 @@ public sealed partial class RecoverViewModel : ViewModelBase
 
             if (!await _openFolder(target))
             {
-                await _message.ShowAsync(
-                    LocalizationService.Default[LangKeys.Gui_Error],
-                    LocalizationService.Default[LangKeys.Msg_RecoverFailed]);
+                await FailAsync();
                 await RefreshAsync();
                 return;
             }
 
-            await _message.ShowAsync(
+            await MessageBox.ShowAsync(
+                LocalizationService.Default[LangKeys.Msg_AutoSaveRestored],
                 LocalizationService.Default[LangKeys.Gui_Info],
-                LocalizationService.Default[LangKeys.Msg_AutoSaveRestored]);
+                icon: Icon.Info);
             await RefreshAsync();
         }
         finally
@@ -172,11 +165,7 @@ public sealed partial class RecoverViewModel : ViewModelBase
         try
         {
             if (await ResolveTargetAsync(entry) is not { } target || !await _openFolder(target))
-            {
-                await _message.ShowAsync(
-                    LocalizationService.Default[LangKeys.Gui_Error],
-                    LocalizationService.Default[LangKeys.Msg_RecoverFailed]);
-            }
+                await FailAsync();
         }
         finally
         {
@@ -185,6 +174,12 @@ public sealed partial class RecoverViewModel : ViewModelBase
     }
 
     private bool CanAct() => Selected is not null && !IsBusy;
+
+    /// <summary>恢复失败的统一提示。</summary>
+    private static Task FailAsync() => MessageBox.ShowAsync(
+        LocalizationService.Default[LangKeys.Msg_RecoverFailed],
+        LocalizationService.Default[LangKeys.Gui_Error],
+        icon: Icon.Error);
 
     /// <summary>
     /// 解析回写目标：当前打开的就是同一会话时直接用活句柄（最可靠），

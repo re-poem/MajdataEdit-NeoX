@@ -1,23 +1,49 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <RootNamespace>MajdataEdit_NeoX</RootNamespace>
-    <OutputType>WinExe</OutputType>
-    <!--If you are willing to use platform-specific APIs, use conditional compilation.
-    See https://docs.avaloniaui.net/docs/guides/platforms/platform-specific-code/dotnet for more details.-->
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<RootNamespace>MajdataEdit_NeoX</RootNamespace>
+		<OutputType>WinExe</OutputType>
+		<ApplicationIcon>$(MSBuildProjectDirectory)/../MajdataEdit_NeoX/Assets/favicon.ico</ApplicationIcon>
+		<!--If you are willing to use platform-specific APIs, use conditional compilation.
+		See https://docs.avaloniaui.net/docs/guides/platforms/platform-specific-code/dotnet for more details.-->
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-  </PropertyGroup>
+	<PropertyGroup>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Avalonia.Desktop" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Avalonia.Desktop" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\MajdataEdit_NeoX\MajdataEdit_NeoX.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\MajdataEdit_NeoX\MajdataEdit_NeoX.csproj" />
+	</ItemGroup>
+
+	<!-- Unfortunately, command-line args -p:DebugType=None -p:DebugSymbols=false started working only for the main project,
+		PDBs from other projects are still included. Looks like this is the most reliable way to remove PDBs.
+		Source https://github.com/dotnet/sdk/issues/16975#issuecomment-1689291544 -->
+	<Target Name="DeleteUnwantedPublishFiles" AfterTargets="Publish">
+		<ItemGroup>
+			<FilesToDelete Include="$(PublishDir)**/*.pdb" />
+			<FilesToDelete Include="$(PublishDir)**/*.xml" />
+		</ItemGroup>
+
+		<Delete Files="@(FilesToDelete)" />
+
+		<Message Text="Deleted PDB/XML files: @(FilesToDelete)" Importance="high" />
+	</Target>
+
+	<!--The name is following the AssemblyName(MajdataEdit-NeoX.Desktop), rename it-->
+	<Target Name="RenameSingleFileExe" AfterTargets="Publish"
+        Condition="'$(PublishSingleFile)' == 'true'">
+		<PropertyGroup>
+			<_OldExe>$(PublishDir)$(AssemblyName)$(_NativeExecutableExtension)</_OldExe>
+			<_NewExe>$(PublishDir)MajdataEdit-NeoX$(_NativeExecutableExtension)</_NewExe>
+		</PropertyGroup>
+		<Move SourceFiles="$(_OldExe)" DestinationFiles="$(_NewExe)"
+			  Condition="Exists('$(_OldExe)')" />
+	</Target>
 
 </Project>

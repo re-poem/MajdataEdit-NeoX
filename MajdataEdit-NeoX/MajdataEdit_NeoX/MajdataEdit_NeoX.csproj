@@ -38,6 +38,7 @@
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
 		<PackageReference Include="MajProtocol.Standard" />
+		<PackageReference Include="MessageBox.Avalonia" />
 		<PackageReference Include="Microsoft.Data.Sqlite" />
 		<PackageReference Include="NuGet.Versioning" />
 		<PackageReference Include="NLua" />

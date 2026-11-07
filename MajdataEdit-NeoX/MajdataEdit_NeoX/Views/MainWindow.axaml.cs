@@ -8,7 +8,9 @@ using Avalonia.Media;
 using Avalonia.PropertyGrid.Services;
 using CommunityToolkit.Mvvm.Input;
 using MajdataEdit_NeoX.Input;
+using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.Plugin;
+using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.ViewModels;
 using PropertyGenerator.Avalonia;
 using System;
@@ -30,6 +32,9 @@ public class PluginSeparator : Separator
 
 public partial class MainWindow : Window
 {
+    /// <summary>关闭已确认：第二次 <c>Closing</c>（自己调 <see cref="Window.Close"/>) 直接放行。</summary>
+    private bool _closeConfirmed;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -152,7 +157,38 @@ public partial class MainWindow : Window
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (DataContext is IAsyncDisposable disposable)
-            await disposable.DisposeAsync();
+        if (_closeConfirmed) return;
+
+        // 先拦住这次关闭：确认流程是异步的，等走完再自己 Close()。
+        e.Cancel = true;
+        _closeConfirmed = true;
+
+        try
+        {
+            if (DataContext is not null)
+                await AskCloseViewsAsync();
+
+            if (DataContext is IAsyncDisposable disposable)
+                await disposable.DisposeAsync();
+        }
+        finally
+        {
+            // 收尾里出岔子也得让窗口关掉，否则窗口会卡在"永远关不掉"。
+            Close();
+        }
+    }
+
+    /// <summary>View 还开着就问一句要不要一起关；用户选否就留着。</summary>
+    private static async Task AskCloseViewsAsync()
+    {
+        var views = Process.GetProcessesByName("MajdataViewX");
+        if (views.Length == 0) return;
+
+        var confirmed = await MessageBox.ConfirmAsync(
+            LocalizationService.Default[LangKeys.Msg_AskCloseView],
+            LocalizationService.Default[LangKeys.Gui_Info]);
+        if (!confirmed) return;
+
+        views.FirstOrDefault()?.Kill();
     }
 }
