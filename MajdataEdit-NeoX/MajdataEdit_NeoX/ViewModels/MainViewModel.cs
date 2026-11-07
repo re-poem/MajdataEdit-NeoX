@@ -441,6 +441,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             case nameof(MaidataFile.IsDirty):
                 // 一旦变脏就重新给自动保存起搏（防抖）。
                 if (Maidata?.IsDirty == true) _autoSave.NotifyEdited();
+                OnPropertyChanged(nameof(WindowTitle)); // Title与IsDirty绑定
                 break;
             default:
                 break;
