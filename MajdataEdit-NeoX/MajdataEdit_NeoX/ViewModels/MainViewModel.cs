@@ -485,17 +485,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
     public string? Level
     {
-        get => Maidata?.Levels[SelectedDifficulty];
+        get => Maidata?.Levels[SelectedDifficulty] ?? string.Empty;
         set => Maidata?.Levels[SelectedDifficulty] = value;
     }
     public string? Designer
     {
-        get => Maidata?.Designers[SelectedDifficulty];
+        get => Maidata?.Designers[SelectedDifficulty] ?? string.Empty;
         set => Maidata?.Designers[SelectedDifficulty] = value;
     }
     public string? Fumen
     {
-        get => Maidata?.Fumens[SelectedDifficulty];
+        get => Maidata?.Fumens[SelectedDifficulty] ?? string.Empty;
         set => Maidata?.Fumens[SelectedDifficulty] = value;
     }
     public SimaiChart? Chart

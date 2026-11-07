@@ -103,8 +103,8 @@ public partial class App : Application
     public static void LaunchViewIfNotRunning()
     {
         var path = OperatingSystem.IsWindows()
-            ? MajEnv.GetPath("MajdataView.exe")
-            : MajEnv.GetPath("MajdataView");
+            ? MajEnv.GetPath("MajdataViewX.exe")
+            : MajEnv.GetPath("MajdataViewX");
         if (!File.Exists(path))
         {
             Debug.WriteLine($"[ViewLauncherService] {path} not found");
