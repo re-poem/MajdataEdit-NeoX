@@ -69,7 +69,10 @@
                    Grid.Column="0" Grid.Row="5" Margin="5 0 5 3"
                    FontSize="12" Content="{ll:Localize Gui_Offset}"/>
             <NumericUpDown Grid.Column="1" Grid.Row="5" Margin="5 0 5 3"
-                           Value="{Binding #Root.Offset}" ShowButtonSpinner="False"/>
+                           Value="{Binding #Root.Offset}"
+                           Increment="0.01"
+                           FormatString="0.##"
+                           ShowButtonSpinner="False"/>
 
             <Label VerticalAlignment="Center" HorizontalAlignment="Center"
                    Grid.Column="0" Grid.Row="6" Margin="4 0 5 3"
@@ -164,7 +167,10 @@
                    Grid.Column="3" Grid.Row="0" Margin="5 0 5 3"
                    FontSize="12" Content="{ll:Localize Gui_Offset}"/>
             <NumericUpDown Grid.Column="4" Grid.Row="0" Margin="5 0 5 3"
-                           Value="{Binding #Root.Offset}" ShowButtonSpinner="False"/>
+                           Value="{Binding #Root.Offset}"
+                           Increment="0.01"
+                           FormatString="0.##"
+                           ShowButtonSpinner="False"/>
 
             <Label VerticalAlignment="Center" HorizontalAlignment="Center"
                    Grid.Column="3" Grid.Row="1" Margin="4 0 5 3"

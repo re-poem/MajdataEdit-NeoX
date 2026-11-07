@@ -91,6 +91,17 @@ public class AboutTool : Tool
     }
 }
 
+public class RecoverTool : Tool
+{
+    public RecoverTool()
+    {
+        Id = "Recover";
+        Title = "Recover";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
+
 
 public class MainDockFactory : Factory
 {
@@ -126,6 +137,7 @@ public class MainDockFactory : Factory
         app.DataTemplates.Add(new FuncDataTemplate<EditorTool>((tool, _) => CreateEditorView(tool)));
         app.DataTemplates.Add(new FuncDataTemplate<ChartInfoTool>((tool, _) => CreateChartInfoView(tool)));
         app.DataTemplates.Add(new FuncDataTemplate<SettingsTool>((tool, _) => CreateSettingsView(tool)));
+        app.DataTemplates.Add(new FuncDataTemplate<RecoverTool>((tool, _) => CreateRecoverView(tool)));
         // not binding to mainvm
         app.DataTemplates.Add(new FuncDataTemplate<ShortcutTool>((tool, _) => new ShortcutView()));
         app.DataTemplates.Add(new FuncDataTemplate<AboutTool>((tool, _) => new AboutView()));
@@ -223,6 +235,18 @@ public class MainDockFactory : Factory
         return view;
     }
 
+    private static RecoverView CreateRecoverView(RecoverTool tool)
+    {
+        var view = new RecoverView();
+        BindToolContext(view, tool);
+
+        // 子vm通过主vm创建
+        if (tool.Context is MainViewModel vm)
+            view.AttachedToVisualTree += async (_, _) => await view.InitializeAsync(vm.CreateRecoverViewModel());
+
+        return view;
+    }
+
 
     private static (double W, double H) DefaultSizeOf(IDockable d) => d switch
     {
@@ -230,6 +254,7 @@ public class MainDockFactory : Factory
         InspectorTool => (200, 600),
         ShortcutTool => (250, 500),
         AboutTool => (250, 400),
+        RecoverTool => (600, 500),
         _ => (600, 400),
     };
 

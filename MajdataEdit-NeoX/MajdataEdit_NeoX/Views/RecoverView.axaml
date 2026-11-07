@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+             xmlns:vm="using:MajdataEdit_NeoX.ViewModels"
+
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+
+             x:Class="MajdataEdit_NeoX.Views.RecoverView"
+             x:DataType="vm:RecoverViewModel"
+             x:Name="Root">
+
+    <Grid ColumnDefinitions="220,*" Margin="8" ColumnSpacing="8" RowDefinitions="*,Auto">
+
+        <!-- 左：快照列表 + 难度跳转 -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="6">
+            <TextBlock Grid.Row="0" Text="{ll:Localize Gui_AutoSaves}" FontWeight="SemiBold"/>
+            <ListBox x:Name="EntryList"
+                     Grid.Row="1"
+                     ItemsSource="{Binding Entries}"
+                     SelectedItem="{Binding Selected, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RecoverEntry">
+                        <TextBlock Text="{Binding DisplayName}" Padding="2" TextWrapping="Wrap"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Grid.Row="2" Text="{ll:Localize Gui_Difficulty}" FontWeight="SemiBold"/>
+            <ListBox x:Name="DifficultyList"
+                     Grid.Row="3"
+                     MaxHeight="120"
+                     ItemsSource="{Binding Difficulties}"
+                     SelectionChanged="DifficultyList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RecoverDifficulty">
+                        <TextBlock Text="{Binding DisplayName}" Padding="2"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- 右：只读预览 + 动作 -->
+        <Grid Grid.Column="1" RowDefinitions="*,Auto" RowSpacing="6">
+            <Border Grid.Row="0" BorderThickness="0.5"
+                    BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                <Panel>
+                    <ScrollViewer x:Name="PreviewScroll" IsVisible="{Binding HasSelection}">
+                        <SelectableTextBlock x:Name="PreviewText"
+                                             Text="{Binding Preview}"
+                                             Padding="6"
+                                             FontFamily="Cascadia Code,Consolas,Menlo,Monospace"
+                                             FontSize="13"/>
+                    </ScrollViewer>
+                    <TextBlock IsVisible="{Binding !HasSelection}"
+                               Text="{ll:Localize Msg_NoAutoSaveFound}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Opacity="0.7"/>
+                </Panel>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                <Button Grid.Column="0"
+                        Content="{ll:Localize Gui_Reload}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Click="RefreshButton_Click"/>
+                <Button Grid.Column="1"
+                        Content="{ll:Localize Gui_Open}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Command="{Binding OpenCommand}"/>
+                <Button Grid.Column="2"
+                        Content="{ll:Localize Gui_Recover}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Command="{Binding RecoverCommand}"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

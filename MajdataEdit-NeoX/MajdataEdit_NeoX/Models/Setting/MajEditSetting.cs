@@ -24,6 +24,23 @@ public class MajEditSetting
     public bool AutoCheckUpdatesOnStartup { get; set; } = true;
 
 
+    [Category(LangKeys.Cat_Edit_AutoSave)]
+    [DisplayName(LangKeys.Set_AutoSaveEnabled)]
+    public bool AutoSaveEnabled { get; set; } = true;
+
+    [Category(LangKeys.Cat_Edit_AutoSave)]
+    [DisplayName(LangKeys.Set_AutoSaveDebounceSeconds)]
+    [Description(LangKeys.Des_AutoSaveDebounceSeconds)]
+    [Range(1, 120)]
+    public int AutoSaveDebounceSeconds { get; set; } = 5;
+
+    [Category(LangKeys.Cat_Edit_AutoSave)]
+    [DisplayName(LangKeys.Set_AutoSaveKeep)]
+    [Description(LangKeys.Des_AutoSaveKeep)]
+    [Range(1, 200)]
+    public int AutoSaveKeep { get; set; } = 10;
+
+
     [Category(LangKeys.Cat_Edit_AppearanceSetting)]
     [DisplayName(LangKeys.Set_WaveAnimated)]
     public bool WaveAnimated { get; set; } = true;

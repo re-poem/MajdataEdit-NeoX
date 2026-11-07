@@ -37,6 +37,14 @@ public interface IFileDialogService
         string title,
         string? defaultFileName = null,
         IReadOnlyList<FileDialogFilter>? filters = null);
+
+    /// <summary>
+    /// 按 URI（或本地路径）找回一个不需要用户再选的目录。
+    /// 自动保存恢复时用它定位快照当初对应的谱面目录；<c>content://</c> 上靠存储 URI。
+    /// </summary>
+    /// <param name="pathOrUri">存储项的 URI / 本地路径。</param>
+    /// <returns>provider 不可用或找不到时返回 <c>null</c>。</returns>
+    Task<IStorageFolder?> FindFolderAsync(string pathOrUri);
 }
 
 /// <summary>

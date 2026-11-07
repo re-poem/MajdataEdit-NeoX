@@ -15,6 +15,7 @@ using Dock.Serializer.SystemTextJson;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Lang;
+using MajdataEdit_NeoX.Managers;
 using MajdataEdit_NeoX.Models.Connection;
 using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.IO;
@@ -68,6 +69,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         };
 
         _chartEditMng = new(MajEnv.DatabaseFile);
+        _autoSave = new AutoSaveManager(
+            new AutoSaveStore(MajEnv.DatabaseFile),
+            () => _chartFolder,
+            () => Maidata is { } editing ? MaidataFile.Deparse(editing) : null,
+            () => Settings.EditSetting);
 
         _pluginsMng = new();
         _pluginsMng.OnPluginsChanged += () =>
@@ -90,6 +96,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Layout = LoadLayout() ?? Factory.CreateLayout()!;
         Factory.InitLayout(Layout);
     }
+
+    // 子VM
+
+    /// <summary>恢复面板 VM 的装配点（视图附加到树之后调用）。</summary>
+    public RecoverViewModel CreateRecoverViewModel() =>
+        new(_autoSave.Store,
+            () => _chartFolder,
+            _fileDialog.FindFolderAsync,
+            async chart => await OpenChartAsync(chart.Folder),
+            _message,
+            () => _autoSave.Suppress());
 
 
 
@@ -222,6 +239,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 break;
             case nameof(MajSetting.EditSetting.Language):
                 LocalizationService.Default.SelectCulture(Language);
+                break;
+            case nameof(MajSetting.EditSetting.AutoSaveEnabled):
+            case nameof(MajSetting.EditSetting.AutoSaveDebounceSeconds):
+            case nameof(MajSetting.EditSetting.AutoSaveKeep):
+                _autoSave.ApplySettings();
                 break;
         }
         if (ViewSettingPropertyNames.Contains(settingName) ||
@@ -416,6 +438,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             case nameof(MaidataFile.Charts):
                 OnPropertyChanged(nameof(Chart));
                 break;
+            case nameof(MaidataFile.IsDirty):
+                // 一旦变脏就重新给自动保存起搏（防抖）。
+                if (Maidata?.IsDirty == true) _autoSave.NotifyEdited();
+                break;
             default:
                 break;
         }
@@ -480,44 +506,70 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     // ======外围（一般来说跟着Maidata一起变化）
 
-    [RelayCommand]
-    private async Task ImportBgCoverAsync(IStorageFile? source)
-    {
-        if (_chartFolder is null || source is null) return;
+    private ChartFolder? _chartFolder;
 
-        await _chartFolder.ImportAsync(source, ChartMediaKind.Cover);
-        await UpdateResourcesAsync();
-        await PushResourcesToPlayerAsync();
-    }
+    [ObservableProperty]
+    public partial TrackInfo? TrackInfo { get; private set; }
 
-    [RelayCommand]
-    private async Task ImportBgVideoAsync(IStorageFile? source)
-    {
-        if (_chartFolder is null || source is null) return;
+    [ObservableProperty]
+    public partial Bitmap? Cover { get; private set; }
 
-        await _chartFolder.ImportAsync(source, ChartMediaKind.Video);
-        await UpdateResourcesAsync();
-        await PushResourcesToPlayerAsync();
-    }
+
 
     /// <summary>
-    /// 打开一个谱面目录（<c>maidata.txt</c> + <c>track</c> + <c>bg</c>/<c>pv</c>）。
+    /// 打开、接管并加载一个谱面目录（<c>maidata.txt</c> + <c>track</c> + <c>bg</c>/<c>pv</c>）。
+    /// 新建、打开、重载与自动保存恢复都走这一条路径：切目录、读谱面、推资源、连播放器加载。
     /// </summary>
-    /// <param name="createMaidata">新建谱面时允许就地创建空的 <c>maidata.txt</c>。</param>
-    /// <returns>目录里没有 track 时返回 <c>null</c>，且不改动当前已打开的谱面。</returns>
-    private async Task<ChartFolder?> OpenChartFolderAsync(IStorageFolder folder, bool createMaidata = false)
+    /// <param name="newChart">
+    /// 新建谱面：目录里还没有 <c>maidata.txt</c> 时就地建空文件并给一张空白谱面；
+    /// 目录里已经有的时候先提示一声，然后照常打开它。
+    /// </param>
+    /// <returns>目录里没有 track 时返回 <c>false</c>，且不改动当前已打开的谱面。</returns>
+    private async Task<bool> OpenChartAsync(IStorageFolder folder, bool newChart = false)
     {
-        var chart = await ChartFolder.OpenAsync(folder, createMaidata);
-        if (chart is null) return null;
+        var hasMaidata = await HasMaidataAsync(folder);
+        var blank = newChart && !hasMaidata;
 
+        var chart = await ChartFolder.OpenAsync(folder, createMaidata: blank);
+        if (chart is null) return false;
+
+        // 想新建但目录里已经有一份：不覆盖，提示一声后按打开处理。
+        if (newChart && hasMaidata)
+        {
+            await _message.ShowAsync(
+                LocalizationService.Default[LangKeys.Gui_Info],
+                LocalizationService.Default[LangKeys.Msg_MaidataAlreadyExist]);
+        }
+
+        // 离开当前谱面前先把没落盘的改动存成快照。
+        await _autoSave.FlushAndSuspendAsync();
         SaveChartEditRecord();
         _chartFolder = chart;
         _recordedChartPath = null;
         _chartEditTimer.Reset();
-        return chart;
+
+        Maidata = blank
+            ? MaidataFile.New()
+            : MaidataFile.Parse(await chart.ReadMaidataAsync());
+
+        await UpdateResourcesAsync();
+        await LoadAsync();
+        return true;
     }
 
-    private ChartFolder? _chartFolder;
+    /// <summary>目录里是否已经有 <c>maidata.txt</c></summary>
+    private static async Task<bool> HasMaidataAsync(IStorageFolder folder)
+    {
+        try
+        {
+            return await folder.GetFileAsync(ChartFolder.MaidataName) is not null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
 
     private async Task UpdateResourcesAsync()
     {
@@ -525,10 +577,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Cover = await ReadCoverAsync(_chartFolder?.Cover);
     }
 
-    /// <summary>
-    /// 读取音频波形信息。存储项一律读进内存再交给 ffmpeg 解码：
-    /// 内存解码对拿不到本地路径的存储项同样适用，桌面端与 Android / Browser 行为一致。
-    /// </summary>
+
+    // 音频读进内存再处理：
     private static async Task<TrackInfo?> ReadTrackInfoAsync(IStorageFile? file)
     {
         if (file is null) return null;
@@ -536,31 +586,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var data = await ReadAllBytesAsync(file);
         try
         {
-            return await Task.Run(() => TrackReader.ReadTrack(data));
+            return await Task.Run(() => TrackReader.ReadTrack(data.ToArray()));
         }
         catch { return null; /* 吞了 */ }
     }
-
-    /// <summary>
-    /// 读取封面位图。同样统一从流解码，不依赖存储项是否落在本地文件系统上。
-    /// </summary>
     private static async Task<Bitmap?> ReadCoverAsync(IStorageFile? file)
     {
         if (file is null) return null;
 
-        await using var stream = await file.OpenReadAsync();
-        using var buffer = new MemoryStream();
-        await stream.CopyToAsync(buffer);
-        buffer.Position = 0;
-        return new Bitmap(buffer);
+        var stream = await file.OpenReadAsync();
+        return new Bitmap(stream);
     }
 
-    private static async Task<byte[]> ReadAllBytesAsync(IStorageFile file)
+    private static async Task<MemoryStream> ReadAllBytesAsync(IStorageFile file)
     {
         await using var stream = await file.OpenReadAsync();
         using var buffer = new MemoryStream();
         await stream.CopyToAsync(buffer);
-        return buffer.ToArray();
+        return buffer;
     }
 
     /// <summary>
@@ -579,6 +622,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             folder.CoverLocalPath ?? string.Empty,
             folder.VideoLocalPath ?? string.Empty);
     }
+
+
 
     private void LoadChartEditRecord(string chartKey)
     {
@@ -601,13 +646,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _chartEditTimer.Elapsed,
             _recordedChartPath));
     }
-
-
-    [ObservableProperty]
-    public partial TrackInfo? TrackInfo { get; private set; }
-
-    [ObservableProperty]
-    public partial Bitmap? Cover { get; private set; }
 
     #endregion
 
@@ -678,6 +716,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly ChartEditTimer _chartEditTimer = new();
     private string? _recordedChartPath;
 
+    // 自动保存（防抖写入 editor.db 的 AutoSaves 表）
+    private readonly AutoSaveManager _autoSave;
+
 
     // Plugins
     private readonly PluginManager _pluginsMng;
@@ -724,21 +765,13 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     public async Task NewFileAsync()
     {
-        // 谱面 = track 所在的目录。目录里没有 maidata.txt 时就地建一个空文件。
+        // 谱面 = track 所在的目录。目录里还没有 maidata.txt 时就地建一个空文件；
+        // 已经有了就提示一声，转而按打开处理。
         var folder = await PickChartFolderAsync(LocalizationService.Default[LangKeys.Gui_Open], TrackFileFilter);
         if (folder is null) return;
 
-        var chart = await OpenChartFolderAsync(folder, createMaidata: true);
-        if (chart is null)
-        {
+        if (!await OpenChartAsync(folder, newChart: true))
             await MessageErrorAsync(LangKeys.Gui_NoTrackFile);
-            return;
-        }
-
-        Maidata = MaidataFile.New();
-
-        await UpdateResourcesAsync();
-        await LoadAsync();
     }
     [RelayCommand]
     public async Task OpenFileAsync()
@@ -746,17 +779,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var folder = await PickChartFolderAsync(LocalizationService.Default[LangKeys.Gui_Open], MaidataFileFilter);
         if (folder is null) return;
 
-        var chart = await OpenChartFolderAsync(folder);
-        if (chart is null)
-        {
+        if (!await OpenChartAsync(folder))
             await MessageErrorAsync(LangKeys.Gui_NoTrackFile);
-            return;
-        }
-
-        Maidata = MaidataFile.Parse(await chart.ReadMaidataAsync());
-        await UpdateResourcesAsync();
-
-        await LoadAsync();
     }
     [RelayCommand]
     public async Task SaveFileAsync()
@@ -767,29 +791,40 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         var text = MaidataFile.Deparse(Maidata);
         await _chartFolder.WriteMaidataAsync(text);
         Maidata.MarkAsSaved();
+        // 保存后顺手把脏清掉流程交给自动保存这一侧收尾。
+        await _autoSave.FlushAndSuspendAsync();
     }
     [RelayCommand]
     public async Task ReloadFileAsync()
     {
         if (_chartFolder is null) return;
 
-        // OpenChartFolderAsync 内部会重新扫描目录，无需先 Refresh。
-        var chart = await OpenChartFolderAsync(_chartFolder.Folder);
-        if (chart is null) return;
-
-        Maidata = MaidataFile.Parse(await chart.ReadMaidataAsync());
-        await UpdateResourcesAsync();
-        await LoadAsync();
+        // OpenChartAsync 内部会重新扫描目录，无需先 Refresh。
+        await OpenChartAsync(_chartFolder.Folder);
     }
-
-
-
 
     [RelayCommand]
-    public void OpenRecover()
+    private async Task ImportBgCoverAsync(IStorageFile? source)
     {
+        if (_chartFolder is null || source is null) return;
 
+        await _chartFolder.ImportAsync(source, ChartMediaKind.Cover);
+        await UpdateResourcesAsync();
+        await PushResourcesToPlayerAsync();
     }
+
+    [RelayCommand]
+    private async Task ImportBgVideoAsync(IStorageFile? source)
+    {
+        if (_chartFolder is null || source is null) return;
+
+        await _chartFolder.ImportAsync(source, ChartMediaKind.Video);
+        await UpdateResourcesAsync();
+        await PushResourcesToPlayerAsync();
+    }
+
+
+
     [RelayCommand]
     public void OpenChartInfo()
     {
@@ -799,6 +834,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public void OpenSettings()
     {
         Factory.FloatOrActivateTool<SettingsTool>();
+    }
+    [RelayCommand]
+    public void OpenRecover()
+    {
+        Factory.FloatOrActivateTool<RecoverTool>();
     }
     [RelayCommand]
     public void OpenBpmTap()
@@ -1047,6 +1087,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
 
         EnterPaused();
+        // 播放停下是个自然的存档点。
+        await _autoSave.FlushAndSuspendAsync();
 
         await Task.Delay(33); // 这里等一下Tick结束
         // 纯暂停保留本段起点，交给之后的停止键回退；停止则用完即清。
@@ -1220,6 +1262,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _timelineTimer.Stop();
+
+        // 关窗前最后抢救一次未落盘的改动。
+        await _autoSave.FlushAndSuspendAsync();
+        _autoSave.Dispose();
 
         // 全局快捷键按 vm 归属注销,避免重开窗口后重复注册。
         InputManager.Instance.Unregister(this);

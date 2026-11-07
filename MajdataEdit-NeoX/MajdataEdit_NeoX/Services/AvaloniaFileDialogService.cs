@@ -63,6 +63,24 @@ public sealed class AvaloniaFileDialogService(Func<IStorageProvider?> storagePro
         return await provider.SaveFilePickerAsync(pickerOptions);
     }
 
+    /// <summary>按 URI / 本地路径直接取存储目录，不弹任何窗口。</summary>
+    public async Task<IStorageFolder?> FindFolderAsync(string pathOrUri)
+    {
+        var provider = storageProviderAccessor();
+        if (provider is null) return null;
+        if (!Uri.TryCreate(pathOrUri, UriKind.Absolute, out var uri)) return null;
+
+        try
+        {
+            return await provider.TryGetFolderFromPathAsync(uri);
+        }
+        catch
+        {
+            // 书签 / 授权过期时各平台抛的异常不一样，统一当作找不到。
+            return null;
+        }
+    }
+
     /// <summary>
     /// 过滤器同时带 <see cref="FilePickerFileType.Patterns"/> 与
     /// <see cref="FilePickerFileType.MimeTypes"/>：桌面/iOS 按扩展名筛，
