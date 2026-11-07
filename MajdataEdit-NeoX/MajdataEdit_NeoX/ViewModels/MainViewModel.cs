@@ -724,6 +724,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly PluginManager _pluginsMng;
     public IReadOnlyList<LuaPlugin> Plugins => _pluginsMng.Plugins;
 
+
+
+
     #region Commands - 窗口
 
     // 选择谱面用的过滤器。Android 的选择器只认 MIME，见 FileDialogFilter。
@@ -1067,7 +1070,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             await ParseAsync();
 
         if (await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed))
-            EnterPlaying(mode is PlaybackMode.Record);
+            EnterPlaying(mode);
         else
             _viewState = ViewStatus.Error;
     }
@@ -1162,18 +1165,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
 
 
-    /// <summary>进入播放态：以当前播放头为基准，按当前倍速开始推进。</summary>
-    private void EnterPlaying(bool isRecord)
+    private void EnterPlaying(PlaybackMode mode)
     {
         _viewState = ViewStatus.Playing;
-        if (isRecord) return;
+        if (mode is PlaybackMode.Record) return;
         _timelineClock.Reset();
-        _timelineOrigin = PlayheadTime;
+        _timelineOrigin = mode is PlaybackMode.IncludeOp ? PlayheadTime - 5 : PlayheadTime;
         _timelineSpeed = PlaybackSpeed;
         _timelineClock.Restart();
     }
-
-    /// <summary>进入暂停态：停住播放头。</summary>
     private void EnterPaused()
     {
         _viewState = ViewStatus.Paused;
