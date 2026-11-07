@@ -26,12 +26,12 @@ public static partial class MajEnv
             return AppDomain.CurrentDomain.BaseDirectory;
         }
     }
-    public static string GetPath(string relativePath) => 
+    public static string GetPath(string relativePath) =>
         Path.Combine(MajBase, relativePath);
 
 
-    // TODO: require another way 
-    // public static string MmfAudioTimePath => GetPath("majdata_time.dat");
+    public static string MmfAudioTimePath => GetPath("majdata_time.dat");
+
     public static string SettingsFile => GetPath("Settings.json");
     public static string LayoutFile => GetPath("layout.json");
     public static string CrashFile => GetPath("crash.log");

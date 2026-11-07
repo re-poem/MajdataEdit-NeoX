@@ -87,9 +87,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             if (!_player.IsConnected) return;
             if (_viewState is not ViewStatus.Playing) return;
-            PlayheadTime = _timelineOrigin + _timelineClock.Elapsed.TotalSeconds * _timelineSpeed;
+            PlayheadTime = NextPlayingTime();
         };
         _timelineTimer.Start();
+
+        _playheadSync.TryOpen();
 
         Factory = new MainDockFactory(this);
         Layout = LoadLayout() ?? Factory.CreateLayout()!;
@@ -699,10 +701,12 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private bool _pushedLoaded; // 在任一连接完成之后，有至少一次Files请求
     private readonly SemaphoreSlim _syncGate = new(1, 1);
 
-    // 播放期间的时间线跟踪：本地 Stopwatch 推算（origin + elapsed × speed），
+    // 播放期间的时间线跟踪：播放头由播放器推进，这里经共享内存跟读（见 PlayheadSync）；
+    // 共享内存不可用时退回本地 Stopwatch 推算（origin + elapsed × speed）。
     private readonly Stopwatch _timelineClock = new();
     private double _timelineOrigin;
     private float _timelineSpeed = 1f;
+    private readonly PlayheadSync _playheadSync = new();
     // 常驻 UI 时钟：非播放状态的 tick 直接跳过，因此不需要启停控制和跨线程取消那套机器。
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(16.666667f) };
     private double? _lastPlayTime; // 供Stop进行回退
@@ -986,9 +990,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         MoveCaretToPlayhead(time);
 
         if (_viewState is ViewStatus.Playing)
-        {
             await PauseAsync(true);
-        }
+
+        // 播放中拖动时，播放头还会被仍在写共享内存的视图盖掉，所以停下后再落一次最终位置。
+        PlayheadTime = time;
+        _playheadSync.TryWrite(time);
     }
 
     #endregion
@@ -1066,6 +1072,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (Maidata is null) return;
         if (!await _player.ConnectAsync()) return;
 
+        // View可能比编辑器起得晚，播放前再试一次共享内存。
+        _playheadSync.TryOpen();
+
         _lastPlayTime = PlayheadTime;
 
         await EnsurePlayableAsync();
@@ -1099,10 +1108,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         await Task.Delay(33); // 这里等一下Tick结束
         // 纯暂停保留本段起点，交给之后的停止键回退；停止则用完即清。
-        if (keepCurrentPlayhead == true) return;
-        if (_lastPlayTime.HasValue)
-            PlayheadTime = _lastPlayTime.Value;
-        _lastPlayTime = null;
+        if (keepCurrentPlayhead != true)
+        {
+            if (_lastPlayTime.HasValue)
+                PlayheadTime = _lastPlayTime.Value;
+            _lastPlayTime = null;
+        }
+        // 视图已经切回「读共享内存」，这里把最终播放头落进去，让它停在编辑器的位置。
+        _playheadSync.TryWrite(PlayheadTime);
     }
 
 
@@ -1171,17 +1184,37 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private void EnterPlaying(PlaybackMode mode)
     {
+        // 起点先垫进共享内存，免得第一帧读到上一次会话留下的值；
+        // 视图随后自己接管写方，这一下最多早一帧，之后就以它的音频时钟为准。
+        _playheadSync.TryWrite(mode is PlaybackMode.Normal ? PlayheadTime : PlayheadTime - 5);
+
         _viewState = ViewStatus.Playing;
         if (mode is PlaybackMode.Record) return;
         _timelineClock.Reset();
         _timelineOrigin = mode is PlaybackMode.IncludeOp ? PlayheadTime - 5 : PlayheadTime;
         _timelineSpeed = PlaybackSpeed;
+        // 共享内存可用时播放头由视图写，本地钟只是它的替补，照常起搏即可。
         _timelineClock.Restart();
     }
     private void EnterPaused()
     {
         _viewState = ViewStatus.Paused;
         _timelineClock.Stop();
+        // 播放期间编辑器的写是关着的，停下来的这一刻要立刻把位置交给视图，
+        // 否则它会停在自己最后写下的那个值上等下一次写入。
+        _playheadSync.TryWrite(PlayheadTime);
+    }
+
+    /// <summary>
+    /// 播放中推进播放头。播放时视图是写方，这里只做读取，两侧因此是同一个时间来源；
+    /// 共享内存拿不到（非桌面平台、视图没起来）时才退回本地独立钟推算。
+    /// </summary>
+    private double NextPlayingTime()
+    {
+        if (_playheadSync.TryRead(out var shared))
+            return shared;
+
+        return _timelineOrigin + _timelineClock.Elapsed.TotalSeconds * _timelineSpeed;
     }
 
 
@@ -1227,6 +1260,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     }
     partial void OnPlayheadTimeChanged(double value)
     {
+        // 暂停/空闲时播放头由编辑器持有，写进共享内存让视图跟到同一位置；
+        // 播放时写方是视图，读回来的值不再回写，免得两边互相盖。
+        if (_viewState is not ViewStatus.Playing) _playheadSync.TryWrite(value);
         // Ordinary time updates move the caret only when following is enabled; explicit seeks do so directly.
         if (IsFollowCursor) MoveCaretToPlayhead(value);
     }
@@ -1266,6 +1302,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _timelineTimer.Stop();
+        _playheadSync.Dispose();
 
         // 关窗前最后抢救一次未落盘的改动。
         await _autoSave.FlushAndSuspendAsync();
