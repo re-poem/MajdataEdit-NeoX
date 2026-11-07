@@ -7,6 +7,7 @@ using Avalonia.Markup.Xaml;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Editing;
 using AvaloniaEdit.TextMate;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Base;
@@ -113,77 +114,79 @@ public partial class FumenEditorView : UserControl, IEditorService
     // 接管狗屎 AvaloniaEdit 的部分按键行为
     private void TextArea_PreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
-
         var area = Editor.TextArea;
         var hasShift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
 
-        if (!area.Selection.IsEmpty && !hasShift)
+        if (area.Document is not { } doc)
+            return;
+        if (e.Key is not (Key.Left or Key.Right or Key.Up or Key.Down))
+            return;
+
+        // Ctrl 与方向键组合只是纯导航，不跳词、不跳段
+        if (!hasShift && !area.Selection.IsEmpty)
         {
-            if (e.Key == Key.Right)
+            // 无 Shift 的方向键先把选区塌缩到对应的边界：左/上取起点，右/下取终点
+            var segment = area.Selection.SurroundingSegment;
+            area.Caret.Offset = e.Key is Key.Left or Key.Up ? segment.Offset : segment.EndOffset;
+            area.ClearSelection();
+            e.Handled = true;
+
+            // 左右在这里就结束了，上下还要再走一行
+            if (e.Key is Key.Left or Key.Right)
             {
-                area.Caret.Offset = area.Selection.SurroundingSegment.EndOffset;
-                area.ClearSelection();
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Left)
-            {
-                area.Caret.Offset = area.Selection.SurroundingSegment.Offset;
-                area.ClearSelection();
-                e.Handled = true;
+                area.Caret.BringCaretToView();
+                return;
             }
         }
 
-        if (!hasShift)
+        // 首行再往上 = 行首，末行再往下 = 行尾
+        if (e.Key == Key.Up && area.Caret.Line == 1)
         {
-            if (e.Key == Key.Up && area.Caret.Line > 1)
-            {
-                var prevLine = Editor.Document.GetLineByNumber(area.Caret.Line - 1);
-                var col = Math.Min(area.Caret.Column, prevLine.Length + 1);
-                area.Caret.Offset = prevLine.Offset + Math.Max(0, col - 1);
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Down && area.Caret.Line < Editor.Document.LineCount)
-            {
-                var nextLine = Editor.Document.GetLineByNumber(area.Caret.Line + 1);
-                var col = Math.Min(area.Caret.Column, nextLine.Length + 1);
-                area.Caret.Offset = nextLine.Offset + Math.Max(0, col - 1);
-                e.Handled = true;
-            }
+            MoveCaretTo(area, doc.GetLineByNumber(1).Offset, hasShift);
+            e.Handled = true;
         }
-
-        switch (e.Key)
+        else if (e.Key == Key.Down && area.Caret.Line == doc.LineCount)
         {
-            case Key.Left when hasShift:
-                area.Caret.Offset = Math.Max(0, area.Caret.Offset - 1);
-                e.Handled = true; break;
-            case Key.Right when hasShift:
-                area.Caret.Offset = Math.Min(Editor.Document.TextLength, area.Caret.Offset + 1);
-                e.Handled = true; break;
-            case Key.Up when hasShift:
-                if (area.Caret.Line > 1)
-                {
-                    var prevLine = Editor.Document.GetLineByNumber(area.Caret.Line - 1);
-                    var col = Math.Min(area.Caret.Column, prevLine.Length + 1);
-                    area.Caret.Offset = prevLine.Offset + Math.Max(0, col - 1);
-                    e.Handled = true;
-                }
-                break;
-            case Key.Down when hasShift:
-                if (area.Caret.Line < Editor.Document.LineCount)
-                {
-                    var nextLine = Editor.Document.GetLineByNumber(area.Caret.Line + 1);
-                    var col = Math.Min(area.Caret.Column, nextLine.Length + 1);
-                    area.Caret.Offset = nextLine.Offset + Math.Max(0, col - 1);
-                    e.Handled = true;
-                }
-                break;
-            case Key.Left:
-                area.Caret.Offset = Math.Max(0, area.Caret.Offset - 1);
-                e.Handled = true; break;
-            case Key.Right:
-                area.Caret.Offset = Math.Min(Editor.Document.TextLength, area.Caret.Offset + 1);
-                e.Handled = true; break;
+            MoveCaretTo(area, doc.GetLineByNumber(doc.LineCount).EndOffset, hasShift);
+            e.Handled = true;
+        }
+        else
+            ExecuteKey((hasShift, e.Key) switch
+            {
+                (false, Key.Left) => EditingCommands.MoveLeftByCharacter,
+                (false, Key.Right) => EditingCommands.MoveRightByCharacter,
+                (false, Key.Up) => EditingCommands.MoveUpByLine,
+                (false, _) => EditingCommands.MoveDownByLine,
+                (true, Key.Left) => EditingCommands.SelectLeftByCharacter,
+                (true, Key.Right) => EditingCommands.SelectRightByCharacter,
+                (true, Key.Up) => EditingCommands.SelectUpByLine,
+                _ => EditingCommands.SelectDownByLine,
+            }, area, e);
+
+        area.Caret.BringCaretToView();
+    }
+
+    private static void ExecuteKey(AvaloniaEdit.RoutedCommand command, TextArea area, KeyEventArgs e)
+    {
+        if (!command.CanExecute(null, area))
+            return;
+
+        command.Execute(null, area);
+        e.Handled = true;
+    }
+
+    private static void MoveCaretTo(TextArea area, int offset, bool extend)
+    {
+        if (extend)
+        {
+            var position = new TextViewPosition(area.Document.GetLocation(offset));
+            area.Selection = area.Selection.StartSelectionOrSetEndpoint(area.Caret.Position, position);
+            area.Caret.Offset = offset;
+        }
+        else
+        {
+            area.Caret.Offset = offset;
+            area.ClearSelection();
         }
     }
 

@@ -105,7 +105,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         new(_autoSave.Store,
             () => _chartFolder,
             _fileDialog.FindFolderAsync,
-            async chart => await OpenChartAsync(chart.Folder),
+            // 恢复/打开都会换掉当前谱面：先过一遍未保存确认。用户取消时返回 true，
+            // 免得恢复面板把「取消」当成失败报出来（此时文件可能已经写过）。
+            async chart => !await ConfirmLeaveChartAsync() || await OpenChartAsync(chart.Folder),
             () => _autoSave.Suppress());
 
 
@@ -437,6 +439,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 break;
             case nameof(MaidataFile.Charts):
                 OnPropertyChanged(nameof(Chart));
+                break;
+            case nameof(MaidataFile.Commands):
+                // 其它 command 没有对应的展开属性，界面直接绑 Maidata.Commands，
+                // 这里只需靠方法末尾统一 ParseAsync 重新提交。
                 break;
             case nameof(MaidataFile.IsDirty):
                 // 一旦变脏就重新给自动保存起搏（防抖）。
@@ -773,6 +779,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // 已经有了就提示一声，转而按打开处理。
         var folder = await PickChartFolderAsync(LocalizationService.Default[LangKeys.Gui_Open], TrackFileFilter);
         if (folder is null) return;
+        if (!await ConfirmLeaveChartAsync()) return;
 
         if (!await OpenChartAsync(folder, newChart: true))
             await ErrorAsync(LangKeys.Gui_NoTrackFile);
@@ -782,6 +789,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         var folder = await PickChartFolderAsync(LocalizationService.Default[LangKeys.Gui_Open], MaidataFileFilter);
         if (folder is null) return;
+        if (!await ConfirmLeaveChartAsync()) return;
 
         if (!await OpenChartAsync(folder))
             await ErrorAsync(LangKeys.Gui_NoTrackFile);
@@ -798,13 +806,43 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // 保存后顺手把脏清掉流程交给自动保存这一侧收尾。
         await _autoSave.FlushAndSuspendAsync();
     }
+
     [RelayCommand]
     public async Task ReloadFileAsync()
     {
         if (_chartFolder is null) return;
+        if (!await ConfirmLeaveChartAsync()) return;
 
         // OpenChartAsync 内部会重新扫描目录，无需先 Refresh。
         await OpenChartAsync(_chartFolder.Folder);
+    }
+
+
+    /// <summary>
+    /// 离开当前谱面（关窗、打开/新建、重载）前的一道闸：有未保存改动就问
+    /// 「保存 / 不保存 / 取消」。
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> 表示可以继续（已经保存，或用户确认丢弃）；<c>false</c> 表示用户取消了本次操作，
+    /// 调用方应原样留在当前谱面。
+    /// </returns>
+    public async Task<bool> ConfirmLeaveChartAsync()
+    {
+        // 没有打开的谱面、或改动已经落盘，都不用打扰。
+        if (_chartFolder is null || Maidata is not { IsDirty: true }) return true;
+
+        switch (await MessageBox.AskSaveAsync(
+            LocalizationService.Default[LangKeys.Msg_ChartNotSaved],
+            LocalizationService.Default[LangKeys.Gui_Warning]))
+        {
+            case SaveChoice.Save:
+                await SaveFileAsync();
+                return true;
+            case SaveChoice.Discard:
+                return true;
+            default:
+                return false;
+        }
     }
 
     [RelayCommand]

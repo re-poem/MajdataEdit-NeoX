@@ -65,9 +65,16 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
         if (e.NewItems != null)
             foreach (MutSimaiCommand c in e.NewItems) c.PropertyChanged += OnCommandItemChanged;
 
+        // 命令表本身不是 Set()/ObservableArray 写入，必须自己 fire，否则外部（MainViewModel）
+        // 收不到通知，增删 command 就不会重新 Parse。MarkDirty 在已经脏时的 no-op 不能代替它。
+        OnPropertyChanged(nameof(Commands));
         MarkDirty();
     }
-    private void OnCommandItemChanged(object? sender, PropertyChangedEventArgs e) => MarkDirty();
+    private void OnCommandItemChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Commands));
+        MarkDirty();
+    }
 
 
 

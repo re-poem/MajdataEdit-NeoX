@@ -34,6 +34,8 @@ public partial class MainWindow : Window
 {
     /// <summary>关闭已确认：第二次 <c>Closing</c>（自己调 <see cref="Window.Close"/>) 直接放行。</summary>
     private bool _closeConfirmed;
+    /// <summary>未保存确认框还开着：此时再次点关闭只交给正在走的那一遍，不叠弹窗。</summary>
+    private bool _closeAsking;
 
     public MainWindow()
     {
@@ -49,7 +51,7 @@ public partial class MainWindow : Window
         RebuildPluginUi();
     }
 
-    #region Plugins
+    #region Plugins Menu
 
     [GeneratedDirectProperty]
     public partial IReadOnlyList<LuaPlugin>? Plugins { get; set; }
@@ -157,14 +159,22 @@ public partial class MainWindow : Window
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_closeConfirmed) return;
+        // 已放行，或确认框还开着（用户又点了一次关闭）：都交给已经在走的那一遍。
+        if (_closeConfirmed || _closeAsking) return;
 
         // 先拦住这次关闭：确认流程是异步的，等走完再自己 Close()。
         e.Cancel = true;
-        _closeConfirmed = true;
 
         try
         {
+            _closeAsking = true;
+
+            // 还有没落盘的改动就先问一句；用户取消就留在窗口里，下次关闭重来一遍。
+            if (DataContext is MainViewModel vm && !await vm.ConfirmLeaveChartAsync())
+                return;
+
+            _closeConfirmed = true;
+
             if (DataContext is not null)
                 await AskCloseViewsAsync();
 
@@ -173,8 +183,12 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _closeAsking = false;
+
+            // 确认过了就关；没确认（用户取消）就留在原地——这次 Closing 已被 e.Cancel 拦掉。
             // 收尾里出岔子也得让窗口关掉，否则窗口会卡在"永远关不掉"。
-            Close();
+            if (_closeConfirmed)
+                Close();
         }
     }
 
