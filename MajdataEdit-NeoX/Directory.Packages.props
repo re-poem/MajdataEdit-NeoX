@@ -6,25 +6,25 @@
   <ItemGroup>
     <!-- Avalonia packages -->
     <!-- Important: keep version in sync! -->
-    <PackageVersion Include="Avalonia" Version="12.1.4" />
+    <PackageVersion Include="Avalonia" Version="12.1.5" />
     <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
-    <PackageVersion Include="Avalonia.Skia" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.iOS" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Browser" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Android" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.iOS" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Browser" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Android" Version="12.1.5" />
     <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
     <PackageVersion Include="Cimai" Version="1.1.1" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Dock.Avalonia" Version="12.1.0.12" />
-    <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.12" />
-    <PackageVersion Include="Dock.Model" Version="12.1.0.12" />
-    <PackageVersion Include="Dock.Model.Mvvm" Version="12.1.0.12" />
+    <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageVersion Include="Dock.Model" Version="12.1.5" />
+    <PackageVersion Include="Dock.Model.Mvvm" Version="12.1.5" />
     <PackageVersion Include="Dock.Serializer.Newtonsoft" Version="12.1.0.12" />
-    <PackageVersion Include="Dock.Serializer.SystemTextJson" Version="12.1.0.12" />
+    <PackageVersion Include="Dock.Serializer.SystemTextJson" Version="12.1.5" />
     <!-- 波形解码用 ffmpeg，原生库：桌面随同目录部署的 MajdataViewX 分发（运行期 MajEnv.FFmpegLibraryPath 引用），
          移动端由 Android/iOS csproj 打进包体。见 Models/Track/FfmpegAudio.cs -->
     <PackageVersion Include="FFmpeg.AutoGen" Version="9.0.1.1" />
@@ -35,12 +35,12 @@
     <PackageVersion Include="WebSocketSharp-netstandard" Version="1.0.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageVersion Include="NuGet.Versioning" Version="7.9.0" />
     <PackageVersion Include="NLua" Version="1.7.9" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageVersion Include="PropertyGenerator.Avalonia" Version="1.3.1" />
-    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp" Version="4.155.0" />
     <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
   </ItemGroup>
 </Project>

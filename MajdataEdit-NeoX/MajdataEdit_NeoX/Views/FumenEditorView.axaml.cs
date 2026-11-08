@@ -115,14 +115,12 @@ public partial class FumenEditorView : UserControl, IEditorService
     private void TextArea_PreviewKeyDown(object? sender, KeyEventArgs e)
     {
         var area = Editor.TextArea;
+        var hasCtrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         var hasShift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
 
-        if (area.Document is not { } doc)
-            return;
         if (e.Key is not (Key.Left or Key.Right or Key.Up or Key.Down))
             return;
 
-        // Ctrl 与方向键组合只是纯导航，不跳词、不跳段
         if (!hasShift && !area.Selection.IsEmpty)
         {
             // 无 Shift 的方向键先把选区塌缩到对应的边界：左/上取起点，右/下取终点
@@ -130,27 +128,9 @@ public partial class FumenEditorView : UserControl, IEditorService
             area.Caret.Offset = e.Key is Key.Left or Key.Up ? segment.Offset : segment.EndOffset;
             area.ClearSelection();
             e.Handled = true;
-
-            // 左右在这里就结束了，上下还要再走一行
-            if (e.Key is Key.Left or Key.Right)
-            {
-                area.Caret.BringCaretToView();
-                return;
-            }
         }
-
-        // 首行再往上 = 行首，末行再往下 = 行尾
-        if (e.Key == Key.Up && area.Caret.Line == 1)
+        else if (hasCtrl)
         {
-            MoveCaretTo(area, doc.GetLineByNumber(1).Offset, hasShift);
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Down && area.Caret.Line == doc.LineCount)
-        {
-            MoveCaretTo(area, doc.GetLineByNumber(doc.LineCount).EndOffset, hasShift);
-            e.Handled = true;
-        }
-        else
             ExecuteKey((hasShift, e.Key) switch
             {
                 (false, Key.Left) => EditingCommands.MoveLeftByCharacter,
@@ -162,10 +142,11 @@ public partial class FumenEditorView : UserControl, IEditorService
                 (true, Key.Up) => EditingCommands.SelectUpByLine,
                 _ => EditingCommands.SelectDownByLine,
             }, area, e);
+            e.Handled = true;
+        }
 
         area.Caret.BringCaretToView();
     }
-
     private static void ExecuteKey(AvaloniaEdit.RoutedCommand command, TextArea area, KeyEventArgs e)
     {
         if (!command.CanExecute(null, area))
@@ -175,20 +156,6 @@ public partial class FumenEditorView : UserControl, IEditorService
         e.Handled = true;
     }
 
-    private static void MoveCaretTo(TextArea area, int offset, bool extend)
-    {
-        if (extend)
-        {
-            var position = new TextViewPosition(area.Document.GetLocation(offset));
-            area.Selection = area.Selection.StartSelectionOrSetEndpoint(area.Caret.Position, position);
-            area.Caret.Offset = offset;
-        }
-        else
-        {
-            area.Caret.Offset = offset;
-            area.ClearSelection();
-        }
-    }
 
     private void TextArea_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
