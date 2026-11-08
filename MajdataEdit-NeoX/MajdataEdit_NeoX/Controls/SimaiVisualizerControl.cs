@@ -452,7 +452,7 @@ internal partial class SimaiVisualizerControl : Control
                                           note.IsEach ? EachColor :
                                           TapColor;
                             var xRight = (float)(x + (note.Duration / step) * linewidth);
-                            if (!float.IsNormal(xRight)) xRight = ushort.MaxValue;
+                            if (float.IsInfinity(xRight)) xRight = ushort.MaxValue;
                             if (xRight - x < 1f) xRight = x + 5;
                             canvas.DrawLine(x, y, xRight, y, Paint);
                             break;
@@ -460,7 +460,7 @@ internal partial class SimaiVisualizerControl : Control
                         case SimaiNoteType.TOUCHHOLD:
                             Paint.StrokeWidth = 3.5f;
                             var xDelta = (float)(note.Duration / step) * linewidth / 4f;
-                            if (!float.IsNormal(xDelta)) xDelta = ushort.MaxValue;
+                            if (float.IsInfinity(xDelta)) xDelta = ushort.MaxValue;
                             if (xDelta < 1f) xDelta = 1;
                             var touchHoldColors = note.IsMine ? TouchHoldMineColors : TouchHoldNormalColors;
                             for (var j = 0; j < 4; j++)
@@ -479,8 +479,8 @@ internal partial class SimaiVisualizerControl : Control
                             Paint.PathEffect = DashEffect;
                             var xSlide = (float)((timing.Time + note.SlideShootDelay + offset) / step - virtualStartIndex) * linewidth;
                             var xSlideRight = (float)(note.Duration / step) * linewidth + xSlide;
-                            if (!float.IsNormal(xSlideRight)) xSlideRight = ushort.MaxValue;
-                            if (!float.IsNormal(xSlide)) xSlide = ushort.MaxValue;
+                            if (float.IsInfinity(xSlideRight)) xSlideRight = ushort.MaxValue;
+                            if (float.IsInfinity(xSlide)) xSlide = ushort.MaxValue;
                             canvas.DrawLine(xSlide, y, xSlideRight, y, Paint);
                             Paint.PathEffect = null;
                             break;
