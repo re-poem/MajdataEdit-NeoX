@@ -4,6 +4,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.PropertyGrid.Services;
 using Avalonia.Threading;
+using AvaloniaEdit.Document;
 using Cimai;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -25,6 +26,7 @@ using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
 using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
+using MajSimai.Diagnostics;
 using PropertyModels.ComponentModel;
 using System;
 using System.Collections.Generic;
@@ -59,9 +61,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _player = new PlayerConnection(Settings.EditSetting.PlayerIps);
         _player.OnConnectedChanged += connected =>
         {
+            _pushedChart = false;
             _pushedSetting = false;
             _pushedLoaded = false;
-            _chartDirty = true;
             OnPropertyChanged(nameof(IsConnected));
             OnPropertyChanged(nameof(ActiveConnectionCount));
             _ = SynchronizeConnectedPlayersAsync();
@@ -434,6 +436,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 break;
             case nameof(MaidataFile.Fumens):
                 OnPropertyChanged(nameof(Fumen));
+                _ = DebouncedFumenChanged();
                 break;
             case nameof(MaidataFile.Charts):
                 OnPropertyChanged(nameof(Chart));
@@ -453,6 +456,22 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         // MaidataFile 任意更改都让服务端重新 Parse（谱面 + metadata 一次提交）。
         _ = ParseAsync();
+    }
+    private async Task DebouncedFumenChanged()
+    {
+        _checkCts?.Cancel();
+        _checkCts?.Dispose();
+
+        _checkCts = new();
+        try
+        {
+            await Task.Delay(810, _checkCts.Token);
+            if (_checkCts.IsCancellationRequested) return;
+
+            Diagnostics = SimaiSyntaxChecker.CheckChart(Fumen.AsSpan());
+        }
+        catch (TaskCanceledException) { }
+        catch (OperationCanceledException) { }
     }
 
     // ========编辑态========
@@ -518,6 +537,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial Bitmap? Cover { get; private set; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<SimaiDiagnostic> Diagnostics { get; private set; } = [];
 
 
 
@@ -692,6 +714,8 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     // 连接
 
+    private CancellationTokenSource? _checkCts;
+
     // 变化通知在构造函数 _player.OnConnectedChanged
     // 因为直接绑的 _client.State，没法 Observable
     public bool IsConnected => _player.IsConnected;
@@ -701,7 +725,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // 播放态由编辑器自己的命令结果驱动（命令会等到播放器响应），不再从连接层回调。
     private ViewStatus _viewState = ViewStatus.Idle;
 
-    private bool _chartDirty; // 谱面解析被跳过（断连/播放中），待连接且空闲后补推
+    private bool _pushedChart; // 在任一对谱面的更改后，有至少一次谱面解析（断连/播放中会暂时跳过，待连接且空闲后补推）
     private bool _pushedSetting; // 在任一连接完成之后，有至少一次settings提交
     private bool _pushedLoaded; // 在任一连接完成之后，有至少一次Files请求
     private readonly SemaphoreSlim _syncGate = new(1, 1);
@@ -893,6 +917,31 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         Factory.FloatOrActivateTool<AboutTool>();
     }
+    [RelayCommand]
+    public void OpenErrorList()
+    {
+        Factory.FloatOrActivateTool<ErrorListTool>();
+    }
+
+    /// <summary>
+    /// 错误列表跳转：把光标挪到诊断位置并激活编辑器面板。
+    /// 与编辑器共用 CaretOffset 双向绑定，这里只改值。
+    /// </summary>
+    [RelayCommand]
+    public void GotoDiagnostic(SimaiDiagnostic? diagnostic)
+    {
+        if (diagnostic is null || Fumen.Length == 0) return;
+
+        // 行列（1-based）换算成谱面偏移，算法与 FumenEditorView 一致
+        var doc = new TextDocument(Fumen);
+        if (diagnostic.Line >= 1 && diagnostic.Line <= doc.LineCount)
+        {
+            var line = doc.GetLineByNumber(diagnostic.Line);
+            CaretOffset = line.Offset + Math.Clamp(diagnostic.Column, 1, line.Length + 1) - 1;
+        }
+
+        Factory.ActivateEditor();
+    }
 
 
 
@@ -1081,19 +1130,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (_chartFolder?.Track is null) return;
         if (!await _player.ConnectAsync()) return;
         await PushResourcesToPlayerAsync();
-        if (_chartDirty) await ParseAsync();
+        if (!_pushedChart) await ParseAsync();
     }
     private async Task ParseAsync()
     {
         if (Maidata is null) return;
         if (!_player.IsConnected || _viewState is ViewStatus.Playing)
         {
-            _chartDirty = true;
+            _pushedChart = false;
             return;
         }
-        _chartDirty = false;
-        var designer = string.IsNullOrEmpty(Maidata.Designers[SelectedDifficulty]) 
-            ? Maidata.Designer 
+        _pushedChart = true;
+        var designer = string.IsNullOrEmpty(Maidata.Designers[SelectedDifficulty])
+            ? Maidata.Designer
             : Maidata.Designers[SelectedDifficulty];
         await _player.SimaiAsync(
             Maidata.Fumens[SelectedDifficulty],
@@ -1113,7 +1162,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         await EnsurePlayableAsync();
         // 谱面在断连/播放期间改过的话，这里补推一次解析。要在options之后
-        if (_chartDirty)
+        if (!_pushedChart)
             await ParseAsync();
 
         if (await _player.PlayAsync(mode, PlayheadTime, PlaybackSpeed))

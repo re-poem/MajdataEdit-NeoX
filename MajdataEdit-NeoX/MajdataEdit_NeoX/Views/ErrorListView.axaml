@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:ll="clr-namespace:Avalonia.PropertyGrid.Localization;assembly=Avalonia.PropertyGrid"
+             xmlns:conv="using:MajdataEdit_NeoX.Converters"
+             xmlns:majdiag="using:MajSimai.Diagnostics"
+
+             mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="260"
+             x:Class="MajdataEdit_NeoX.Views.ErrorListView"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <conv:DiagnosticIconConverter x:Key="DiagnosticIcon" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- 表头 -->
+        <Style Selector="TableView#List TableViewColumnHeader">
+            <Setter Property="Height" Value="5"/>
+            <Setter Property="Padding" Value="9 0 0 0"/>
+            <Setter Property="BorderThickness" Value="0 -3 0 -6"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
+
+        <!-- 行容器 -->
+        <Style Selector="TableView#List TableViewRow">
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="6 3 6 3"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="6,4">
+            <ToggleButton x:Name="ErrorFilter" IsChecked="True" Padding="8,3" Click="OnFilterChanged">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Image Source="avares://MajdataEdit_NeoX/Assets/Icons/ErrorList/error.png" Width="16" Height="16" Stretch="Uniform"/>
+                    <TextBlock x:Name="ErrorCount" Text="0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </ToggleButton>
+            <ToggleButton x:Name="WarningFilter" IsChecked="True" Padding="8,3" Click="OnFilterChanged">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Image Source="avares://MajdataEdit_NeoX/Assets/Icons/ErrorList/warn.png" Width="16" Height="16" Stretch="Uniform"/>
+                    <TextBlock x:Name="WarningCount" Text="0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </ToggleButton>
+            <ToggleButton x:Name="InfoFilter" IsChecked="True" Padding="8,3" Click="OnFilterChanged">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Image Source="avares://MajdataEdit_NeoX/Assets/Icons/ErrorList/info.png" Width="16" Height="16" Stretch="Uniform"/>
+                    <TextBlock x:Name="InfoCount" Text="0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </ToggleButton>
+        </StackPanel>
+
+        <TableView x:Name="List" Grid.Row="1"
+                   SelectedItem="{Binding #Root.SelectedDiagnostic, Mode=TwoWay}"
+                   SelectionMode="Single"
+                   DoubleTapped="TableView_DoubleTapped">
+            <TableView.Columns>
+                <TableViewColumn Header="" Width="24">
+                    <TableViewColumn.CellTemplate>
+                        <DataTemplate x:DataType="majdiag:SimaiDiagnostic">
+                            <Image Width="16"
+                                   Height="16"
+                                   Source="{Binding Severity, Converter={StaticResource DiagnosticIcon}}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </TableViewColumn.CellTemplate>
+                </TableViewColumn>
+
+                <TableViewColumn Width="60"
+                                 Header="{ll:Localize Gui_Code}" Binding="{Binding Code, DataType={x:Type majdiag:SimaiDiagnostic}}" />
+                <TableViewColumn Width="50"
+                                 Header="{ll:Localize Gui_Line}" Binding="{Binding Line, DataType={x:Type majdiag:SimaiDiagnostic}}" />
+                <TableViewColumn Width="50"
+                                 Header="{ll:Localize Gui_Column}" Binding="{Binding Column, DataType={x:Type majdiag:SimaiDiagnostic}}" />
+                <TableViewColumn
+                    Header="{ll:Localize Gui_Description}" Binding="{Binding Message, DataType={x:Type majdiag:SimaiDiagnostic}}" />
+            </TableView.Columns>
+        </TableView>
+        <TextBlock Grid.Row="1"
+                   x:Name="EmptyText" Text="{ll:Localize Gui_NoDiagnostics}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Opacity="0.55" IsVisible="False"/>
+    </Grid>
+
+</UserControl>

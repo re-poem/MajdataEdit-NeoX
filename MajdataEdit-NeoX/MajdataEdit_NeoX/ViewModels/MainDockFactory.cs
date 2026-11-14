@@ -113,6 +113,17 @@ public class BpmTapTool : Tool
     }
 }
 
+public class ErrorListTool : Tool
+{
+    public ErrorListTool()
+    {
+        Id = "ErrorList";
+        Title = "ErrorList";
+        CanClose = true;
+        CanDrag = true;
+    }
+}
+
 
 public class MainDockFactory : Factory
 {
@@ -153,6 +164,7 @@ public class MainDockFactory : Factory
         app.DataTemplates.Add(new FuncDataTemplate<ShortcutTool>((tool, _) => new ShortcutView()));
         app.DataTemplates.Add(new FuncDataTemplate<AboutTool>((tool, _) => new AboutView()));
         app.DataTemplates.Add(new FuncDataTemplate<BpmTapTool>((tool, _) => new BpmTapView()));
+        app.DataTemplates.Add(new FuncDataTemplate<ErrorListTool>((tool, _) => CreateErrorListView(tool)));
     }
 
     /// <summary>
@@ -210,6 +222,7 @@ public class MainDockFactory : Factory
         view.Bind(FumenEditorView.EditorFontSizeProperty, new Binding(nameof(MainViewModel.FontSize)));
         view.Bind(FumenEditorView.WordWrapProperty, new Binding(nameof(MainViewModel.WordWrap)));
         view.Bind(FumenEditorView.CaretOffsetProperty, new Binding(nameof(MainViewModel.CaretOffset)));
+        view.Bind(FumenEditorView.DiagnosticsProperty, new Binding(nameof(MainViewModel.Diagnostics)));
         // 依赖注入
         if (tool?.Context is MainViewModel vm)
         {
@@ -260,6 +273,17 @@ public class MainDockFactory : Factory
     }
 
 
+    private static ErrorListView CreateErrorListView(ErrorListTool tool)
+    {
+        var view = new ErrorListView();
+        BindToolContext(view, tool);
+
+        view.Bind(ErrorListView.DiagnosticsProperty, new Binding(nameof(MainViewModel.Diagnostics)));
+        view.Bind(ErrorListView.GotoDiagnosticProperty, new Binding(nameof(MainViewModel.GotoDiagnosticCommand)));
+
+        return view;
+    }
+
     private static (double W, double H) DefaultSizeOf(IDockable d) => d switch
     {
         VisualizerTool => (800, 100),
@@ -268,6 +292,7 @@ public class MainDockFactory : Factory
         AboutTool => (250, 400),
         RecoverTool => (600, 500),
         BpmTapTool => (200, 220),
+        ErrorListTool => (550, 260),
         _ => (600, 400),
     };
 
@@ -454,6 +479,13 @@ public class MainDockFactory : Factory
         var tool = new T();
         InitDockable(tool, null);
         AddFloat(RootDock, tool);
+    }
+
+    /// <summary>激活主布局里的编辑器面板（错误列表跳转用）。</summary>
+    public void ActivateEditor()
+    {
+        if (FindToolAnywhere<EditorTool>() is { } editor)
+            SetActiveDockable(editor);
     }
 
     private IDockable? FindToolAnywhere<T>() where T : Tool

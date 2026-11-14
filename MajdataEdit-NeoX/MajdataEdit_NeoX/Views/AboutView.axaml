@@ -43,19 +43,19 @@
                 <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center" Margin="0,14,0,0">
                     <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.Discord}"
                             Width="40" Height="40" CornerRadius="8">
-                        <svg:Svg Path="/Assets/Icons/discord.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
+                        <svg:Svg Path="/Assets/Icons/About/discord.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
                     </Button>
                     <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.QQ}"
                             Width="40" Height="40" CornerRadius="8">
-                        <svg:Svg Path="/Assets/Icons/qq.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
+                        <svg:Svg Path="/Assets/Icons/About/qq.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
                     </Button>
                     <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.GitHub}"
                             Width="40" Height="40" CornerRadius="8">
-                        <svg:Svg Path="/Assets/Icons/github.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
+                        <svg:Svg Path="/Assets/Icons/About/github.svg" Stretch="Uniform" EnableCache="True" Wireframe="False" />
                     </Button>
                     <Button Command="{Binding #Root.OpenAboutLink}" CommandParameter="{x:Static v:AboutLinks.MajNet}"
                             Width="40" Height="40" CornerRadius="8">
-                        <Image Source="avares://MajdataEdit_NeoX/Assets/Icons/salt.webp" />
+                        <Image Source="avares://MajdataEdit_NeoX/Assets/Icons/About/salt.webp" />
                     </Button>
                 </StackPanel>
 
