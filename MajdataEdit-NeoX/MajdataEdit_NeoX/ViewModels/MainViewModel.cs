@@ -488,17 +488,17 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         get => Maidata?.Offset ?? 0f;
         set => Maidata?.Offset = value;
     }
-    public string? Level
+    public string Level
     {
         get => Maidata?.Levels[SelectedDifficulty] ?? string.Empty;
         set => Maidata?.Levels[SelectedDifficulty] = value;
     }
-    public string? Designer
+    public string Designer
     {
         get => Maidata?.Designers[SelectedDifficulty] ?? string.Empty;
         set => Maidata?.Designers[SelectedDifficulty] = value;
     }
-    public string? Fumen
+    public string Fumen
     {
         get => Maidata?.Fumens[SelectedDifficulty] ?? string.Empty;
         set => Maidata?.Fumens[SelectedDifficulty] = value;
@@ -1092,13 +1092,16 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         }
         _chartDirty = false;
+        var designer = string.IsNullOrEmpty(Maidata.Designers[SelectedDifficulty]) 
+            ? Maidata.Designer 
+            : Maidata.Designers[SelectedDifficulty];
         await _player.SimaiAsync(
-            Maidata.Fumens[SelectedDifficulty] ?? string.Empty,
+            Maidata.Fumens[SelectedDifficulty],
             Maidata.Offset,
             Maidata.Title,
             Maidata.Artist,
-            Maidata.Designer,
-            Maidata.Levels[SelectedDifficulty] ?? string.Empty,
+            designer,
+            Maidata.Levels[SelectedDifficulty],
             SelectedDifficulty);
     }
     public async Task PlayAsync(PlaybackMode mode)

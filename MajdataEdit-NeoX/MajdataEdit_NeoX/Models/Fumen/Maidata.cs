@@ -116,9 +116,9 @@ public sealed partial class MaidataFile : ObservableObject, IDisposable
 
 
 
-    public ObservableArray<string?> Levels { get; }
-    public ObservableArray<string?> Designers { get; }
-    public ObservableArray<string?> Fumens { get; }
+    public ObservableArray<string> Levels { get; }
+    public ObservableArray<string> Designers { get; }
+    public ObservableArray<string> Fumens { get; }
     /// <summary>仅供 timings 数据访问</summary>
     public ObservableArray<SimaiChart?> Charts = null!;
 
