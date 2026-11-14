@@ -69,12 +69,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _ = SynchronizeConnectedPlayersAsync();
         };
 
-        _chartEditMng = new(MajEnv.DatabaseFile);
+        _chartEditStore = new(MajEnv.DatabaseFile);
         _autoSave = new AutoSaveManager(
             new AutoSaveStore(MajEnv.DatabaseFile),
             () => _chartFolder,
             () => Maidata is { } editing ? MaidataFile.Deparse(editing) : null,
             () => Settings.EditSetting);
+
+        // 会话标记：先把本次标脏，同时拿到「上次没正常退出」的证据。
+        // 读不懂（库打不开 / 权限）时当作正常退出，宁可少提示一次，不要每次开机都弹。
+        _session = new SessionStore(MajEnv.DatabaseFile);
+        _session = new SessionStore(MajEnv.DatabaseFile);
+        _interruptedSessionStart = Avalonia.Controls.Design.IsDesignMode ? null : _session.Begin();
 
         _pluginsMng = new();
         _pluginsMng.OnPluginsChanged += () =>
@@ -446,13 +452,14 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 // 这里只需靠方法末尾统一 ParseAsync 重新提交。
                 break;
             case nameof(MaidataFile.IsDirty):
-                // 一旦变脏就重新给自动保存起搏（防抖）。
-                if (Maidata?.IsDirty == true) _autoSave.NotifyEdited();
                 OnPropertyChanged(nameof(WindowTitle)); // Title与IsDirty绑定
                 break;
             default:
                 break;
         }
+
+        // 每一笔改动都给自动保存重新起搏。
+        if (Maidata?.IsDirty == true) _autoSave.NotifyEdited();
 
         // MaidataFile 任意更改都让服务端重新 Parse（谱面 + metadata 一次提交）。
         _ = ParseAsync();
@@ -652,7 +659,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     private void LoadChartEditRecord(string chartKey)
     {
-        var record = _chartEditMng.GetRecord(chartKey);
+        var record = _chartEditStore.GetRecord(chartKey);
         _recordedChartPath = chartKey;
         SelectedDifficulty = record?.SelectedDifficulty ?? 0;
         PlayheadTime = record?.TrackTime ?? 0;
@@ -665,7 +672,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (_recordedChartPath is null) return;
 
         _chartEditTimer.Pause();
-        _chartEditMng.UpsertRecord(new ChartEditRecord(
+        _chartEditStore.UpsertRecord(new ChartEditRecord(
             SelectedDifficulty,
             PlayheadTime,
             _chartEditTimer.Elapsed,
@@ -738,13 +745,18 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(16.666667f) };
     private double? _lastPlayTime; // 供Stop进行回退
 
-    // 编辑记录
-    private readonly ChartEditManager _chartEditMng;
+    // 编辑记录（editor.db 的 ChartEditRecords 表）：上次停在哪个难度、播放头在哪
+    private readonly ChartEditStore _chartEditStore;
     private readonly ChartEditTimer _chartEditTimer = new();
     private string? _recordedChartPath;
 
     // 自动保存（防抖写入 editor.db 的 AutoSaves 表）
     private readonly AutoSaveManager _autoSave;
+
+    // 会话标记（editor.db 的 AppSession 表）：用来判断上次是否正常退出
+    private readonly SessionStore _session;
+    private readonly long? _interruptedSessionStart;
+    private bool _crashPrompted;
 
 
     // Plugins
@@ -752,6 +764,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public IReadOnlyList<LuaPlugin> Plugins => _pluginsMng.Plugins;
 
 
+    private bool _disposed;
 
 
     #region Commands - 窗口
@@ -902,6 +915,36 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         Factory.FloatOrActivateTool<RecoverTool>();
     }
+
+    /// <summary>
+    /// 上次没走正常关闭流程时提示一次，并给一条直通恢复面板的路。
+    /// 由视图在窗口/视图就绪后调用；没有可提示的内容时什么都不做。
+    /// </summary>
+    public async Task NotifyInterruptedExitAsync()
+    {
+        if (_crashPrompted) return;
+        _crashPrompted = true;
+
+        if (_interruptedSessionStart is not { } started) return;
+
+        var proceed = await MessageBox.TryConfirmAsync(
+            string.Format(
+                LocalizationService.Default[LangKeys.Msg_InterruptedExit],
+                SessionStore.FormatStartedTime(started)),
+            LocalizationService.Default[LangKeys.Gui_Warning]);
+
+        // 弹窗本身失败（没有可用宿主）就留着标记，下次启动还有机会问。
+        // 用户点了「否」也算已知晓，置净——否则每次开机都要被问一遍。
+        if (proceed is null) return;
+
+        _session.End();
+
+        if (proceed == true) OpenRecover();
+    }
+
+    /// <summary>崩溃路径上的同步抢救，见 <see cref="AutoSaveManager.FlushEmergency"/>。</summary>
+    public void FlushEmergency() => _autoSave.FlushEmergency();
+
     [RelayCommand]
     public void OpenBpmTap()
     {
@@ -1394,11 +1437,19 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // 幂等：正常关窗走一遍，进程退出时异常钩子还会再来一遍，第二遍必须什么都不做。
+        if (_disposed) return;
+        _disposed = true;
+
         _timelineTimer.Stop();
 
         // 关窗前最后抢救一次未落盘的改动。
         await _autoSave.FlushAndSuspendAsync();
         _autoSave.Dispose();
+
+        // 走到这里才算正常退出：清掉会话标记，下次启动不再提示。
+        _session.End();
+        _session.Dispose();
 
         // 全局快捷键按 vm 归属注销,避免重开窗口后重复注册。
         InputManager.Instance.Unregister(this);
@@ -1408,7 +1459,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SaveLayout();
 
         await _player.DisposeAsync();
-        _chartEditMng.Dispose();
+        _chartEditStore.Dispose();
         _pluginsMng.Dispose();
 
         GC.SuppressFinalize(this);

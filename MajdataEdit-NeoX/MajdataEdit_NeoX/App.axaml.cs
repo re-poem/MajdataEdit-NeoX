@@ -32,8 +32,25 @@ public partial class App : Application
 #endif
     }
 
+    /// <summary>
+    /// 进程退出前的最后一道抢救：异常路径上没机会走关窗流程，所以这里补一次同步落盘。
+    /// 会话标记故意不清——上次没正常退出，正是下次启动该提示的依据。
+    /// </summary>
     static void LogCrashed(Exception ex)
     {
+        try
+        {
+            if ((Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow?.DataContext
+                    is MainViewModel desktopVm)
+                desktopVm.FlushEmergency();
+            else if (Current?.ApplicationLifetime is ISingleViewApplicationLifetime { MainView: { } view })
+                (view.DataContext as MainViewModel)?.FlushEmergency();
+        }
+        catch (Exception flushEx)
+        {
+            Debug.WriteLine($"[App] emergency flush on crash: {flushEx.Message}");
+        }
+
         File.WriteAllText(MajEnv.CrashFile, $"{ex.Message}\n{ex.StackTrace}\n\n" +
             $"inner:{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}");
     }

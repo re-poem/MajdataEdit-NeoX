@@ -21,7 +21,7 @@ public sealed record AutoSaveSnapshot(
     string Content);
 
 /// <summary>
-/// 自动保存快照库。和 <see cref="ChartEditManager"/> 一样落在 <c>MajEnv.DatabaseFile</c> 上，
+/// 自动保存快照库。和 <see cref="ChartEditStore"/> 一样落在 <c>MajEnv.DatabaseFile</c> 上，
 /// 但走独立连接：一张表 + 事务就能表达「写入 + 轮转」，不再需要 <c>.autosave/</c> 目录、
 /// 变长文件名的生成规则，以及那份额外维护、会被写坏的 <c>.index.json</c>。
 ///
@@ -158,7 +158,7 @@ public sealed class AutoSaveStore : IDisposable
         }
     }, CancellationToken.None);
 
-    /// <summary>删掉一条快照（恢复成功后调用）。</summary>
+    /// <summary>删掉一条快照。</summary>
     public Task DeleteAsync(long id) => Task.Run(async () =>
     {
         if (_disposed) return;

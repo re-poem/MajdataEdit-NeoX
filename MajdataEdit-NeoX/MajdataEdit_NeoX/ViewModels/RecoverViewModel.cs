@@ -135,8 +135,8 @@ public sealed partial class RecoverViewModel : ViewModelBase
                 return;
             }
 
-            await _store.DeleteAsync(entry.Snapshot.Id);
-
+            // 恢复成功也不删快照：写回是整份覆盖，万一选错了行或写坏了，快照是唯一的退路；
+            // 留着它由 keepPerChart / TotalCap 轮转自然淘汰，比「恢复即销毁」安全得多。
             if (!await _openFolder(target))
             {
                 await FailAsync();

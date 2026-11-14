@@ -43,6 +43,14 @@ public partial class MainWindow : Window
         ConfigureWindowControls();
         PropertyChanged += OnWindowPropertyChanged;
         Closing += OnClosing;
+        Opened += OnOpened;
+    }
+
+    private async void OnOpened(object? sender, EventArgs e)
+    {
+        Opened -= OnOpened;
+        if (DataContext is MainViewModel vm)
+            await vm.NotifyInterruptedExitAsync();
     }
 
     protected override void OnDataContextChanged(EventArgs e)

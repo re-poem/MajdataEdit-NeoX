@@ -32,7 +32,14 @@ internal static class MessageBox
     }
 
     /// <summary>是 / 否询问。返回用户是否选了"是"；弹窗失败按"否"。</summary>
-    public static async Task<bool> ConfirmAsync(string content, string title)
+    public static async Task<bool> ConfirmAsync(string content, string title) =>
+        await TryConfirmAsync(content, title) ?? false;
+
+    /// <summary>
+    /// 是 / 否询问，但把「弹窗本身没弹出来」和「用户点了否」区分开：
+    /// 前者返回 <c>null</c>，调用方可以据此决定不要把「已经问过了」记下来。
+    /// </summary>
+    public static async Task<bool?> TryConfirmAsync(string content, string title)
     {
         try
         {
@@ -44,7 +51,7 @@ internal static class MessageBox
         catch (Exception ex)
         {
             Debug.WriteLine($"[MessageBox] confirm: {ex.Message}");
-            return false;
+            return null;
         }
     }
 
