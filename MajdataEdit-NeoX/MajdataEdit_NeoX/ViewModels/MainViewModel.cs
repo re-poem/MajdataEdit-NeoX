@@ -1310,27 +1310,30 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #region WIRE UP
 
+    // FumenPos是本timing的逗号之后的位置。
+
     private bool _isSlidingPlayhead;
     partial void OnCaretOffsetChanged(int value)
     {
         if (_isSlidingPlayhead || Chart is null) return;
         var timings = Chart.Timings;
-        var caretTime = 0d;
-        var combo = 0;
         if (timings.Length == 0) return;
 
-        foreach (var t in timings)
+        int lo = 0, hi = timings.Length;
+        while (lo < hi)
         {
-            if ((long)t.FumenPos >= value)
-            {
-                caretTime = t.Time + Offset;
-                break;
-            }
+            int mid = lo + ((hi - lo) >> 1);
+            if ((long)timings[mid].FumenPos <= value)
+                lo = mid + 1;
             else
-            {
-                combo += 1;
-            }
+                hi = mid;
         }
+        var index = Math.Min(lo, timings.Length - 1);
+
+        var caretTime = timings[index].Time + Offset;
+        var combo = 0;
+        for (var i = 0; i <= index; i++)
+            combo += (int)timings[i].NotesCount;
 
         CaretTime = caretTime;
         CaretCombo = combo;
@@ -1369,9 +1372,15 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _isSlidingPlayhead = true;
         try
         {
-            CaretTime = timings[index].Time + Offset;
-            CaretCombo = index;
             CaretOffset = (int)timings[index].FumenPos - 1;
+
+            var caretTime = timings[index].Time + Offset;
+            var combo = 0;
+            for (var i = 0; i <= index; i++)
+                combo += (int)timings[i].NotesCount;
+
+            CaretCombo = combo;
+            CaretTime = caretTime;
         }
         finally
         {
