@@ -1241,22 +1241,24 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async Task PlayIncludeOp()
     {
         if (Maidata is null) return;
-        if (!IsConnected) return;
+        if (!await _player.ConnectAsync()) return;
 
+        if (_viewState == ViewStatus.Playing)
+            await PauseAsync(true);
         await PlayAsync(PlaybackMode.IncludeOp);
-        PlayheadTime -= 5;
     }
     /// <summary>Menu 的导出视频按键。</summary>
     [RelayCommand]
     public async Task PlayRecord()
     {
         if (Maidata is null) return;
-        if (!IsConnected) return;
+        if (!await _player.ConnectAsync()) return;
 
-        await PlayAsync(PlaybackMode.Record);
+        if (_viewState == ViewStatus.Playing)
+            await PauseAsync(true);
+        else // 这里使用 else，经实测await pause再play也不能正常工作，调配这之间的顺序太难了，用户就先点两次吧
+            await PlayAsync(PlaybackMode.Record);
     }
-
-    //TODO: IncludeOp五秒延迟
 
     //====================播放连接====================
 
