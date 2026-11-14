@@ -70,7 +70,7 @@ public static class Completions
         _completions = source;
     }
 
-    private static IReadOnlyDictionary<string, FumenCompletionItem[]> Parse(string json)
+    private static Dictionary<string, FumenCompletionItem[]> Parse(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var dict = new Dictionary<string, FumenCompletionItem[]>();
@@ -129,5 +129,5 @@ public static class Completions
     }
 
     public static FumenCompletionItem[] Get(string trigger) =>
-        _completions.TryGetValue(trigger, out var items) ? items : Array.Empty<FumenCompletionItem>();
+        _completions.TryGetValue(trigger, out var items) ? items : [];
 }

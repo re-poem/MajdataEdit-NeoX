@@ -91,8 +91,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         };
         _timelineTimer.Start();
 
-        _playheadSync.TryOpen();
-
         Factory = new MainDockFactory(this);
         Layout = LoadLayout() ?? Factory.CreateLayout()!;
         Factory.InitLayout(Layout);
@@ -708,12 +706,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private bool _pushedLoaded; // 在任一连接完成之后，有至少一次Files请求
     private readonly SemaphoreSlim _syncGate = new(1, 1);
 
-    // 播放期间的时间线跟踪：播放头由播放器推进，这里经共享内存跟读（见 PlayheadSync）；
-    // 共享内存不可用时退回本地 Stopwatch 推算（origin + elapsed × speed）。
     private readonly Stopwatch _timelineClock = new();
     private double _timelineOrigin;
     private float _timelineSpeed = 1f;
-    private readonly PlayheadSync _playheadSync = new();
+    private readonly PlayheadSync _playheadSync = new(MajEnv.PlayheadShmName);
     // 常驻 UI 时钟：非播放状态的 tick 直接跳过，因此不需要启停控制和跨线程取消那套机器。
     private readonly DispatcherTimer _timelineTimer = new() { Interval = TimeSpan.FromMilliseconds(16.666667f) };
     private double? _lastPlayTime; // 供Stop进行回退
@@ -1031,7 +1027,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (_viewState is ViewStatus.Playing)
             await PauseAsync(true);
 
-        // 播放中拖动时，播放头还会被仍在写共享内存的视图盖掉，所以停下后再落一次最终位置。
         PlayheadTime = time;
         _playheadSync.TryWrite(time);
     }
@@ -1111,9 +1106,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (Maidata is null) return;
         if (!await _player.ConnectAsync()) return;
 
-        // View可能比编辑器起得晚，播放前再试一次共享内存。
-        _playheadSync.TryOpen();
-
         _lastPlayTime = PlayheadTime;
 
         await EnsurePlayableAsync();
@@ -1153,7 +1145,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 PlayheadTime = _lastPlayTime.Value;
             _lastPlayTime = null;
         }
-        // 视图已经切回「读共享内存」，这里把最终播放头落进去，让它停在编辑器的位置。
         _playheadSync.TryWrite(PlayheadTime);
     }
 
@@ -1341,7 +1332,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _timelineTimer.Stop();
-        _playheadSync.Dispose();
 
         // 关窗前最后抢救一次未落盘的改动。
         await _autoSave.FlushAndSuspendAsync();

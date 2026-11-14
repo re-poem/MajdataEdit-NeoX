@@ -35,6 +35,7 @@
 		<PackageReference Include="Dock.Model" />
 		<PackageReference Include="Dock.Model.Mvvm" />
 		<PackageReference Include="Dock.Serializer.SystemTextJson" />
+		<PackageReference Include="EasyShm" />
 		<PackageReference Include="FFmpeg.AutoGen" />
 		<PackageReference Include="FluentAvaloniaUI" />
 		<PackageReference Include="MajProtocol.Standard" />

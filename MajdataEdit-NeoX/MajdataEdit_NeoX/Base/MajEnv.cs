@@ -30,7 +30,7 @@ public static partial class MajEnv
         Path.Combine(MajBase, relativePath);
 
 
-    public static string MmfAudioTimePath => GetPath("majdata_time.dat");
+    public const string PlayheadShmName = "majdata_playhead";
 
     public static string SettingsFile => GetPath("Settings.json");
     public static string LayoutFile => GetPath("layout.json");
