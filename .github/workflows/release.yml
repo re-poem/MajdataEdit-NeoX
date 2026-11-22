@@ -39,6 +39,13 @@ jobs:
       UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
     steps:
+      - name: Configure Pagefile
+        uses: al-cheb/configure-pagefile-action@v1.5
+        with:
+          minimum-size: 8
+          maximum-size: 16
+          disk-root: "D:"
+
       - name: Checkout MajdataViewX
         uses: actions/checkout@v4
         with:
