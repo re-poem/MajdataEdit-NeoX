@@ -5,6 +5,7 @@ using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.ViewModels;
 using MajdataEdit_NeoX.Views;
 using MsBox.Avalonia;
+using MsBox.Avalonia.Base;
 using MsBox.Avalonia.Enums;
 using System;
 using System.Diagnostics;
@@ -13,17 +14,55 @@ using System.Threading.Tasks;
 
 namespace MajdataEdit_NeoX.Types;
 
-/// <summary>
-/// <c>MessageBox.Avalonia</c> 的薄包装。它自己就是跨平台的（每个平台各自实现宿主），
-/// 所以项目里不再需要一层 <c>IMessageService</c> 抽象，调用方直接来这里。
-///
-/// 统一兜底：弹窗本身失败（没有可用宿主等）只记日志，不把异常甩进业务流程。
-/// </summary>
-internal static class MessageBox
+internal static class IMsBoxExtension
 {
     private static Window? Owner => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
+    extension(IMsBox<ButtonResult> box)
+    {
+        /// <summary>
+        /// Shows the message box as a dialog owned by the main window,
+        /// or as a standalone window if no main window is available.
+        /// </summary>
+        public async Task<ButtonResult> ShowWindowDialogAsync()
+        {
+            if (Owner is null)
+            {
+                return await box.ShowWindowAsync();
+            }
+            else
+            {
+                return await box.ShowWindowDialogAsync(Owner);
+            }
+        }
+    }
+}
+internal static class WindowExtension
+{
+    private static Window? Owner => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
+    extension(Window window)
+    {
+        /// <summary>
+        /// Shows the window as a dialog owned by the main window,
+        /// or as a standalone window if no main window is available.
+        /// </summary>
+        public void ShowDialog()
+        {
+            if (Owner is null)
+            {
+                window.Show();
+            }
+            else
+            {
+                window.ShowDialog(Owner);
+            }
+        }
+    }
+}
+
+internal static class MessageBox
+{
     /// <summary>提示一条必须让用户知道的信息，等其确认后返回。</summary>
     public static async Task ShowAsync(
         string content,
@@ -33,19 +72,61 @@ internal static class MessageBox
     {
         try
         {
-            var box = MessageBoxManager.GetMessageBoxStandard(title, content, button, icon);
-            if (Owner is null)
-            {
-                await box.ShowWindowAsync();
-            }
-            else
-            {
-                await box.ShowWindowDialogAsync(Owner);
-            }
+            await MessageBoxManager.GetMessageBoxStandard(title, content, button, icon).ShowWindowDialogAsync();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[MessageBox] show: {ex.Message}");
+        }
+    }
+
+
+    /// <summary>是 / 否询问。返回用户是否选了"是"；弹窗失败按"否"。</summary>
+    public static async Task<bool> ConfirmAsync(string content, string title) =>
+        await TryConfirmAsync(content, title) ?? false;
+
+    /// <summary>
+    /// 是 / 否询问，但把「弹窗本身没弹出来」和「用户点了否」区分开：
+    /// 前者返回 <c>null</c>，调用方可以据此决定不要把「已经问过了」记下来。
+    /// </summary>
+    public static async Task<bool?> TryConfirmAsync(string content, string title)
+    {
+        try
+        {
+            var result = await MessageBoxManager
+                .GetMessageBoxStandard(title, content, ButtonEnum.YesNo, Icon.Info)
+                .ShowWindowDialogAsync();
+            return result == ButtonResult.Yes;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MessageBox] confirm: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 三选一：「保存 / 不保存 / 取消」。按钮沿用宿主的 Yes / No / Cancel 标签。
+    /// 弹窗失败按 <see cref="SaveChoice.Cancel"/>——宁可留住现场，也别默默丢掉改动。
+    /// </summary>
+    public static async Task<SaveChoice> AskSaveAsync(string content, string title)
+    {
+        try
+        {
+            var result = await MessageBoxManager
+                .GetMessageBoxStandard(title, content, ButtonEnum.YesNoCancel, Icon.Warning)
+                .ShowWindowDialogAsync();
+            return result switch
+            {
+                ButtonResult.Yes => SaveChoice.Save,
+                ButtonResult.No => SaveChoice.Discard,
+                _ => SaveChoice.Cancel,
+            };
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MessageBox] ask save: {ex.Message}");
+            return SaveChoice.Cancel;
         }
     }
 
@@ -78,10 +159,7 @@ internal static class MessageBox
             dialog = new ProgressDialog { DataContext = progress };
 
             // ShowDialog 的 Task 要等窗口关掉才完成，这里不能 await——否则活要等关窗才开始跑。
-            if (Owner is null)
-                dialog.Show();
-            else
-                _ = dialog.ShowDialog(Owner);
+            dialog.ShowDialog();
         }
         catch (Exception ex)
         {
@@ -101,55 +179,6 @@ internal static class MessageBox
         finally
         {
             dialog?.Close();
-        }
-    }
-
-    /// <summary>是 / 否询问。返回用户是否选了"是"；弹窗失败按"否"。</summary>
-    public static async Task<bool> ConfirmAsync(string content, string title) =>
-        await TryConfirmAsync(content, title) ?? false;
-
-    /// <summary>
-    /// 是 / 否询问，但把「弹窗本身没弹出来」和「用户点了否」区分开：
-    /// 前者返回 <c>null</c>，调用方可以据此决定不要把「已经问过了」记下来。
-    /// </summary>
-    public static async Task<bool?> TryConfirmAsync(string content, string title)
-    {
-        try
-        {
-            var result = await MessageBoxManager
-                .GetMessageBoxStandard(title, content, ButtonEnum.YesNo, Icon.Info)
-                .ShowAsync();
-            return result == ButtonResult.Yes;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MessageBox] confirm: {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 三选一：「保存 / 不保存 / 取消」。按钮沿用宿主的 Yes / No / Cancel 标签。
-    /// 弹窗失败按 <see cref="SaveChoice.Cancel"/>——宁可留住现场，也别默默丢掉改动。
-    /// </summary>
-    public static async Task<SaveChoice> AskSaveAsync(string content, string title)
-    {
-        try
-        {
-            var result = await MessageBoxManager
-                .GetMessageBoxStandard(title, content, ButtonEnum.YesNoCancel, Icon.Warning)
-                .ShowAsync();
-            return result switch
-            {
-                ButtonResult.Yes => SaveChoice.Save,
-                ButtonResult.No => SaveChoice.Discard,
-                _ => SaveChoice.Cancel,
-            };
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MessageBox] ask save: {ex.Message}");
-            return SaveChoice.Cancel;
         }
     }
 }

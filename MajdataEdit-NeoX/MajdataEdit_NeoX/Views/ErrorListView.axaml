@@ -22,6 +22,7 @@
             <Setter Property="Padding" Value="9 0 0 0"/>
             <Setter Property="BorderThickness" Value="0 -3 0 -6"/>
             <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!-- 行容器 -->
@@ -55,6 +56,7 @@
         </StackPanel>
 
         <TableView x:Name="List" Grid.Row="1"
+                   Background="Transparent"
                    SelectedItem="{Binding #Root.SelectedDiagnostic, Mode=TwoWay}"
                    SelectionMode="Single"
                    DoubleTapped="TableView_DoubleTapped">
