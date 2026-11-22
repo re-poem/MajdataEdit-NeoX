@@ -42,8 +42,8 @@ jobs:
       - name: Configure Pagefile
         uses: al-cheb/configure-pagefile-action@v1.5
         with:
-          minimum-size: 8GB
-          maximum-size: 16GB
+          minimum-size: 2GB
+          maximum-size: 8GB
           disk-root: "C:"
 
       - name: Checkout MajdataViewX
