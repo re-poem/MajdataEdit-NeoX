@@ -110,7 +110,10 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      # 主项目直接 ProjectReference 到 ThirdParty/Avalonia.PropertyGrid，少了 submodule 编不过
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-dotnet@v4
         with:
