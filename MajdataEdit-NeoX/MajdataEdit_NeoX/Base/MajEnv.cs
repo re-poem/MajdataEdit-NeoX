@@ -4,12 +4,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Velopack.Locators;
 
 namespace MajdataEdit_NeoX.Base;
 
 public static partial class MajEnv
 {
-
+    /// <summary>
+    /// 程序目录，就是 Velopack 的 <c>current</c>，每次更新会被整个替换，只能当只读用。
+    /// </summary>
     public static string MajBase
     {
         get
@@ -26,21 +29,66 @@ public static partial class MajEnv
             return AppDomain.CurrentDomain.BaseDirectory;
         }
     }
-    public static string GetPath(string relativePath) =>
+
+    /// <summary>
+    /// 可写数据目录：即 <c>current</c> 的上一级）。
+    /// </summary>
+    public static string MajData
+    {
+        get
+        {
+            if (OperatingSystem.IsAndroid())
+            {
+                return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            }
+            if (OperatingSystem.IsIOS())
+            {
+                return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            }
+
+            return VelopackRoot ?? MajBase;
+        }
+    }
+
+    /// <summary>
+    /// Velopack 布局的根目录；不在布局里（开发直跑、移动端）为 null。
+    /// 懒求值并缓存：Program.Main 里 VelopackApp.Run() 已经设好 locator，此后不会再变。
+    /// </summary>
+    private static readonly Lazy<string?> VelopackRootLazy = new(() =>
+    {
+        try
+        {
+            return VelopackLocator.IsCurrentSet ? VelopackLocator.Current.RootAppDir : null;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MajEnv] locator: {ex.Message}");
+            return null;
+        }
+    });
+
+    private static string? VelopackRoot => VelopackRootLazy.Value;
+
+    /// <summary>程序目录下的路径（资源、View、随包文件）。</summary>
+    public static string GetBasePath(string relativePath) =>
         Path.Combine(MajBase, relativePath);
+
+    /// <summary>可写数据目录下的路径。</summary>
+    public static string GetDataPath(string relativePath) =>
+        Path.Combine(MajData, relativePath);
 
 
     public const string PlayheadShmName = "majdata_playhead";
 
-    public static string SettingsFile => GetPath("Settings.json");
-    public static string LayoutFile => GetPath("layout.json");
-    public static string CrashFile => GetPath("crash.log");
-    public static string DatabaseFile => GetPath("editor.db");
+    public static string DefaultBackgroundImageFile => GetBasePath("xxlb.png");
 
-    public static string CompletionFile => GetPath("completions.json");
-    public static string GrammarFile => GetPath("simai.tmLanguage.json");
-    public static string DefaultBackgroundImageFile => GetPath("xxlb.png");
-    public static string LuaPluginsPath => GetPath("Plugins");
+    public static string CompletionFile => GetDataPath("completions.json");
+    public static string SettingsFile => GetDataPath("Settings.json");
+    public static string LayoutFile => GetDataPath("layout.json");
+    public static string CrashFile => GetDataPath("crash.log");
+    public static string DatabaseFile => GetDataPath("editor.db");
+    public static string GrammarFile => GetDataPath("simai.tmLanguage.json");
+    public static string LuaPluginsPath => GetDataPath("Plugins");
 
     /// <summary>
     /// ffmpeg 原生库位置（波形解码用，见 Models/Track/FFmpegAudio.cs）。
@@ -56,20 +104,20 @@ public static partial class MajEnv
 
             // 与 LaunchViewIfNotRunning 一致：桌面端 MajdataViewX 与编辑器同目录部署
             return OperatingSystem.IsMacOS()
-                ? GetPath(Path.Combine("MajdataViewX.app", "Contents", "Plugins", "x86_64"))
-                : GetPath(Path.Combine("MajdataViewX_Data", "Plugins", "x86_64"));
+                ? GetBasePath(Path.Combine("MajdataViewX.app", "Contents", "Plugins", "x86_64"))
+                : GetBasePath(Path.Combine("MajdataViewX_Data", "Plugins", "x86_64"));
         }
     }
 
     /// <summary>
-    /// Copies editable defaults out of the package into the writable app-data directory.
-    /// Existing files are deliberately preserved so user changes survive upgrades.
+    /// 把包内默认文件铺进可写目录，只在目标不存在时动手，用户自己改过的内容不会被默认值盖掉。
     /// </summary>
     public static void InitializeUserFiles()
     {
+        Directory.CreateDirectory(MajData);
         Directory.CreateDirectory(LuaPluginsPath);
 
-        // CopyDefaultFile("completions.json", CompletionFile); // in Completions.cs, auto generate
+        CopyDefaultFile("completions.json", CompletionFile);
         CopyDefaultFile("simai.tmLanguage.json", GrammarFile);
         CopyDefaultFile("xxlb.png", DefaultBackgroundImageFile);
         CopyDefaultFile("Plugins/Mirror.lua", Path.Combine(LuaPluginsPath, "Mirror.lua"));
@@ -80,7 +128,7 @@ public static partial class MajEnv
     {
         if (File.Exists(destination)) return;
 
-        var legacyFile = GetPath(packageName.Replace('/', Path.DirectorySeparatorChar));
+        var legacyFile = GetBasePath(packageName.Replace('/', Path.DirectorySeparatorChar));
         if (File.Exists(legacyFile))
         {
             File.Copy(legacyFile, destination);

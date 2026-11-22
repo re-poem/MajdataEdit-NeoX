@@ -6,19 +6,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MajdataEdit_NeoX.Services.TextMarkers;
+namespace MajdataEdit_NeoX.Managers.TextMarkers;
 
 /// <summary>
-/// <see cref="ITextMarkerService"/> 的默认实现：标记放在
+/// <see cref="ITextMarkerManager"/> 的默认实现：标记放在
 /// <see cref="TextSegmentCollection{T}"/> 里跟着文档走，
 /// 并作为 <see cref="IBackgroundRenderer"/> 画在 <see cref="KnownLayer.Background"/>。
 /// </summary>
-public sealed class TextMarkerService : ITextMarkerService
+public sealed class TextMarkerManager : ITextMarkerManager
 {
     private readonly TextSegmentCollection<TextMarker> _markers;
     private readonly List<TextView> _textViews = [];
 
-    public TextMarkerService(TextDocument document)
+    public TextMarkerManager(TextDocument document)
     {
         _markers = new TextSegmentCollection<TextMarker>(document);
     }

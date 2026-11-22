@@ -34,6 +34,7 @@
     <PackageVersion Include="MajProtocol.Standard" Version="2.0.1" />
     <PackageVersion Include="MessageBox.Avalonia" Version="12.1.0" />
     <PackageVersion Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.17" />
+    <PackageVersion Include="Velopack" Version="1.2.161" />
     <PackageVersion Include="WebSocketSharp-netstandard" Version="1.0.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />

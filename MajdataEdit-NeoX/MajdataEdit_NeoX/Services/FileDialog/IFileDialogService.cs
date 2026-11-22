@@ -2,7 +2,7 @@ using Avalonia.Platform.Storage;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace MajdataEdit_NeoX.Services;
+namespace MajdataEdit_NeoX.Services.FileDialog;
 
 public interface IFileDialogService
 {

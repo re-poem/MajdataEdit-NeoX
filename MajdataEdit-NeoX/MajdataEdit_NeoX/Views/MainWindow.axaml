@@ -211,7 +211,7 @@
                     </MenuItem>
                     <MenuItem Header="{ll:Localize Gui_Setting}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_Setting}" Command="{Binding OpenSettings}"/>
-                        <MenuItem Header="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateAsync}" CommandParameter="false"/>
+                        <MenuItem Header="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateCommand}"/>
                     </MenuItem>
                     <MenuItem Header="{ll:Localize Gui_Tools}" CornerRadius="3">
                         <MenuItem Header="{ll:Localize Gui_BpmTap}" Command="{Binding OpenBpmTap}"/>

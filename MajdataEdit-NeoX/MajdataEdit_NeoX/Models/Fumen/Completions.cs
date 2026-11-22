@@ -1,73 +1,41 @@
 using MajdataEdit_NeoX.Base;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace MajdataEdit_NeoX.Models.Fumen;
 
 /// <summary>
 /// Fumen snippet completions keyed by trigger character.
 ///
-/// On-disk format (completions.json) — each row under a trigger is a 3-tuple:
+/// Defaults live in the embedded <c>completions.json</c> (copied into the writable data dir by
+/// <see cref="MajEnv.InitializeUserFiles"/>); the on-disk format — each row under a trigger is a 3-tuple
 ///   [ text, content, description ]
-/// Any of content / description can be <c>null</c>; text is required.
+/// — has content / description optional (<c>null</c>), text required.
 /// </summary>
 public static class Completions
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
-    private static readonly IReadOnlyDictionary<string, FumenCompletionItem[]> _completions;
-    public static readonly IReadOnlyDictionary<string, FumenCompletionItem[]> Default =
-        new Dictionary<string, FumenCompletionItem[]>
-        {
-            ["["] =
-            [
-                new("4:1]"),
-                new("8:1]"),
-                new("1:0]"),
-                new("384:1]"),
-            ],
-            ["{"] =
-            [
-                new("4}"),
-                new("3}"),
-                new("8}"),
-                new("16}"),
-                new("12}"),
-                new("384}"),
-            ],
-        };
+    private static readonly Dictionary<string, FumenCompletionItem[]> Empty = [];
+    private static readonly Dictionary<string, FumenCompletionItem[]> _completions;
 
     static Completions()
     {
-        var path = MajEnv.CompletionFile;
-        IReadOnlyDictionary<string, FumenCompletionItem[]>? source = null;
+        _completions = TryLoad(MajEnv.CompletionFile) ?? Empty;
+    }
 
+    private static Dictionary<string, FumenCompletionItem[]>? TryLoad(string path)
+    {
         try
         {
-            if (File.Exists(path))
-            {
-                var text = File.ReadAllText(path);
-                if (!string.IsNullOrWhiteSpace(text))
-                    source = Parse(text);
-            }
-        }
-        catch { }
+            if (!File.Exists(path)) return null;
 
-        if (source is null)
+            var text = File.ReadAllText(path);
+            return string.IsNullOrWhiteSpace(text) ? null : Parse(text);
+        }
+        catch
         {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, Serialize(Default));
-            }
-            catch { }
-            source = Default;
+            return null;
         }
-
-        _completions = source;
     }
 
     private static Dictionary<string, FumenCompletionItem[]> Parse(string json)
@@ -103,29 +71,6 @@ public static class Completions
         }
 
         return dict;
-    }
-
-    private static string Serialize(IReadOnlyDictionary<string, FumenCompletionItem[]> completions)
-    {
-        var root = new JsonObject();
-
-        foreach (var (trigger, items) in completions)
-        {
-            var array = new JsonArray();
-            foreach (var item in items)
-            {
-                var tuple = new JsonArray
-                {
-                    item.Text,
-                    item.Content is string s && s == item.Text ? null : JsonValue.Create((string?)item.Content),
-                    JsonValue.Create((string?)item.Description)
-                };
-                array.Add(tuple);
-            }
-            root[trigger] = array;
-        }
-
-        return root.ToJsonString(JsonOptions);
     }
 
     public static FumenCompletionItem[] Get(string trigger) =>

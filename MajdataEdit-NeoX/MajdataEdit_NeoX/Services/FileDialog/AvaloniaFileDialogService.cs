@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace MajdataEdit_NeoX.Services;
+namespace MajdataEdit_NeoX.Services.FileDialog;
 
 /// <summary>
 /// <see cref="IFileDialogService"/> 的 Avalonia 实现。运行时按需通过

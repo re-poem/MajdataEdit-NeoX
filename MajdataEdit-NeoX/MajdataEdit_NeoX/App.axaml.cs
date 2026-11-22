@@ -8,7 +8,7 @@ using Avalonia.PropertyGrid.Services;
 using Dock.Settings;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
-using MajdataEdit_NeoX.Services;
+using MajdataEdit_NeoX.Services.FileDialog;
 using MajdataEdit_NeoX.ViewModels;
 using MajdataEdit_NeoX.Views;
 using System;
@@ -51,8 +51,16 @@ public partial class App : Application
             Debug.WriteLine($"[App] emergency flush on crash: {flushEx.Message}");
         }
 
-        File.WriteAllText(MajEnv.CrashFile, $"{ex.Message}\n{ex.StackTrace}\n\n" +
-            $"inner:{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}");
+        try
+        {
+            Directory.CreateDirectory(MajEnv.MajData);
+            File.WriteAllText(MajEnv.CrashFile, $"{ex.Message}\n{ex.StackTrace}\n\n" +
+                $"inner:{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}");
+        }
+        catch (Exception writeEx)
+        {
+            Debug.WriteLine($"[App] write crash log: {writeEx.Message}");
+        }
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -120,8 +128,8 @@ public partial class App : Application
     public static void LaunchViewIfNotRunning()
     {
         var path = OperatingSystem.IsWindows()
-            ? MajEnv.GetPath("MajdataViewX.exe")
-            : MajEnv.GetPath("MajdataViewX");
+            ? MajEnv.GetBasePath("MajdataViewX.exe")
+            : MajEnv.GetBasePath("MajdataViewX");
         if (!File.Exists(path))
         {
             Debug.WriteLine($"[ViewLauncherService] {path} not found");

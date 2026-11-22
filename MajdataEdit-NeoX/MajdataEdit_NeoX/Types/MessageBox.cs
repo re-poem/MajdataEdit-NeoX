@@ -1,7 +1,14 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using MajdataEdit_NeoX.Lang;
+using MajdataEdit_NeoX.ViewModels;
+using MajdataEdit_NeoX.Views;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MajdataEdit_NeoX.Types;
@@ -14,6 +21,9 @@ namespace MajdataEdit_NeoX.Types;
 /// </summary>
 internal static class MessageBox
 {
+    private static Window? Owner => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
+
     /// <summary>提示一条必须让用户知道的信息，等其确认后返回。</summary>
     public static async Task ShowAsync(
         string content,
@@ -23,11 +33,74 @@ internal static class MessageBox
     {
         try
         {
-            await MessageBoxManager.GetMessageBoxStandard(title, content, button, icon).ShowAsync();
+            var box = MessageBoxManager.GetMessageBoxStandard(title, content, button, icon);
+            if (Owner is null)
+            {
+                await box.ShowWindowAsync();
+            }
+            else
+            {
+                await box.ShowWindowDialogAsync(Owner);
+            }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[MessageBox] show: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 带进度条跑一段活，窗口关掉或点取消即取消 <paramref name="work"/>。
+    /// 窗口起不来（无桌面宿主、弹窗失败）就直接跑，不让提示挡业务。
+    /// </summary>
+    /// <param name="work">要跑的活，收到进度回调（已经做了多少，跟 <paramref name="total"/> 同一单位）与取消令牌。</param>
+    /// <param name="total">一共多少；0 表示算不出来，进度条只转圈。</param>
+    /// <param name="formatter">把「做了多少 / 一共多少」写成给人看的文本，不给就照原样打数字。</param>
+    public static async Task RunWithProgressAsync(
+        string title,
+        string content,
+        Func<Action<long>, CancellationToken, Task> work,
+        long total = 0,
+        Func<long, string>? formatter = null)
+    {
+        ProgressDialog? dialog = null;
+        ProgressViewModel? progress = null;
+
+        try
+        {
+            progress = new ProgressViewModel
+            {
+                Title = title,
+                Content = content,
+                Total = total,
+                Formatter = formatter ?? (static value => value.ToString()),
+            };
+            dialog = new ProgressDialog { DataContext = progress };
+
+            // ShowDialog 的 Task 要等窗口关掉才完成，这里不能 await——否则活要等关窗才开始跑。
+            if (Owner is null)
+                dialog.Show();
+            else
+                _ = dialog.ShowDialog(Owner);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MessageBox] progress: {ex.Message}");
+            dialog?.Close();
+            dialog = null;
+        }
+
+        // 窗口起没起来都照跑到底；没窗口时给个空进度和不可取消的 token。
+        var report = progress is null ? (Action<long>)(_ => { }) : progress.Report;
+        var token = progress?.Token ?? CancellationToken.None;
+
+        try
+        {
+            await work(report, token);
+        }
+        finally
+        {
+            dialog?.Close();
         }
     }
 

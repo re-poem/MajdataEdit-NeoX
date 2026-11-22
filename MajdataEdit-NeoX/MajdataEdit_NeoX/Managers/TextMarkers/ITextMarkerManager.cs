@@ -5,7 +5,7 @@ using AvaloniaEdit.Rendering;
 using System;
 using System.Collections.Generic;
 
-namespace MajdataEdit_NeoX.Services.TextMarkers;
+namespace MajdataEdit_NeoX.Managers.TextMarkers;
 
 /// <summary>下划线的画法。</summary>
 public enum TextMarkerType
@@ -35,10 +35,10 @@ public interface ITextMarker : ISegment
 }
 
 /// <summary>
-/// 仿 AvalonEdit 经典示例的 <c>ITextMarkerService</c>：
+/// 仿 AvalonEdit 经典示例的同名服务：
 /// 管理文档上的全部标记，同时兼任背景渲染器把标记画到 TextView 上。
 /// </summary>
-public interface ITextMarkerService : IBackgroundRenderer, ITextViewConnect
+public interface ITextMarkerManager : IBackgroundRenderer, ITextViewConnect
 {
     /// <summary>标记增删时触发。</summary>
     event EventHandler? Changed;

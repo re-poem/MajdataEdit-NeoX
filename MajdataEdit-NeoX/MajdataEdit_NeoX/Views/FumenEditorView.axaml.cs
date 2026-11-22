@@ -13,9 +13,9 @@ using AvaloniaEdit.TextMate;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
+using MajdataEdit_NeoX.Managers.TextMarkers;
 using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Services;
-using MajdataEdit_NeoX.Services.TextMarkers;
 using MajSimai.Diagnostics;
 using PropertyGenerator.Avalonia;
 using System;
@@ -48,7 +48,7 @@ public partial class FumenEditorView : UserControl, IEditorService
         Editor.TextArea.AddHandler(PointerWheelChangedEvent, TextArea_PointerWheelChanged, RoutingStrategies.Tunnel);
 
         // 诊断下划线：marker 服务跟文档绑定，外部换 Fumen 时随新文档重建
-        AttachMarkerService(Editor.Document);
+        AttachMarkerManager(Editor.Document);
         Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => CloseMarkerToolTip();
         Editor.TextArea.PointerMoved += TextArea_PointerMoved;
         Editor.TextArea.PointerExited += (_, _) => CloseMarkerToolTip();
@@ -100,7 +100,7 @@ public partial class FumenEditorView : UserControl, IEditorService
         Editor.Document = _doc;
         _doc.TextChanged += OnDocChanged;
         // 文档换了，marker 服务也得跟着换（旧服务绑定在旧文档上）
-        AttachMarkerService(_doc);
+        AttachMarkerManager(_doc);
     }
     // 编辑器内改了：写回 Fumen
     private void OnDocChanged(object? s, EventArgs e)
@@ -119,16 +119,16 @@ public partial class FumenEditorView : UserControl, IEditorService
 
     // ======== 诊断下划线 ========
 
-    private TextMarkerService _markerService = null!;
+    private TextMarkerManager _markerManager = null!;
     private ITextMarker? _tooltipMarker;
 
 
 
-    private void AttachMarkerService(TextDocument doc)
+    private void AttachMarkerManager(TextDocument doc)
     {
-        _markerService?.RemoveFromTextView(Editor.TextArea.TextView);
-        _markerService = new TextMarkerService(doc);
-        _markerService.AddToTextView(Editor.TextArea.TextView);
+        _markerManager?.RemoveFromTextView(Editor.TextArea.TextView);
+        _markerManager = new TextMarkerManager(doc);
+        _markerManager.AddToTextView(Editor.TextArea.TextView);
         RebuildMarkers();
     }
 
@@ -137,9 +137,9 @@ public partial class FumenEditorView : UserControl, IEditorService
     // 这里换算成文档 offset，Content 能对上就按它的长度画，对不上至少画一个字符。
     private void RebuildMarkers()
     {
-        if (_markerService is null) return;
+        if (_markerManager is null) return;
         CloseMarkerToolTip();
-        _markerService.RemoveAll();
+        _markerManager.RemoveAll();
 
         var doc = Editor.Document;
         var diagnostics = Diagnostics;
@@ -160,7 +160,7 @@ public partial class FumenEditorView : UserControl, IEditorService
                 len = first.Content.Length;
             }
 
-            var marker = _markerService.Create(offset, len);
+            var marker = _markerManager.Create(offset, len);
             marker.MarkerType = TextMarkerType.SquigglyUnderline;
             marker.MarkerColor = DiagnosticPalette.Of(first.Severity);
             marker.ToolTip = string.Join("\n", group.Select(t => t.Diag.Message));
@@ -202,7 +202,7 @@ public partial class FumenEditorView : UserControl, IEditorService
         var offset = LineColumnToOffset(Editor.Document, position.Line, position.Column);
         if (offset < 0)
             return null;
-        return _markerService.GetMarkersAtOffset(offset).FirstOrDefault();
+        return _markerManager.GetMarkersAtOffset(offset).FirstOrDefault();
     }
 
     private void CloseMarkerToolTip()

@@ -1,0 +1,237 @@
+name: Release
+
+# 手动触发。版本一律从 csproj 的 <Version> 取，不开放输入，避免 tag 与程序版本对不上。
+# 不勾 publish：发 pre-release，tag 为 v<版本>-<yyyymmdd>-<短哈希>，并清掉旧的 pre-release。
+# 勾 publish：发正式 Release，tag 就是 v<版本>。
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a stable release instead of a pre-release
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: 10.0.x
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # 与 Directory.Packages.props 里的 Velopack 版本保持一致（vpk 官方建议同版本）
+  VPK_VERSION: 1.2.161
+  PACK_ID: MajdataEdit-NeoX
+  VIEW_REPO: re-poem/MajdataViewX
+  CSPROJ: MajdataEdit-NeoX/MajdataEdit_NeoX/MajdataEdit_NeoX.csproj
+  PUBLISH_DIR: publish
+
+permissions:
+  contents: write
+
+jobs:
+  # Unity 侧（MajdataViewX）的 Windows 独立构建。授权沿用该仓库 nightly 的账号密码方式。
+  build-view:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+    steps:
+      - name: Checkout MajdataViewX
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.VIEW_REPO }}
+          path: view
+          submodules: recursive
+
+      - name: Read Unity version
+        id: unity
+        shell: pwsh
+        working-directory: view
+        run: |
+          $line = Select-String -Path ProjectSettings/ProjectVersion.txt -Pattern '^m_EditorVersion:\s*(.+)$' | Select-Object -First 1
+          if (-not $line) { throw 'Unity version not found in ProjectSettings/ProjectVersion.txt' }
+          $version = $line.Matches[0].Groups[1].Value.Trim()
+          Write-Host "Unity version: $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: view/Library
+          key: Library-StandaloneWindows64-${{ hashFiles('view/ProjectSettings/ProjectSettings.asset', 'view/Packages/manifest.json') }}
+          restore-keys: |
+            Library-StandaloneWindows64-
+
+      # game-ci 不接受非 SemVer 的 bundleVersion（View 用 v6），所以不让它改版本号
+      - name: Build Unity project
+        uses: game-ci/unity-builder@v4
+        with:
+          unityVersion: ${{ steps.unity.outputs.version }}
+          targetPlatform: StandaloneWindows64
+          projectPath: view
+          buildName: MajdataViewX
+          buildsPath: build
+          versioning: None
+
+      # buildsPath 落在哪一层文档没写死，直接搜出来，别猜
+      - name: Locate build output
+        id: locate
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path . -Recurse -Filter 'MajdataViewX.exe' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '[\\/]Library[\\/]' } | Select-Object -First 1
+          if (-not $exe) { throw 'Unity build produced no MajdataViewX.exe' }
+          Write-Host "Build output: $($exe.Directory.FullName)"
+          "dir=$($exe.Directory.FullName)" >> $env:GITHUB_OUTPUT
+
+      # 用户已关 D3D12，但构建仍会留下一个 D3D12 目录
+      - name: Remove leftover D3D12 folder
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path '${{ steps.locate.outputs.dir }}' -Recurse -Directory -Filter 'D3D12' -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "Removing $($_.FullName)"
+            Remove-Item $_.FullName -Recurse -Force
+          }
+
+      - name: Upload view build
+        uses: actions/upload-artifact@v4
+        with:
+          name: view-build
+          path: ${{ steps.locate.outputs.dir }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # 编辑器本体。发布形态交给仓库里的 FolderProfile.pubxml，CI 只给配置和输出目录。
+  build-editor:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Read version from csproj
+        id: version
+        run: |
+          v=$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' "$CSPROJ" | head -1)
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "::error::Version '$v' is not a 3-part SemVer (required by Velopack)"
+            exit 1
+          fi
+          echo "Version: $v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Publish editor
+        run: >
+          dotnet publish "$CSPROJ"
+          -c Release
+          -p:PublishProfile=FolderProfile
+          -p:Version=${{ steps.version.outputs.version }}
+          -o "$PUBLISH_DIR"
+
+      - name: Upload editor build
+        uses: actions/upload-artifact@v4
+        with:
+          name: editor-build
+          path: ${{ env.PUBLISH_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # 拼包：两个产物平铺进同一目录（编辑器期望 View 与自己在同一层），再打成便携包。
+  pack:
+    needs: [build-view, build-editor]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ needs.build-editor.outputs.version }}
+    steps:
+      - name: Download builds
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Assemble package dir
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path pkg -Force | Out-Null
+          Copy-Item -Path artifacts/view-build/* -Destination pkg -Recurse -Force
+          Copy-Item -Path artifacts/editor-build/* -Destination pkg -Recurse -Force
+
+          foreach ($exe in 'MajdataEdit-NeoX.exe', 'MajdataViewX.exe') {
+            if (-not (Test-Path (Join-Path pkg $exe))) { throw "$exe missing from package dir" }
+          }
+          if (-not (Test-Path 'pkg/MajdataViewX_Data/Plugins/x86_64')) {
+            Write-Warning 'pkg/MajdataViewX_Data/Plugins/x86_64 not found, ffmpeg waveform decoding will break'
+          }
+
+      - name: Install vpk
+        shell: pwsh
+        run: |
+          dotnet tool install --global vpk --version $env:VPK_VERSION
+          "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+
+      - name: Pack (portable only)
+        shell: pwsh
+        run: |
+          vpk pack `
+            --packId $env:PACK_ID `
+            --packVersion $env:VERSION `
+            --packDir pkg `
+            --channel win `
+            --mainExe MajdataEdit-NeoX.exe `
+            --packTitle 'MajdataEdit NeoX' `
+            --packAuthors 're-poem' `
+            --outputDir Releases `
+            --noInst `
+            --exclude '.*(DoNotShip|BackUpThisFolder).*'
+
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: velopack-release
+          path: Releases/*
+          if-no-files-found: error
+          retention-days: 14
+
+      # 由 vpk 自己上传：releases.win.json 等内容必须和 Portable 包一起出现在 Release assets 里，
+      # 客户端的 GithubSource 才找得到更新。
+      # 不勾 publish 走 pre-release，tag 带日期与短哈希；旧的 pre-release 先无条件删掉，免得堆积。
+      - name: Publish to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $stable = '${{ inputs.publish }}' -eq 'true'
+          $tag = "v${env:VERSION}"
+          $pre = @()
+
+          if (-not $stable) {
+            $date = Get-Date -AsUTC -Format 'yyyyMMdd'
+            $sha = $env:GITHUB_SHA.Substring(0, 7)
+            $tag = "v${env:VERSION}-${date}-${sha}"
+            $pre = @('--pre')
+
+            # 只清上一个 pre-release（gh release list 按创建时间倒序，取最新一条）
+            $stale = gh release list --json tagName,isPrerelease --limit 50 |
+              ConvertFrom-Json | Where-Object { $_.isPrerelease } | Select-Object -First 1
+            if ($stale) {
+              Write-Host "Deleting previous pre-release $($stale.tagName)"
+              gh release delete $stale.tagName --cleanup-tag -y
+            }
+          }
+
+          Write-Host "Publishing $tag (pre-release: $(-not $stable))"
+          vpk upload github `
+            --outputDir Releases `
+            --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" `
+            --token $env:GH_TOKEN `
+            --channel win `
+            --tag $tag `
+            --publish `
+            --merge @pre

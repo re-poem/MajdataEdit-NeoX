@@ -1,7 +1,7 @@
 using Avalonia.Media;
 using MajSimai.Diagnostics;
 
-namespace MajdataEdit_NeoX.Services.TextMarkers;
+namespace MajdataEdit_NeoX.Managers.TextMarkers;
 
 /// <summary>VS（DarkPlus 主题）风格的诊断配色。</summary>
 public static class DiagnosticPalette

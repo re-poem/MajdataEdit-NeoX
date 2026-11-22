@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
 
-namespace MajdataEdit_NeoX.Services.TextMarkers;
+namespace MajdataEdit_NeoX.Managers.TextMarkers;
 
 /// <summary>
 /// <see cref="ITextMarker"/> 的默认实现：挂在 <see cref="TextSegmentCollection{T}"/>
@@ -10,15 +10,15 @@ namespace MajdataEdit_NeoX.Services.TextMarkers;
 /// </summary>
 public sealed class TextMarker : TextSegment, ITextMarker
 {
-    internal TextMarker(TextMarkerService service, int startOffset, int length)
+    internal TextMarker(TextMarkerManager manager, int startOffset, int length)
     {
-        Service = service;
+        Manager = manager;
         StartOffset = startOffset;
         Length = length;
     }
 
-    /// <summary>所属服务，删除时回调。</summary>
-    internal TextMarkerService Service { get; }
+    /// <summary>所属管理器，删除时回调。</summary>
+    internal TextMarkerManager Manager { get; }
 
     public TextMarkerType MarkerType { get; set; } = TextMarkerType.SquigglyUnderline;
 
@@ -26,8 +26,8 @@ public sealed class TextMarker : TextSegment, ITextMarker
 
     public string? ToolTip { get; set; }
 
-    /// <summary>标记随文档编辑被整体删除时由服务置 true。</summary>
+    /// <summary>标记随文档编辑被整体删除时由管理器置 true。</summary>
     public bool IsDeleted { get; internal set; }
 
-    public void Delete() => Service.Remove(this);
+    public void Delete() => Manager.Remove(this);
 }

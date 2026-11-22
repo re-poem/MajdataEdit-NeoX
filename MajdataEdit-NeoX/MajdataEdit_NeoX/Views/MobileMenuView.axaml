@@ -62,7 +62,7 @@
                         <Expander Classes="drawerGroup" Header="{ll:Localize Gui_Setting}">
                             <StackPanel>
                                 <Button Classes="drawerItem" Content="{ll:Localize Gui_Setting}" Command="{Binding OpenSettingsCommand}" Click="CloseDrawer"/>
-                                <Button Classes="drawerItem" Content="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateAsyncCommand}" CommandParameter="False" Click="CloseDrawer"/>
+                                <Button Classes="drawerItem" Content="{ll:Localize Gui_CheckUpdate}" Command="{Binding CheckUpdateCommand}" Click="CloseDrawer"/>
                             </StackPanel>
                         </Expander>
                         <Expander Classes="drawerGroup" Header="{ll:Localize Gui_Tools}">

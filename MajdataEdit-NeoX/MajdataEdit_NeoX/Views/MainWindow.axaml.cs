@@ -49,8 +49,11 @@ public partial class MainWindow : Window
     private async void OnOpened(object? sender, EventArgs e)
     {
         Opened -= OnOpened;
-        if (DataContext is MainViewModel vm)
-            await vm.NotifyInterruptedExitAsync();
+        if (DataContext is not MainViewModel vm) return;
+
+        // 上次没正常退出的提示先问，免得被更新提示抢在前面。
+        await vm.NotifyInterruptedExitAsync();
+        await vm.AutoCheckUpdateAsync();
     }
 
     protected override void OnDataContextChanged(EventArgs e)

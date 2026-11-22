@@ -24,6 +24,7 @@ using MajdataEdit_NeoX.Models.Plugin;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Models.Track;
 using MajdataEdit_NeoX.Services;
+using MajdataEdit_NeoX.Services.FileDialog;
 using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.Views;
 using MajSimai.Diagnostics;
@@ -49,7 +50,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     // Design
     public MainViewModel() : this(new AvaloniaFileDialogService(() => null)) { }
 
+    // 组合根注入
     private readonly IFileDialogService _fileDialog;
+    // 初始化时注入
     public IEditorService? Editor { get; set; }
     public MainViewModel(IFileDialogService fileDialog)
     {
@@ -758,6 +761,10 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly long? _interruptedSessionStart;
     private bool _crashPrompted;
 
+    // 自更新（Velopack）
+    private readonly UpdaterManager _updater = new();
+    private bool _updateRunning;
+
 
     // Plugins
     private readonly PluginManager _pluginsMng;
@@ -1102,11 +1109,139 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     #endregion
 
-    [RelayCommand]
-    public void CheckUpdateAsync()
-    {
+    #region 更新
 
+    /// <summary>
+    /// 启动时的静默检查：没更新、网络失败都不弹框，只在真发现新版本时问一句。
+    /// 由窗口 <c>Opened</c> 调用（见 MainWindow.OnOpened），受「启动时检查更新」开关控制。
+    /// </summary>
+    public async Task AutoCheckUpdateAsync()
+    {
+        if (!Settings.EditSetting.AutoCheckUpdatesOnStartup) return;
+        await RunUpdateCheckAsync(manual: false);
     }
+
+    /// <summary>
+    /// 菜单里的手动检查：每种结果都给回复，包括「已经最新」和失败原因。
+    /// </summary>
+    [RelayCommand]
+    public Task CheckUpdateAsync() =>
+        RunUpdateCheckAsync(manual: true);
+
+    private async Task RunUpdateCheckAsync(bool manual)
+    {
+        // 启动检查与手动检查可能撞在一起，只让一遍走完。
+        if (_updateRunning) return;
+        if (!UpdaterManager.IsSupportedPlatform)
+        {
+            if (manual) await InfoAsync(LangKeys.Msg_UpdateUnsupportedPlatform);
+            return;
+        }
+        if (!_updater.CanUpdate)
+        {
+            if (manual) await InfoAsync(LangKeys.Msg_UpdateNotInstalled);
+            return;
+        }
+
+        _updateRunning = true;
+        try
+        {
+            var target = await _updater.CheckAsync();
+            if (target is null)
+            {
+                // 自动检查时别拿「已经最新」打扰用户。
+                if (manual) await InfoAsync(LangKeys.Msg_NoNewVersion);
+                return;
+            }
+
+            var confirmText = string.Format(
+                LocalizationService.Default[LangKeys.Msg_NewVersionDetected],
+                target.Version,
+                _updater.CurrentVersion ?? MajEnv.MAJDATA_VERSION_STRING);
+            if (_updater.IsPortable)
+                confirmText += "\n\n" + LocalizationService.Default[LangKeys.Msg_UpdatePortableWarning];
+
+            var confirm = await MessageBox.TryConfirmAsync(
+                confirmText,
+                LocalizationService.Default[LangKeys.Gui_Info]);
+            // false = 用户点了「否」；null = 弹窗没弹出来，自动检查这次就先算了。
+            if (confirm is false) return;
+            if (confirm is null && !manual) return;
+
+            if (target.NeedsDownload)
+            {
+                // 进度窗口、取消、关闭都由 MessageBox 托管；取消后直接停在这一版，
+                // 包留个半截，下次检查重下一遍。进度按字节报，窗口拿 SizeBytes 当总量。
+                await MessageBox.RunWithProgressAsync(
+                    LocalizationService.Default[LangKeys.Gui_Info],
+                    LocalizationService.Default[LangKeys.Msg_UpdateDownloading],
+                    (report, cancel) => _updater.DownloadAsync(target, report, cancel),
+                    target.SizeBytes,
+                    ProgressViewModel.FormatBytes);
+            }
+
+            if (await MessageBox.TryConfirmAsync(
+                    LocalizationService.Default[LangKeys.Msg_UpdateReadyRestart],
+                    LocalizationService.Default[LangKeys.Gui_Info]) is true)
+                await ApplyUpdateAsync(target);
+        }
+        catch (OperationCanceledException)
+        {
+            // 用户在进度窗口里取消的下载，不用当错误报。
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Updater] check: {ex}");
+            // 启动检查失败不打扰；手动检查要说清是网络/接口的问题。
+            if (manual) await ErrorAsync(LangKeys.Msg_CheckUpdateRequestFail);
+        }
+        finally
+        {
+            _updateRunning = false;
+        }
+    }
+
+    /// <summary>
+    /// 应用已下载的更新并重启。<c>ApplyUpdatesAndRestart</c> 会立刻接管退出流程，
+    /// 所以先把该落的盘落完：有未保存改动先问「保存 / 不保存 / 取消」，
+    /// 再强制刷一次自动保存（就算选「不保存」，快照也还在）。
+    /// </summary>
+    private async Task ApplyUpdateAsync(UpdateTarget target)
+    {
+        try
+        {
+            // 取消就留在当前版本，下次检查还能再装。
+            if (Maidata is { IsDirty: true })
+            {
+                switch (await MessageBox.AskSaveAsync(
+                    LocalizationService.Default[LangKeys.Msg_ChartNotSaved],
+                    LocalizationService.Default[LangKeys.Gui_Warning]))
+                {
+                    case SaveChoice.Cancel:
+                        return;
+                    case SaveChoice.Save:
+                        await SaveFileAsync();
+                        break;
+                }
+            }
+
+            await _autoSave.FlushAsync(force: true);
+            SaveLayout();
+            SaveChartEditRecord();
+            _session.End();
+            _updater.ApplyAndRestart(target);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Updater] apply: {ex}");
+            await MessageBox.ShowAsync(
+                string.Format(LocalizationService.Default[LangKeys.Msg_UpdateApplyFailed], ex.Message),
+                LocalizationService.Default[LangKeys.Gui_Error],
+                icon: MsBox.Avalonia.Enums.Icon.Error);
+        }
+    }
+
+    #endregion
 
 
     // 手动滑动时调用

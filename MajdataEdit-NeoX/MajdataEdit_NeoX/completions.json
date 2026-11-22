@@ -1,0 +1,16 @@
+{
+  "[": [
+    ["4:1]", null, null],
+    ["8:1]", null, null],
+    ["1:0]", null, null],
+    ["384:1]", null, null]
+  ],
+  "{": [
+    ["4}", null, null],
+    ["3}", null, null],
+    ["8}", null, null],
+    ["16}", null, null],
+    ["12}", null, null],
+    ["384}", null, null]
+  ]
+}
