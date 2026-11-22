@@ -15,7 +15,7 @@
         Icon="/Assets/favicon.ico"
 
         Title="{Binding WindowTitle}"
-        Plugins ="{Binding Plugins}"
+        Plugins="{Binding Plugins}"
 
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40"

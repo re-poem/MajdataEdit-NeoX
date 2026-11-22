@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.Plugin;
+using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.ViewModels;
 using PropertyGenerator.Avalonia;
@@ -50,6 +51,8 @@ public partial class MainWindow : Window
     {
         Opened -= OnOpened;
         if (DataContext is not MainViewModel vm) return;
+
+        RestoreWindowPlacement(vm.Settings.WindowSetting);
 
         // 上次没正常退出的提示先问，免得被更新提示抢在前面。
         await vm.NotifyInterruptedExitAsync();
@@ -168,6 +171,56 @@ public partial class MainWindow : Window
     #endregion
 
 
+    #region Window Placement
+
+    /// <summary>把上次窗口摆回原位。Opened 时窗口已经 Show 出来，直接改属性即可。</summary>
+    private void RestoreWindowPlacement(MajWindowSetting placement)
+    {
+        // 显示器被拔掉后存下来的坐标会落在所有屏幕之外，那种情况就留着 CenterScreen 的居中结果。
+        if (placement.Width >= 1 && placement.Height >= 1)
+        {
+            var target = new PixelRect(placement.PosX, placement.PosY, (int)placement.Width, (int)placement.Height);
+            var area = Screens.All.FirstOrDefault(s => s.WorkingArea.Intersects(target))?.WorkingArea;
+
+            if (area is { } bounds)
+            {
+                // 换了小屏幕时先把尺寸收进工作区，否则窗口会撑到屏幕外。
+                var width = Math.Min(placement.Width, bounds.Width);
+                var height = Math.Min(placement.Height, bounds.Height);
+
+                // 先按普通窗口定位：最大化时 Position 会被忽略，得摆好再进最大化。
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                Width = width;
+                Height = height;
+                Position = new PixelPoint(
+                    Math.Clamp(placement.PosX, bounds.X, bounds.Right - (int)width),
+                    Math.Clamp(placement.PosY, bounds.Y, bounds.Bottom - (int)height));
+            }
+        }
+
+        if (placement.Maximized)
+            WindowState = WindowState.Maximized;
+    }
+
+    /// <summary>记下这次的位置；只在确认退出后调用，取消退出不该覆盖已存的值。</summary>
+    private void SaveWindowPlacement(MainViewModel vm)
+    {
+        var placement = vm.Settings.WindowSetting;
+        placement.Maximized = WindowState == WindowState.Maximized;
+
+        // 最大化/最小化时 Position 与 Width/Height 是平台改写过的值，只记普通状态下的，
+        // 免得把还原后的大小弄丢。
+        if (WindowState != WindowState.Normal) return;
+
+        placement.PosX = Position.X;
+        placement.PosY = Position.Y;
+        placement.Width = Width;
+        placement.Height = Height;
+    }
+
+    #endregion
+
+
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         // 已放行，或确认框还开着（用户又点了一次关闭）：都交给已经在走的那一遍。
@@ -185,6 +238,13 @@ public partial class MainWindow : Window
                 return;
 
             _closeConfirmed = true;
+
+            // 位置在收尾前落盘，后面 Dispose 掉 VM 就拿不到设置了。
+            if (DataContext is MainViewModel closingVm)
+            {
+                SaveWindowPlacement(closingVm);
+                closingVm.SaveSettings();
+            }
 
             if (DataContext is not null)
                 await AskCloseViewsAsync();

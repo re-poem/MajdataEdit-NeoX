@@ -12,4 +12,5 @@ public class MajWindowSetting
     public int PosY { get; set; } = 300;
     public double Width { get; set; } = 880;
     public double Height { get; set; } = 600;
+    public bool Maximized { get; set; }
 }
