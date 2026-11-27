@@ -1,18 +1,13 @@
 name: Release
 
 # 手动触发。版本一律从 csproj 的 <Version> 取，不开放输入，避免 tag 与程序版本对不上。
-# 不勾 publish：发 pre-release，tag 为 v<版本>-<yyyymmdd>-<短哈希>，并清掉上一个 pre-release。
+# 不勾 publish：发 pre-release，tag 为 v<版本>-<yyyymmdd>-<短哈希>，并清掉旧的 pre-release。
 # 勾 publish：发正式 Release，tag 就是 v<版本>。
-# self_hosted 假定是装了 Unity / .NET 10 / Docker 的 Windows runner（三个 job 都跑在它上面）。
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish a stable release
-        type: boolean
-        default: false
-      self_hosted:
-        description: Run on a self-hosted runner
+        description: Publish a stable release instead of a pre-release
         type: boolean
         default: false
 
@@ -37,7 +32,7 @@ permissions:
 jobs:
   # Unity 侧（MajdataViewX）的 Windows 独立构建。授权沿用该仓库 nightly 的账号密码方式。
   build-view:
-    runs-on: ${{ inputs.self_hosted && 'self-hosted' || 'windows-latest' }}
+    runs-on: windows-latest
     timeout-minutes: 120
     env:
       UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -45,7 +40,6 @@ jobs:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
     steps:
       - name: Configure Pagefile
-        if: ${{ !inputs.self_hosted }}
         uses: al-cheb/configure-pagefile-action@v1.5
         with:
           minimum-size: 2GB
@@ -119,7 +113,7 @@ jobs:
 
   # 编辑器本体。发布形态交给仓库里的 FolderProfile.pubxml，CI 只给配置和输出目录。
   build-editor:
-    runs-on: ${{ inputs.self_hosted && 'self-hosted' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -132,10 +126,8 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # self-hosted 是 Windows 时默认 shell 是 pwsh，这两步依赖 bash 语法，显式指定
       - name: Read version from csproj
         id: version
-        shell: bash
         run: |
           v=$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' "$CSPROJ" | head -1)
           if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
@@ -146,7 +138,6 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Publish editor
-        shell: bash
         run: >
           dotnet publish "$CSPROJ"
           -c Release
@@ -165,7 +156,7 @@ jobs:
   # 拼包：两个产物平铺进同一目录（编辑器期望 View 与自己在同一层），再打成便携包。
   pack:
     needs: [build-view, build-editor]
-    runs-on: ${{ inputs.self_hosted && 'self-hosted' || 'windows-latest' }}
+    runs-on: windows-latest
     timeout-minutes: 30
     env:
       VERSION: ${{ needs.build-editor.outputs.version }}
