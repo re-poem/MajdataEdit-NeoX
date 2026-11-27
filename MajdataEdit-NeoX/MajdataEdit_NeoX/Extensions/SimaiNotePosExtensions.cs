@@ -1,7 +1,4 @@
 ﻿using Cimai;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MajdataEdit_NeoX.Extensions;
 

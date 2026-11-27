@@ -1,16 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
-using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.PropertyGrid.Services;
 using CommunityToolkit.Mvvm.Input;
 using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.Fumen;
-using PropertyGenerator.Avalonia;
-using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 

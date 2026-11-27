@@ -1,6 +1,4 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
 using Avalonia.PropertyGrid.Localization;
 using MajdataEdit_NeoX.Input;
 using System;

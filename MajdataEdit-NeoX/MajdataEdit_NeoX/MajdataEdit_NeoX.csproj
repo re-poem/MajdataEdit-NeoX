@@ -45,7 +45,6 @@
 		<PackageReference Include="NuGet.Versioning" />
 		<PackageReference Include="NLua" />
 		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
-		<PackageReference Include="PropertyGenerator.Avalonia" />
 		<PackageReference Include="SkiaSharp" />
 		<PackageReference Include="Svg.Controls.Skia.Avalonia" />
 		<PackageReference Include="Velopack" />

@@ -1,12 +1,9 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.PropertyGrid.Services;
-using MajdataEdit_NeoX.Models.Plugin;
 using MajdataEdit_NeoX.ViewModels;
 using System;
 using System.ComponentModel;

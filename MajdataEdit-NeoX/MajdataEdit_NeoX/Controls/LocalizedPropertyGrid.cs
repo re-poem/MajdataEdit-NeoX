@@ -3,9 +3,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.PropertyGrid.Controls;
 using Avalonia.PropertyGrid.Localization;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MajdataEdit_NeoX.Controls;
 

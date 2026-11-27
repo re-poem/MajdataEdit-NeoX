@@ -1,19 +1,14 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
-using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml.MarkupExtensions;
-using Avalonia.Media;
 using Avalonia.PropertyGrid.Services;
-using CommunityToolkit.Mvvm.Input;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.Models.Plugin;
 using MajdataEdit_NeoX.Models.Setting;
 using MajdataEdit_NeoX.Types;
 using MajdataEdit_NeoX.ViewModels;
-using PropertyGenerator.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -65,11 +60,18 @@ public partial class MainWindow : Window
         RebuildPluginUi();
     }
 
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == PluginsProperty) RebuildPluginUi();
+    }
+
     #region Plugins Menu
 
     [GeneratedDirectProperty]
     public partial IReadOnlyList<LuaPlugin>? Plugins { get; set; }
-    partial void OnPluginsPropertyChanged(IReadOnlyList<LuaPlugin>? newValue) => RebuildPluginUi();
 
     private void RebuildPluginUi()
     {

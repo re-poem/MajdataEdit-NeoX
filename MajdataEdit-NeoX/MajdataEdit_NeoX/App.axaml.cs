@@ -1,11 +1,9 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.PropertyGrid.Localization;
 using Avalonia.PropertyGrid.Services;
-using Dock.Settings;
 using MajdataEdit_NeoX.Base;
 using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Services.FileDialog;

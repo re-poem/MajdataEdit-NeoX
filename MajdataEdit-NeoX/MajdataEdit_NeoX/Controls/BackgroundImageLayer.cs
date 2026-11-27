@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using PropertyGenerator.Avalonia;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -72,8 +71,10 @@ public partial class BackgroundImageLayer : Panel
 
     // ───────────────────────── 属性变化 ─────────────────────────
 
-    partial void OnPropertyChangedOverride(AvaloniaPropertyChangedEventArgs change)
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
+        base.OnPropertyChanged(change);
+
         if (change.Property == ImagePathProperty || change.Property == DecodeWidthProperty)
             LoadImageAsync(ImagePath, DecodeWidth);
         else if (change.Property == ImageOpacityProperty)

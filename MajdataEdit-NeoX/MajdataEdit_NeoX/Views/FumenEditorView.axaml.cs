@@ -3,26 +3,19 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
-using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
-using CommunityToolkit.Mvvm.ComponentModel;
 using MajdataEdit_NeoX.Base;
-using MajdataEdit_NeoX.Input;
 using MajdataEdit_NeoX.Managers.TextMarkers;
 using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Services;
 using MajSimai.Diagnostics;
-using PropertyGenerator.Avalonia;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Windows.Input;
 using TextMateSharp.Grammars;
 
 namespace MajdataEdit_NeoX.Views;
@@ -55,53 +48,37 @@ public partial class FumenEditorView : UserControl, IEditorService
     }
 
 
-    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
-    public partial string? Fumen { get; set; }
-
-
-    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial IReadOnlyList<SimaiDiagnostic>? Diagnostics { get; set; }
-    partial void OnDiagnosticsPropertyChanged(IReadOnlyList<SimaiDiagnostic>? newValue) =>
-        RebuildMarkers();
-
-
-    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
-    public partial double EditorFontSize { get; set; }
-    partial void OnEditorFontSizePropertyChanged(double newValue) =>
-        Editor.FontSize = newValue;
-
-    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
-    public partial bool WordWrap { get; set; }
-
-
-    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
-    public partial int CaretOffset { get; set; }
-    partial void OnCaretOffsetPropertyChanged(int newValue)
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
-        if (Editor.TextArea.Caret.Offset != newValue)
+        base.OnPropertyChanged(change);
+
+        if (change.Property == DiagnosticsProperty)
+            RebuildMarkers();
+        else if (change.Property == EditorFontSizeProperty)
+            Editor.FontSize = EditorFontSize;
+        else if (change.Property == CaretOffsetProperty)
         {
-            Editor.TextArea.Caret.Offset = Math.Clamp(newValue,
-                0, Editor.Document.TextLength);
-            Editor.TextArea.Caret.BringCaretToView();
-            Editor.TextArea.Caret.Show();
+            if (Editor.TextArea.Caret.Offset != CaretOffset)
+            {
+                Editor.TextArea.Caret.Offset = Math.Clamp(CaretOffset,
+                    0, Editor.Document.TextLength);
+                Editor.TextArea.Caret.BringCaretToView();
+                Editor.TextArea.Caret.Show();
+            }
+        }
+        else if (change.Property == FumenProperty)
+        {
+            if (_pushing) return;
+            // 外部换了谱面：整个文档重建，别让编辑器原地改文本
+            _doc?.TextChanged -= OnDocChanged;
+            _doc = new TextDocument(Fumen ?? string.Empty);
+            Editor.Document = _doc;
+            _doc.TextChanged += OnDocChanged;
+            // 文档换了，marker 服务也得跟着换（旧服务绑定在旧文档上）
+            AttachMarkerManager(_doc);
         }
     }
 
-
-    private TextDocument? _doc;
-    private bool _pushing;
-
-    // 外部改了：换一个新文档
-    partial void OnFumenPropertyChanged(string? newValue)
-    {
-        if (_pushing) return;
-        _doc?.TextChanged -= OnDocChanged;
-        _doc = new TextDocument(newValue ?? string.Empty);
-        Editor.Document = _doc;
-        _doc.TextChanged += OnDocChanged;
-        // 文档换了，marker 服务也得跟着换（旧服务绑定在旧文档上）
-        AttachMarkerManager(_doc);
-    }
     // 编辑器内改了：写回 Fumen
     private void OnDocChanged(object? s, EventArgs e)
     {
@@ -117,7 +94,26 @@ public partial class FumenEditorView : UserControl, IEditorService
     }
 
 
-    // ======== 诊断下划线 ========
+    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    public partial string? Fumen { get; set; }
+
+
+    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.OneWay)]
+    public partial IReadOnlyList<SimaiDiagnostic>? Diagnostics { get; set; }
+
+    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    public partial double EditorFontSize { get; set; }
+
+    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    public partial bool WordWrap { get; set; }
+
+    [GeneratedStyledProperty(DefaultBindingMode = BindingMode.TwoWay)]
+    public partial int CaretOffset { get; set; }
+
+
+    private TextDocument? _doc;
+    private bool _pushing;
+
 
     private TextMarkerManager _markerManager = null!;
     private ITextMarker? _tooltipMarker;

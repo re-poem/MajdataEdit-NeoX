@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using MajdataEdit_NeoX.Lang;
 using MajdataEdit_NeoX.ViewModels;
 using MajdataEdit_NeoX.Views;
 using MsBox.Avalonia;

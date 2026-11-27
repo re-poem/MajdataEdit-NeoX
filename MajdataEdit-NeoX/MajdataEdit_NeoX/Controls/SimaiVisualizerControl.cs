@@ -10,7 +10,6 @@ using Cimai;
 using MajdataEdit_NeoX.Extensions;
 using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.Track;
-using PropertyGenerator.Avalonia;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

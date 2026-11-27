@@ -1,9 +1,5 @@
 using Avalonia.Controls;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using CommunityToolkit.Mvvm.Input;
-using MajdataEdit_NeoX.ViewModels;
-using System;
 using System.Diagnostics;
 
 namespace MajdataEdit_NeoX.Views;

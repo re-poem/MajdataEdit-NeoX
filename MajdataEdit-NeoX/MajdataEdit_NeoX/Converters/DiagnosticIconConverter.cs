@@ -4,9 +4,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using MajSimai.Diagnostics;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 
 namespace MajdataEdit_NeoX.Converters;
 

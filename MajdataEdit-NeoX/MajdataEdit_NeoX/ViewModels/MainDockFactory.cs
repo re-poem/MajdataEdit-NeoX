@@ -7,14 +7,10 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
-using Dock.Settings;
-using FluentAvalonia.UI.Controls;
 using MajdataEdit_NeoX.Controls;
 using MajdataEdit_NeoX.Views;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Metadata;
 
 namespace MajdataEdit_NeoX.ViewModels;
 

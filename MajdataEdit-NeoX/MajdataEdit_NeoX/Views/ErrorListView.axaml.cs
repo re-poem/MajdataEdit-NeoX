@@ -3,13 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
-using Avalonia.VisualTree;
 using MajSimai.Diagnostics;
-using PropertyGenerator.Avalonia;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
@@ -25,7 +19,14 @@ public partial class ErrorListView : UserControl
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial IReadOnlyList<SimaiDiagnostic>? Diagnostics { get; set; }
-    partial void OnDiagnosticsPropertyChanged(IReadOnlyList<SimaiDiagnostic>? newValue) => Rebuild();
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == DiagnosticsProperty) Rebuild();
+    }
+
     private void OnFilterChanged(object? sender, RoutedEventArgs e) => Rebuild();
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.TwoWay)]

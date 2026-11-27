@@ -1,5 +1,4 @@
 ﻿using MajdataEdit_NeoX.Lang;
-using MajdataEdit_NeoX.Types;
 using PropertyModels.ComponentModel;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
