@@ -8,6 +8,7 @@ using Avalonia.Skia;
 using Avalonia.Threading;
 using Cimai;
 using MajdataEdit_NeoX.Extensions;
+using MajdataEdit_NeoX.Models.Fumen;
 using MajdataEdit_NeoX.Models.Track;
 using PropertyGenerator.Avalonia;
 using SkiaSharp;
@@ -96,7 +97,7 @@ internal partial class SimaiVisualizerControl : Control
     public partial SimaiChart? Chart { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
-    public partial List<(double, int, int)>? Signatures { get; set; }
+    public partial List<Signature>? Signatures { get; set; }
 
     [GeneratedDirectProperty(DefaultBindingMode = BindingMode.OneWay)]
     public partial float Offset { get; set; }
@@ -143,7 +144,7 @@ internal partial class SimaiVisualizerControl : Control
     }
     private sealed class CustomDrawOp(Rect bounds,
         TrackInfo trackInfo, double time, float zoomLevel,
-        SimaiChart? chart, List<(double, int, int)> signatures,
+        SimaiChart? chart, List<Signature> signatures,
         float offset, double caretTime, bool isAnimated,
         AnimationState animationState, Action requestNextFrame) : ICustomDrawOperation
     {
@@ -321,10 +322,11 @@ internal partial class SimaiVisualizerControl : Control
                 {
                     for (var s = signatures.Count - 1; s >= 0; s--)
                     {
-                        if (timeBeats > signatures[s].Item1 - 0.05)
+                        // timeBeats 是含 offset 的音频时间，拍号时间也得跟着偏
+                        if (timeBeats > signatures[s].Time + offset - 0.05)
                         {
-                            signatureNum = signatures[s].Item2;
-                            signatureDeno = signatures[s].Item3;
+                            signatureNum = signatures[s].Numerator;
+                            signatureDeno = signatures[s].Denominator;
                             break;
                         }
                     }

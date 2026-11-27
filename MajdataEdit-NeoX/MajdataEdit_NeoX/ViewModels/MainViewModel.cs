@@ -475,10 +475,11 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _checkCts = new();
         try
         {
-            await Task.Delay(810, _checkCts.Token);
+            await Task.Delay(520, _checkCts.Token);
             if (_checkCts.IsCancellationRequested) return;
 
             Diagnostics = SimaiSyntaxChecker.CheckChart(Fumen.AsSpan());
+            Signatures = FumenHelper.ParseSignature(Fumen.AsSpan());
         }
         catch (TaskCanceledException) { }
         catch (OperationCanceledException) { }
@@ -550,6 +551,9 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     public partial IReadOnlyList<SimaiDiagnostic> Diagnostics { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial List<Signature> Signatures { get; private set; } = [];
 
 
 

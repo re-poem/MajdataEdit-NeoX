@@ -209,6 +209,7 @@ public class MainDockFactory : Factory
         view.Bind(SimaiVisualizerControl.CaretTimeProperty, new Binding(nameof(MainViewModel.CaretTime)));
         view.Bind(SimaiVisualizerControl.IsAnimatedProperty, new Binding(nameof(MainViewModel.WaveAnimated)));
         view.Bind(SimaiVisualizerControl.SeekProperty, new Binding(nameof(MainViewModel.SeekPlayheadTimeCommand)));
+        view.Bind(SimaiVisualizerControl.SignaturesProperty, new Binding(nameof(MainViewModel.Signatures)));
 
         return view;
     }
