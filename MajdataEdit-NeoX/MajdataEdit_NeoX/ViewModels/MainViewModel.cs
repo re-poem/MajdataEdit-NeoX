@@ -435,7 +435,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 break;
             case nameof(MaidataFile.Fumens):
                 OnPropertyChanged(nameof(Fumen));
-                _ = DebouncedFumenChanged();
                 break;
             case nameof(MaidataFile.Charts):
                 OnPropertyChanged(nameof(Chart));
@@ -454,20 +453,28 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // 每一笔改动都给自动保存重新起搏。
         if (Maidata?.IsDirty == true) _autoSave.NotifyEdited();
 
-        // MaidataFile 任意更改都让服务端重新 Parse（谱面 + metadata 一次提交）。
-        _ = ParseAsync();
+        // 虽然有防抖但还是自己限一下
+        if (e.PropertyName is not (nameof(MaidataFile.Charts) or nameof(MaidataFile.IsDirty)))
+            _ = DebouncedMaidataChanged();
     }
-    private async Task DebouncedFumenChanged()
+    private async Task DebouncedMaidataChanged()
     {
-        _checkCts?.Cancel();
-        _checkCts?.Dispose();
+        var parsed = false;
+        if (Fumen.Length < 20000)
+        {
+            _ = ParseAsync();
+            parsed = true;
+        }
+        _debouncedMaidataChangedCts?.Cancel();
+        _debouncedMaidataChangedCts?.Dispose();
 
-        _checkCts = new();
+        _debouncedMaidataChangedCts = new();
         try
         {
-            await Task.Delay(520, _checkCts.Token);
-            if (_checkCts.IsCancellationRequested) return;
+            await Task.Delay(250, _debouncedMaidataChangedCts.Token);
+            if (_debouncedMaidataChangedCts.IsCancellationRequested) return;
 
+            if (!parsed) _ = ParseAsync();
             Diagnostics = SimaiSyntaxChecker.CheckChart(Fumen.AsSpan());
             Signatures = FumenHelper.ParseSignature(Fumen.AsSpan());
         }
@@ -718,7 +725,7 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     // 连接
 
-    private CancellationTokenSource? _checkCts;
+    private CancellationTokenSource? _debouncedMaidataChangedCts;
 
     // 变化通知在构造函数 _player.OnConnectedChanged
     // 因为直接绑的 _client.State，没法 Observable
@@ -1302,7 +1309,6 @@ public partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (_chartFolder?.Track is null) return;
         if (!await _player.ConnectAsync()) return;
         await PushResourcesToPlayerAsync();
-        if (!_pushedChart) await ParseAsync();
     }
     private async Task ParseAsync()
     {
