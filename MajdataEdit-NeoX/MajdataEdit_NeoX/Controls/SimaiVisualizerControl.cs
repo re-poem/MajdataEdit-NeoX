@@ -400,6 +400,8 @@ internal partial class SimaiVisualizerControl : Control
 
                 foreach (var note in notes)
                 {
+                    if (note.CanBeFolded) continue;
+
                     var y = (float)(note.StartPos.GetPosNum() * separate + 10f);
 
                     if (note.IsHanabi)
